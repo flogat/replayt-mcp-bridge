@@ -4,6 +4,18 @@
 
 **[CONTRIBUTING.md](CONTRIBUTING.md)** — local **pytest** / **Ruff** commands and PR expectations (aligned with CI).
 
+**[CHANGELOG.md](CHANGELOG.md)** — release notes (Keep a Changelog).
+
+## Compatibility with replayt
+
+Declared support is **`replayt>=0.4.25,<0.5`** in [`pyproject.toml`](pyproject.toml). CI reinstalls **`replayt==0.4.25`** in the `replayt-floor` job to guard the lower bound; the default job resolves the latest **replayt** compatible with that range.
+
+| Bridge version | Supported replayt (declared) | CI-tested replayt |
+| -------------- | ---------------------------- | ----------------- |
+| 0.1.0          | `>=0.4.25,<0.5`              | **0.4.25** (minimum); latest in range on matrix jobs |
+
+When replayt **minor** or **major** lines change behavior or APIs this bridge uses, maintainers should bump the dependency range in `pyproject.toml`, refresh this table and [CHANGELOG.md](CHANGELOG.md), and extend CI if a new floor pin is needed.
+
 ## Overview
 
 This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
@@ -68,6 +80,7 @@ match your team’s tooling.
 
 | Path | Purpose |
 | ---- | ------- |
+| `CHANGELOG.md` | Release history (Keep a Changelog) |
 | `CONTRIBUTING.md` | How to run checks locally and what CI enforces |
 | `.github/workflows/ci.yml` | Automated Ruff + pytest workflow |
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |

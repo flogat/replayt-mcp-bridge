@@ -64,7 +64,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Review notes (risks and follow-ups)
 
-- **Phase 5 (architecture review):** Documented under [Architecture review (phase 5)](#architecture-review-phase-5) below—code, operator security docs, and contract tests aligned for the MCP hosting trust boundary.
+- **Phase 5 (architecture review):** Documented under [Architecture review (phase 5)](#architecture-review-phase-5) below—**declared replayt range**, integrator-facing docs, **`replayt-floor`** CI, and **version/doc contract tests** stay aligned (backlog: compatibility matrix and CHANGELOG).
 - **Phase 6 (security review):** `server.py` was reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler changes were required for the stated stdio / trusted-operator model; CI gained explicit read-only `contents` permissions; optional hardenings remain follow-ups.
 - **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
@@ -72,25 +72,30 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ### Architecture review (phase 5)
 
-**Scope:** Backlog **“Ship structured logging with redaction hooks”**—verify the observability stack is coherent, documented, and test-backed; confirm alignment with [docs/SECURITY.md](SECURITY.md), this doc, [MCP_TOOLS.md](MCP_TOOLS.md), and `server.py`.
+**Scope:** Backlog **“Add compatibility matrix and CHANGELOG for replayt releases”**—confirm how **integrators** learn supported replayt versions stays coherent: one **declared** PEP 440 range in packaging, mirrored in human docs, exercised at the **lower bound** in CI, and guarded by **pytest** so edits cannot drift silently.
 
-**Design:** Logging is centralized in **`observability.py`**: `configure_bridge_logging()` attaches a single stderr `StreamHandler` to the `replayt_mcp_bridge` logger with `%(message)s` formatting so each `emit_json_log` call is one JSON line. `emit_json_log` builds UTC timestamps, level names, and an `event` string, runs **`redact_structure`** on caller-supplied fields (key-substring heuristics), then `json.dumps` the payload. Log level comes only from **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** via `resolve_log_level_from_env()`—the **only** bridge-package `os.environ` read, enforced by `tests/test_security_docs.py`.
+**Single source of truth:** `[project].dependencies` in [`pyproject.toml`](../pyproject.toml) holds the **`replayt`** constraint (today `replayt>=0.4.25,<0.5`). Install resolution and downstream metadata derive from that line—not from README prose alone.
 
-**Server integration:** `run_stdio()` configures logging first, then emits `replayt_mcp_bridge.server.start`. **`_log_replayt_tool_boundaries`** (applied under `@mcp.tool()` on every handler) uses `find_context_parameter` so FastMCP-injected **`ctx: Context | None = None`** is optional; when present, **`mcp_request_id`** is attached if `ctx.request_id` is available. Begin/end lines use **INFO**; unhandled exceptions emit **`replayt_mcp_bridge.tool.unhandled_exception`** at **ERROR** plus `logger.exception` for a traceback. **No MCP argument values** are passed into `emit_json_log`—only `tool`, correlation fields, and result `status` on the end event—matching [docs/SECURITY.md](SECURITY.md) and `tests/test_mcp_tools.py` (`replayt_echo` payload absent from INFO logs).
+**Integrator surfaces (intentional duplication):**
 
-**Structure and handlers (unchanged):** Layering and the tool → replayt mapping match `server.py` and [MCP_TOOLS.md](MCP_TOOLS.md). Structured errors use `_tool_error`; persistence helpers match the described path resolution.
+- **[README.md](../README.md)** — **Compatibility with replayt** repeats the **exact** dependency line from `pyproject.toml` and a small **bridge version × declared range × CI-tested floor** table so upgrades are plannable without opening packaging files.
+- **[CHANGELOG.md](../CHANGELOG.md)** — Keep a Changelog sections; each release notes user-visible bridge changes and references the declared replayt range when it matters to consumers.
+- **[CONTRIBUTING.md](../CONTRIBUTING.md) § Releases** — One paragraph tying **version bump**, **changelog**, **`pyproject.toml`**, **README** table, **`replayt-floor`** pin in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), green CI, and **git tag**.
+- **[DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) § replayt version contract** — Long-form policy (range vs pin, tracking upstream, Windows venv note); must quote the same range as `pyproject.toml` for discoverability.
 
-**Automation:** `tests/test_observability.py` asserts redaction of dummy secrets in structures and in emitted JSON; `tests/test_mcp_tools.py` parses JSON log lines for tool boundaries; `tests/test_security_docs.py` locks the env-read surface and doc cross-links.
+**CI boundary:** Besides the default matrix (latest **replayt** compatible with the declared range), the **`replayt-floor`** job reinstalls **`replayt=={minimum}`** after `pip install -e ".[dev]"` so the **lower bound** is not only documented but **tested** against the same suite as the default job.
 
-**Residual / extension rules:** New replayt-backed tools should keep **`@_log_replayt_tool_boundaries`** and **`ctx: Context | None = None`** for correlation continuity. **`redact_structure`** is substring-on-key only—values under innocuous key names are not redacted; future structured fields must either use secret-shaped keys, omit values at INFO, or avoid logging them. New in-package `getenv` or transports require updating SECURITY.md, MISSION, and contract tests in the same change. Product choices (generic errors for unexpected replayt exceptions, host-side JSON-RPC traces) remain outside the bridge logger contract.
+**Automation:** [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) parses `pyproject.toml` and asserts README, CHANGELOG, CONTRIBUTING, CI, and DESIGN_PRINCIPLES stay consistent with the declared range and `[project].version`. Tests use a literal `_EXPECTED_REPLAYT_SPEC` alongside `pyproject.toml` so a partial bump fails loudly (update the constant and docs together). Floor parsing today expects a **`>=x.y.z`** patch triple; a more exotic constraint string would need a richer parser.
+
+**Residual / extension rules:** When the minimum or range changes, update **`pyproject.toml`**, **README**, **CHANGELOG**, **CONTRIBUTING**, **DESIGN_PRINCIPLES** (if the narrative changes), **CI** `replayt-floor` reinstall and job label, and **`_EXPECTED_REPLAYT_SPEC`** in the contract tests in one maintainer pass. **Structured logging** and MCP trust-boundary architecture remain under [Observability](#observability) and [Security review (phase 6)](#security-review-phase-6).
 
 ### Security review (phase 6)
 
-**Scope:** Security pass on **`server.py`** (tool surface and dispatch) against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the security table in [MCP_TOOLS.md](MCP_TOOLS.md), plus **`observability.py`** for the structured-logging / redaction contract tied to backlog **“Ship structured logging with redaction hooks.”**
+**Scope:** Phase **6** security pass on **`server.py`** (tool surface and dispatch) against [MISSION.md](MISSION.md#security-and-trust-boundaries) and [MCP_TOOLS.md § Security](MCP_TOOLS.md#security), plus **`observability.py`** for structured logging and key-based redaction (aligned with [docs/SECURITY.md](SECURITY.md)).
 
 **Observability (`observability.py`):** `emit_json_log` runs caller fields through **`redact_structure`** (case-insensitive key substrings: password, secret, token, api_key, etc.) before `json.dumps`; values under non-matching keys are unchanged—same residual as phase 5. **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** is the sole in-package `os.environ` read (verbosity only; invalid names fall back to **INFO**). `configure_bridge_logging` attaches one stderr `StreamHandler` with `%(message)s`, **`propagate=False`** on `replayt_mcp_bridge` to avoid duplicate root handlers, and does not log environment values. `json.dumps(..., default=str)` is a last resort for non-JSON-native field values; current bridge emissions use JSON-safe primitives.
 
-**Phase 6 close-out:** Re-checked `server.py` and `observability.py` against the tables and docs above. Dispatch remains replayt/`pathlib` only (no shell or subprocess for MCP args); `_log_replayt_tool_boundaries` still omits tool arguments from log payloads; contract tests (`test_security_docs.py`, `test_observability.py`, `test_mcp_tools.py`) still enforce the env-read surface and redaction. No code changes were required; findings below are unchanged aside from the explicit observability verification.
+**Phase 6 close-out:** Re-checked all `@mcp.tool()` handlers, `_resolve_persistence_paths` / `_open_read_store`, and `observability.py` against MISSION, MCP_TOOLS § Security, and SECURITY.md. Dispatch remains replayt/`pathlib` only (no shell or subprocess for MCP args); `_log_replayt_tool_boundaries` still omits tool arguments from log payloads; contract tests (`test_security_docs.py`, `test_observability.py`, `test_mcp_tools.py`) enforce the single env-read surface and redaction. No handler or observability code changes were required; the table below remains the authoritative residual-risk summary.
 
 **Transport and process:** The documented entrypath remains **stdio-only**; the bridge does not open its own network listeners. Whoever controls the parent process (or can substitute stdio) can invoke tools—treat MCP attachment as a **trusted-operator** boundary, not anonymous wide-area exposure.
 
@@ -114,8 +119,12 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 | Path | Purpose |
 | ---- | ------- |
+| `README.md` | Compatibility table and declared replayt line (mirrors `pyproject.toml`) |
+| `CHANGELOG.md` | Keep a Changelog history; release notes for integrators |
+| `pyproject.toml` | Bridge version and declared `replayt` dependency range (SSoT) |
 | `.github/workflows/ci.yml` | Ruff + pytest workflow and replayt floor job |
-| `CONTRIBUTING.md` | Local check commands aligned with CI |
+| `CONTRIBUTING.md` | Local check commands aligned with CI; Releases paragraph |
+| `tests/test_version_contract_docs.py` | Contract tests: docs + CI aligned with `pyproject.toml` |
 | `docs/SECURITY.md` | Env vars, logging/redaction, deployment, MCP host trust (operator-facing) |
 | `src/replayt_mcp_bridge/server.py` | FastMCP app, tool implementations, persistence helpers |
 | `src/replayt_mcp_bridge/observability.py` | Structured JSON logging, redaction, log level env |
