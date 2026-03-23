@@ -86,6 +86,8 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Scope:** Line-by-line review of `src/replayt_mcp_bridge/server.py` against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the security table in [MCP_TOOLS.md](MCP_TOOLS.md).
 
+**Phase 6 close-out:** Re-checked the current `server.py` (dispatch-only replayt/`pathlib` usage, persistence resolution, structured errors, logging decorator vs `replayt_echo`). The input/surface table, information-disclosure notes, and follow-ups below still match the implementation; no handler changes were needed.
+
 **Transport and process:** The documented entrypath remains **stdio-only**; the bridge does not open its own network listeners. Whoever controls the parent process (or can substitute stdio) can invoke tools—treat MCP attachment as a **trusted-operator** boundary, not anonymous wide-area exposure.
 
 **Dispatch path:** Tool handlers call replayt APIs and `pathlib` helpers only. There is **no** `subprocess`, `os.system`, or shell string assembly for MCP arguments.
