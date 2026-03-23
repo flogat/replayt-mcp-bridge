@@ -61,6 +61,26 @@ dynamic code execution, or paths outside documented intent.
 This mission is not “LLM showcase first.” If future demos or model calls are added, document models, secrets handling,
 cost, and redaction in this doc or in a dedicated doc linked from the README.
 
+## MCP server (stdio)
+
+**Specification.** The following defines the first MCP entrypoint for this bridge.
+
+**User story:** As an **operator**, I want a **runnable MCP server process** (minimal wiring) so that **MCP clients** can attach and use tools without one-off custom integration for each host.
+
+**Intent:** Introduce a **minimal** MCP server using the **official Python MCP SDK** (or an equivalent documented pattern from [modelcontextprotocol.io](https://modelcontextprotocol.io/)), with **stdio** as the default transport. Tool implementations may be stubs initially; the first milestone is a **correct process boundary** and **documented launch** surface.
+
+**Packaging (implemented):**
+
+- Console entry point **`replayt-mcp-bridge`** is declared under `[project.scripts]` in `pyproject.toml`; **`python -m replayt_mcp_bridge`** is also supported via `replayt_mcp_bridge.__main__`.
+- README **Quick start** names the **same** canonical commands MCP hosts should run.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Stdio transport** — The documented primary command runs a server that speaks MCP over **stdin/stdout** (JSON-RPC per MCP), not an HTTP/SSE listener, unless explicitly documented as an additional mode.
+2. **Clean startup** — After `pip install -e .` in a fresh project virtualenv, running the documented command produces **no Python traceback** during normal server startup (the process may then block waiting for MCP traffic on stdio, or exit per SDK behavior when stdin closes—both are acceptable if documented).
+3. **Discoverable entry surface** — Integrators can find **one** primary launch path in README (console script name and/or `python -m …`) that matches `pyproject.toml` or the package’s documented `__main__` module.
+4. **MCP host orientation** — README **Quick start** includes **at least one sentence** aimed at MCP client operators (stdio + how to run the bridge), with a pointer to this section for details.
+
 ## Audience
 
 | Audience | Needs |

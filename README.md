@@ -20,12 +20,17 @@ copies of upstream replayt documentation there for offline review or agent conte
 
 ## Quick start
 
+**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
+
+**Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries) in the mission doc.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Editable install pulls replayt (see pyproject.toml) and pytest; add [dev] for ruff.
 pip install -U pip
-pip install -e ".[dev]"
+pip install -e .
+# Optional: pip install -e ".[dev]"  # includes ruff
 ```
 
 On **Windows**, if `pip install -e .` fails with `WinError 2` while updating `replayt.exe` under `Scripts\`, you usually have a **mixed user-site and system** install or a half-removed script. Use the venv above (so everything installs under `.venv\`) or repair/remove the broken `replayt` install and invalid `~…` folders pip warns about under `Lib\site-packages`.
