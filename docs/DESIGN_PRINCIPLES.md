@@ -9,6 +9,8 @@ Revise as the project matures. Defaults below are minimal—expand with rules fo
    and changelog notes.
 5. **Not a lever on core** — This repo does not exist to steer replayt core; propose upstream changes through normal
    channels.
+6. **Documented trust boundary** — Required env vars, logging/redaction expectations, and deployment guidance for MCP
+   hosting live in **[docs/SECURITY.md](SECURITY.md)**; keep them accurate when tools or transports change.
 
 ## replayt version contract
 

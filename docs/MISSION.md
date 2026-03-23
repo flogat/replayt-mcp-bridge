@@ -51,7 +51,7 @@ listeners, authentication, and network exposure to a threat model that matches w
 effects (filesystem, network, subprocesses), and align exposure with organizational access policy.
 
 **Secrets:** Do not embed API keys, tokens, or private paths in code or committed defaults; document required environment
-variables and logging/redaction expectations for integrators (see also **LLM / demos** below).
+variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below).
 
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent.

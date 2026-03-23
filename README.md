@@ -18,6 +18,10 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** describes process boundaries, layering, tool groups, and how this repo stays a thin consumer of replayt.
 
+## Security, secrets, and MCP hosting
+
+**[docs/SECURITY.md](docs/SECURITY.md)** lists environment variables that affect the bridge and replayt, **what must never be logged** (tokens, PII, raw tool arguments), recommended **local stdio vs remote** deployment patterns, and how **replayt credentials** interact with this process. Read it before exposing the server beyond a trusted local MCP parent.
+
 
 ## Reference documentation (optional)
 
@@ -28,7 +32,7 @@ copies of upstream replayt documentation there for offline review or agent conte
 
 **MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
 
-**Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries) in the mission doc.
+**Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
 ```bash
 python -m venv .venv
@@ -69,6 +73,7 @@ match your team’s tooling.
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |
 | `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
 | `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
+| `docs/SECURITY.md` | Env vars, logging rules, deployment trust boundary, replayt credentials |
 | `docs/reference-documentation/` | Optional markdown snapshot for contributors (when present) |
 | `src/replayt_mcp_bridge/` | Python package (import `replayt_mcp_bridge`) |
 | `pyproject.toml` | Package metadata |
