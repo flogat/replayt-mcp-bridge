@@ -56,6 +56,8 @@ variables and logging/redaction expectations for integrators (see also **LLM / d
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent.
 
+**Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **as-is** (no bridge-level redaction); logs may contain sensitive data—integrators should filter or restrict tool access accordingly. Expected failures map to structured `{ status: error, message }` objects without Python tracebacks; **unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior.
+
 ## LLM / demos
 
 This mission is not “LLM showcase first.” If future demos or model calls are added, document models, secrets handling,

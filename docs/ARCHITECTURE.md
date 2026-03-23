@@ -53,6 +53,13 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
 - **Event privacy:** Returned events are replayt’s stored JSON as-is; any redaction policy belongs in docs and optional bridge-level filtering if integrators require it.
 
+### Security review (phase 6)
+
+- **Transport:** Documented path remains **stdio-only** for the bridge entrypoint; attack surface is whoever can attach to that process’s stdin/stdout (parent MCP host).
+- **Implementation:** `server.py` uses **no** `subprocess` or shell for tool dispatch; inputs are passed into replayt APIs and `pathlib` helpers. Residual risk is **upstream** (what `load_target`, validation, and stores do when given adversarial-but-valid strings).
+- **Information disclosure:** Structured `_tool_error` responses carry **string messages** only (often from `typer.BadParameter` or `OSError`), which may include paths or hints useful to integrators but also to a malicious client on the same machine—keep MCP attachment within policy. **Unhandled exceptions** are not converted to `_tool_error` today; behavior depends on FastMCP / host error handling (documented in [MISSION.md](MISSION.md#security-and-trust-boundaries)).
+- **Follow-ups:** Optional hardening includes catching unexpected exceptions and returning a generic error (with logging server-side), allowlisting `store_hint` roots if deployers need it, and event redaction or field filtering if policies require it.
+
 ## Related files
 
 | Path | Purpose |

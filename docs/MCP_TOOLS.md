@@ -68,4 +68,15 @@ Target loading and store resolution failures return:
 
 ## Security
 
-Tools that will load workflow code or read event stores (`target`-based tools, persistence) execute or read **only what the operator’s environment already allows**—same trust model as running `replayt run` locally. See [MISSION.md](MISSION.md#security-and-trust-boundaries).
+Tools that load workflow definitions or read event stores follow the **same trust model as running replayt locally** (see [MISSION.md](MISSION.md#security-and-trust-boundaries)). Concretely for this surface:
+
+| Tool | Filesystem / code | Notes |
+| ---- | ----------------- | ----- |
+| `replayt_echo` | None | Reflected string only; harmless technically, but hosts should not treat echoed content as trusted if it is fed back into models or UIs. |
+| `replayt_version_info` | None | Reads package metadata only. |
+| `workflow_contract_snapshot` | **Yes** (via `load_target`) | Can import modules and read workflow files the server user can access—equivalent to `replayt contract` target resolution. |
+| `workflow_graph_mermaid` | **Yes** (same as above) | Same target resolution as contract snapshot. |
+| `runner_dry_run_plan` | **Yes** (target + optional `inputs_json`) | Validates graph and parses optional JSON text through replayt’s validation/report path; no workflow execution or log writes in this tool. |
+| `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns raw stored events (no redaction). |
+
+The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.
