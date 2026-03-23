@@ -2,11 +2,11 @@
 
 This document is for **operators and security reviewers** hosting the MCP bridge. It complements [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries) and [ARCHITECTURE.md § Security review](ARCHITECTURE.md#security-review-phase-6).
 
-**Bridge code** (`replayt_mcp_bridge`) does not read environment variables directly; the process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
+**Bridge code** (`replayt_mcp_bridge`) does not read environment variables directly **except** for **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** (verbosity only; not a secret—see `observability.py`). The process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
 
 ## Environment variables
 
-The bridge package does **not** define its own `REPLAYT_MCP_*` (or similar) variables. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
+Aside from **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`**, the bridge package does **not** define its own `REPLAYT_MCP_*` (or similar) variables. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
 
 1. **Whatever the MCP parent process inherits** (shell, IDE, agent runner, container image).
 2. **Replayt’s configuration**, which combines project files (`.replaytrc.toml`, `pyproject.toml` `[tool.replayt]`) with several `REPLAYT_*` and related variables.
@@ -15,6 +15,7 @@ The bridge package does **not** define its own `REPLAYT_MCP_*` (or similar) vari
 
 | Variable | Role |
 | -------- | ---- |
+| `REPLAYT_MCP_BRIDGE_LOG_LEVEL` | Optional stdlib log level name for the `replayt_mcp_bridge` logger (default **`INFO`** if unset or invalid), e.g. `DEBUG` or `WARNING`. Read only in `observability.py`; does not carry secrets. |
 | `REPLAYT_LOG_DIR` | When `persistence_list_run_events` is called **without** `store_hint`, replayt’s `resolve_log_dir` may use this (after project config) to locate the default JSONL run log directory. |
 | `REPLAYT_TARGET` | Default workflow target for **replayt CLI** workflows of discovery; bridge tools usually pass `target` explicitly, but cwd-based config discovery still applies. |
 | `REPLAYT_INPUTS_FILE` | Used by replayt CLI paths that read inputs from env; relevant if you extend tooling or share the same process environment with CLI wrappers. |
@@ -41,7 +42,7 @@ If replayt or dependencies perform HTTPS calls, standard proxy and trust variabl
 
 ## MCP host and client logs
 
-This package logs only **tool name** and **outcome status** for replayt-backed tools (see `server.py`). That does **not** limit what the **MCP host** records: many clients can trace or persist full JSON-RPC messages, including tool `arguments` and structured results. Misconfigured host logging is a common way **tokens, paths, and persistence payloads** leak into centralized telemetry.
+This package emits **one JSON object per line** on stderr for the `replayt_mcp_bridge` logger: `replayt_mcp_bridge.server.start`, `replayt_mcp_bridge.tool.begin` / `.end`, and error events include **`tool`**, result **`status`** (on success paths), and **`mcp_request_id`** when FastMCP provides a request context—never raw MCP tool arguments. Optional structured fields are passed through `redact_structure` in `observability.py` so common secret-like keys (e.g. `token`, `password`, `api_key`) are replaced with **`[REDACTED]`**. That does **not** limit what the **MCP host** records: many clients can trace or persist full JSON-RPC messages, including tool `arguments` and structured results. Misconfigured host logging is a common way **tokens, paths, and persistence payloads** leak into centralized telemetry.
 
 - Prefer **disabled or minimized** MCP/protocol debug logging in production and on shared workstations.
 - Treat **support bundles**, **crash reports**, and **IDE “share logs”** flows as untrusted until verified—they may contain full tool traffic.

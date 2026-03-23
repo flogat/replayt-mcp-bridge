@@ -60,9 +60,11 @@ def test_design_principles_points_at_security_doc() -> None:
 
 
 def test_bridge_package_does_not_read_process_environ_directly() -> None:
-    """Matches docs/SECURITY.md: package code should not use os.environ/getenv."""
+    """Matches docs/SECURITY.md: only observability reads REPLAYT_MCP_BRIDGE_LOG_LEVEL."""
     pkg = REPO_ROOT / "src" / "replayt_mcp_bridge"
     for path in sorted(pkg.rglob("*.py")):
+        if path.name == "observability.py":
+            continue
         body = path.read_text(encoding="utf-8")
         assert "os.environ" not in body, (
             f"{path.relative_to(REPO_ROOT)} must not use os.environ"
@@ -70,3 +72,9 @@ def test_bridge_package_does_not_read_process_environ_directly() -> None:
         assert "getenv" not in body, (
             f"{path.relative_to(REPO_ROOT)} must not call getenv"
         )
+
+
+def test_observability_defines_log_level_env_var() -> None:
+    obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
+    text = obs.read_text(encoding="utf-8")
+    assert "REPLAYT_MCP_BRIDGE_LOG_LEVEL" in text

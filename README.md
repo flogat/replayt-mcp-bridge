@@ -34,6 +34,8 @@ copies of upstream replayt documentation there for offline review or agent conte
 
 **Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
+**Logging:** On startup the bridge configures the `replayt_mcp_bridge` logger at **`INFO`** by default and writes **JSON lines** to stderr (`event`, `tool`, optional `mcp_request_id`, `status`, …). Set **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** to another stdlib level name (e.g. `DEBUG` or `WARNING`) to tune verbosity. See [docs/SECURITY.md](docs/SECURITY.md) for redaction rules and MCP host logging risks.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
