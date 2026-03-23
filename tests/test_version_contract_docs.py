@@ -26,7 +26,7 @@ def _replayt_dependency_from_pyproject() -> str:
 def test_pyproject_declares_replayt_in_supported_range() -> None:
     spec = _replayt_dependency_from_pyproject()
     assert spec == f"replayt{_EXPECTED_REPLAYT_SPEC}", (
-        f"Expected replayt dependency { _EXPECTED_REPLAYT_SPEC!r } in pyproject.toml; got {spec!r}"
+        f"Expected replayt dependency {_EXPECTED_REPLAYT_SPEC!r} in pyproject.toml; got {spec!r}"
     )
 
 
@@ -38,4 +38,6 @@ def test_design_principles_states_same_replayt_range_as_pyproject() -> None:
     assert re.search(
         rf"`{re.escape(_EXPECTED_REPLAYT_SPEC)}`",
         text,
-    ), "DESIGN_PRINCIPLES should quote the replayt range in backticks for discoverability"
+    ), (
+        "DESIGN_PRINCIPLES should quote the replayt range in backticks for discoverability"
+    )

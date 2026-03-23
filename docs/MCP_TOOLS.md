@@ -90,3 +90,5 @@ Tools that load workflow definitions or read event stores follow the **same trus
 | `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns raw stored events (no redaction). |
 
 The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.
+
+**Error payloads:** Structured `{ status: error, tool, replayt_surface, message }` responses may include filesystem paths or other operational detail in `message` (e.g. from `typer.BadParameter`, I/O errors). Treat them as visible to every attached client unless you filter at the host. Replayt-backed tools log tool name and result status only—not full MCP arguments (see [ARCHITECTURE.md § Observability](ARCHITECTURE.md#observability)). Deeper review notes live under [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6).
