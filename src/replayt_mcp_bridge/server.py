@@ -2,25 +2,67 @@
 
 from __future__ import annotations
 
-from typing import Any
+from contextlib import contextmanager
+from pathlib import Path
+from typing import Any, Iterator
 
+import typer
 from mcp.server.fastmcp import FastMCP
+
+from replayt.cli.config import DEFAULT_LOG_DIR, resolve_log_dir
+from replayt.cli.targets import load_target
+from replayt.cli.validation import validate_workflow_graph, validation_report
+from replayt.graph_export import workflow_to_mermaid
+from replayt.persistence import SQLiteStore
+from replayt.persistence.jsonl import JSONLStore, validate_run_id as validate_run_id_for_store
 
 from replayt_mcp_bridge import installed_replayt_version, installed_replayt_version_tuple
 
 mcp = FastMCP("replayt-mcp-bridge")
 
 
-def _stub(tool: str, surface: str, detail: str = "") -> dict[str, Any]:
-    msg = "Implementation scheduled for a later bridge slice; contract is stable for clients."
-    if detail:
-        msg = f"{detail} {msg}"
+def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, Any]:
     return {
-        "status": "not_implemented",
+        "status": "error",
         "tool": tool,
-        "replayt_surface": surface,
-        "message": msg.strip(),
+        "replayt_surface": replayt_surface,
+        "message": message,
     }
+
+
+def _resolve_persistence_paths(store_hint: str | None) -> tuple[Path | None, Path | None, str | None]:
+    """Return ``(log_dir, sqlite_path, error)`` for JSONL (directory) or SQLite file backends."""
+
+    if store_hint is None:
+        return resolve_log_dir(DEFAULT_LOG_DIR), None, None
+    raw = Path(store_hint).expanduser()
+    try:
+        p = raw.resolve(strict=False)
+    except (OSError, RuntimeError):
+        p = raw
+    suf = p.suffix.lower()
+    if suf in (".sqlite", ".db"):
+        return None, p, None
+    if p.exists() and p.is_file():
+        return (
+            None,
+            None,
+            f"Store hint {store_hint!r} is a plain file; pass a JSONL log directory or a .sqlite/.db path.",
+        )
+    return p, None, None
+
+
+@contextmanager
+def _open_read_store(log_dir: Path | None, sqlite: Path | None) -> Iterator[JSONLStore | SQLiteStore]:
+    if sqlite is not None:
+        st = SQLiteStore(sqlite, read_only=True)
+        try:
+            yield st
+        finally:
+            st.close()
+    else:
+        assert log_dir is not None
+        yield JSONLStore(log_dir, create=False)
 
 
 @mcp.tool()
@@ -50,44 +92,90 @@ def workflow_contract_snapshot(target: str) -> dict[str, Any]:
     Maps to replayt.workflow.Workflow.contract() after resolving the target the same way as the replayt CLI.
     """
 
-    return _stub(
-        "workflow_contract_snapshot",
-        "Workflow.contract + replayt.cli.targets.load_target",
-        f"Requested target={target!r}.",
-    )
+    tool = "workflow_contract_snapshot"
+    surface = "Workflow.contract + replayt.cli.targets.load_target"
+    try:
+        wf = load_target(target)
+        contract = wf.contract()
+    except typer.BadParameter as exc:
+        return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    return {"status": "ok", "target": target, "contract": contract}
 
 
 @mcp.tool()
 def workflow_graph_mermaid(target: str) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
-    return _stub(
-        "workflow_graph_mermaid",
-        "replayt.graph_export.workflow_to_mermaid",
-        f"Requested target={target!r}.",
-    )
+    tool = "workflow_graph_mermaid"
+    surface = "replayt.graph_export.workflow_to_mermaid"
+    try:
+        wf = load_target(target)
+        mermaid = workflow_to_mermaid(wf)
+    except typer.BadParameter as exc:
+        return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    return {"status": "ok", "target": target, "mermaid": mermaid}
 
 
 @mcp.tool()
 def runner_dry_run_plan(target: str, inputs_json: str | None = None) -> dict[str, Any]:
     """Plan or validate a run without committing side effects (aligned with `replayt run --dry-check` semantics)."""
 
-    return _stub(
-        "runner_dry_run_plan",
-        "replayt run --dry-check / Runner",
-        f"Requested target={target!r} inputs_json={'set' if inputs_json else 'none'}.",
-    )
+    tool = "runner_dry_run_plan"
+    surface = "replayt run --dry-check / validate_workflow_graph + validation_report"
+    strict_graph = False
+    try:
+        wf = load_target(target)
+        errors, warnings = validate_workflow_graph(wf, strict_graph=strict_graph)
+        report = validation_report(
+            target=target,
+            wf=wf,
+            strict_graph=strict_graph,
+            errors=errors,
+            warnings=warnings,
+            inputs_json=inputs_json,
+            metadata_json=None,
+            experiment_json=None,
+            policy_hook_context_json=None,
+        )
+    except typer.BadParameter as exc:
+        return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    status = "ok" if report["ok"] else "invalid"
+    return {"status": status, "report": report}
 
 
 @mcp.tool()
 def persistence_list_run_events(run_id: str, store_hint: str | None = None) -> dict[str, Any]:
     """List persisted events for a run_id (aligned with EventStore.load_events and `replayt runs` tooling)."""
 
-    return _stub(
-        "persistence_list_run_events",
-        "EventStore.load_events",
-        f"Requested run_id={run_id!r} store_hint={store_hint!r}.",
-    )
+    tool = "persistence_list_run_events"
+    surface = "EventStore.load_events (JSONL directory or SQLite file)"
+    try:
+        safe_run_id = validate_run_id_for_store(run_id)
+    except ValueError as exc:
+        return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    log_dir, sqlite, hint_err = _resolve_persistence_paths(store_hint)
+    if hint_err:
+        return _tool_error(tool=tool, replayt_surface=surface, message=hint_err)
+    if sqlite is not None and not sqlite.is_file():
+        return _tool_error(
+            tool=tool,
+            replayt_surface=surface,
+            message=f"SQLite store not found: {sqlite}",
+        )
+    try:
+        with _open_read_store(log_dir, sqlite) as store:
+            events = store.load_events(safe_run_id)
+    except OSError as exc:
+        return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    store_kind = "sqlite" if sqlite is not None else "jsonl"
+    store_path = str(sqlite) if sqlite is not None else str(log_dir)
+    return {
+        "status": "ok",
+        "run_id": safe_run_id,
+        "event_count": len(events),
+        "events": events,
+        "store": {"kind": store_kind, "path": store_path},
+    }
 
 
 def run_stdio() -> None:

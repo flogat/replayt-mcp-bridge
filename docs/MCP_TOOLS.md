@@ -1,6 +1,6 @@
 # MCP tools (initial surface)
 
-This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. Implementations may be stubs that return a structured `not_implemented` payload until a later slice; **input schemas stay stable** so clients can integrate early.
+This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process (see `src/replayt_mcp_bridge/server.py`).
 
 ## Mapping: tool → replayt capability
 
@@ -8,10 +8,10 @@ This bridge exposes a small, versioned set of MCP tools that map to **replayt** 
 | -------- | ---------------------- | ----- |
 | `replayt_echo` | _(bridge only)_ | Proves MCP wiring; echoes input. |
 | `replayt_version_info` | `replayt.__version__` / `replayt.__version_tuple__` | Reads installed replayt via the same helpers as `replayt_mcp_bridge.installed_replayt_version`. |
-| `workflow_contract_snapshot` | `Workflow.contract()`, via `replayt.cli.targets.load_target` | Same **target** grammar as `replayt contract` / `replayt run` (e.g. `module.path:wf`, `workflow.py`). Stub until loader wiring is implemented in-process. |
-| `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Stub. |
-| `runner_dry_run_plan` | `replayt run --dry-check` / `Runner` dry validation | Describes a future “validate workflow + inputs without side effects” bridge. Stub. |
-| `persistence_list_run_events` | `EventStore.load_events`, `replayt runs` / inspect flows | Future bridge for reading JSONL-backed run timelines. Stub. |
+| `workflow_contract_snapshot` | `Workflow.contract()`, via `replayt.cli.targets.load_target` | Same **target** grammar as `replayt contract` / `replayt run` (e.g. `module.path:wf`, `workflow.py`). Returns `{ status, target, contract }` or `{ status: error, tool, replayt_surface, message }`. |
+| `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Returns `{ status, target, mermaid }` or an error object. |
+| `runner_dry_run_plan` | `replayt run --dry-check` (graph validation + `validation_report`) | Validates graph and optional `inputs_json` text without executing steps or writing logs. Returns `{ status: ok \| invalid, report }` matching `replayt.validate_report.v1`, or an error object. |
+| `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a JSONL **directory** path, or a `.sqlite` / `.db` file. Returns `{ status, run_id, event_count, events, store }` or an error object. |
 
 ## Input shapes (JSON Schema concepts)
 
@@ -53,13 +53,13 @@ No properties (empty object).
 | `run_id` | string | yes |
 | `store_hint` | string \| null | no (optional store URI or path hint for multi-backend setups) |
 
-## Stub response shape
+## Error response shape
 
-Stub tools return a JSON object of the form:
+Target loading and store resolution failures return:
 
 ```json
 {
-  "status": "not_implemented",
+  "status": "error",
   "tool": "<tool_name>",
   "replayt_surface": "<short mapping label>",
   "message": "…"
