@@ -66,6 +66,16 @@ Target loading and store resolution failures return:
 }
 ```
 
+## Success and validation shapes (MCP structured content)
+
+Handlers return plain dicts that the MCP SDK serializes as structured tool content:
+
+- **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
+- **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors) using the error object above—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+
+For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
+
 ## Security
 
 Tools that load workflow definitions or read event stores follow the **same trust model as running replayt locally** (see [MISSION.md](MISSION.md#security-and-trust-boundaries)). Concretely for this surface:

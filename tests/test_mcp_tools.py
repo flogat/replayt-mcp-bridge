@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 
 import pytest
@@ -65,12 +66,27 @@ def test_workflow_contract_snapshot_bad_target() -> None:
     assert "message" in out
 
 
+def test_replayt_version_info_logs_tool_boundaries(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    replayt_version_info()
+    msgs = {r.msg for r in caplog.records}
+    assert "replayt_mcp_bridge.tool.begin" in msgs
+    assert "replayt_mcp_bridge.tool.end" in msgs
+
+
 def test_workflow_graph_mermaid_example_target() -> None:
     out = workflow_graph_mermaid(target=EXAMPLE_TARGET)
     assert out["status"] == "ok"
     assert out["target"] == EXAMPLE_TARGET
     assert isinstance(out["mermaid"], str)
     assert len(out["mermaid"]) > 0
+
+
+def test_workflow_graph_mermaid_bad_target() -> None:
+    out = workflow_graph_mermaid(target="definitely_not_a_module:wf")
+    assert out["status"] == "error"
+    assert out["tool"] == "workflow_graph_mermaid"
+    assert "message" in out
 
 
 def test_runner_dry_run_plan_example_target() -> None:
@@ -87,6 +103,13 @@ def test_runner_dry_run_plan_invalid_inputs_json() -> None:
     assert out["status"] == "invalid"
     errs = out["report"]["errors"]
     assert any("inputs" in e.lower() for e in errs)
+
+
+def test_runner_dry_run_plan_bad_target() -> None:
+    out = runner_dry_run_plan(target="definitely_not_a_module:wf", inputs_json=None)
+    assert out["status"] == "error"
+    assert out["tool"] == "runner_dry_run_plan"
+    assert "message" in out
 
 
 def test_persistence_list_run_events_reads_jsonl(tmp_path: Path) -> None:

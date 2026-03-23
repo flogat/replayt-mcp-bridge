@@ -83,6 +83,24 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 3. **Discoverable entry surface** — Integrators can find **one** primary launch path in README (console script name and/or `python -m …`) that matches `pyproject.toml` or the package’s documented `__main__` module.
 4. **MCP host orientation** — README **Quick start** includes **at least one sentence** aimed at MCP client operators (stdio + how to run the bridge), with a pointer to this section for details.
 
+## First replayt-backed tool calling (E2E milestone)
+
+**Intent:** Validate that this bridge can call **replayt in-process** with **MCP-appropriate structured payloads**, clear error mapping, and **automated tests** at the handler boundary—before treating a larger tool set as “done.”
+
+**Smallest replayt API (milestone scope):** `replayt_version_info` is the **minimal** integration: it depends on the installed replayt package and the bridge’s `installed_replayt_version` / `installed_replayt_version_tuple` helpers, so it proves **import path, dependency range, and config-free startup** without resolving workflow targets. The **first target-resolution path** is `workflow_contract_snapshot`, which uses `replayt.cli.targets.load_target` and `Workflow.contract()`—the same resolution story as `replayt contract` / `replayt run`.
+
+**Handler expectations:**
+
+- **Happy path** — Return JSON-serializable dicts with `status: "ok"` (or `status: "invalid"` when returning a `replayt.validate_report.v1` object from dry-run validation). FastMCP exposes these as structured tool results to MCP clients.
+- **Expected failures** — Map to `{ "status": "error", "tool", "replayt_surface", "message" }` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). Do **not** return raw Python tracebacks inside these objects for the covered failure modes (e.g. `typer.BadParameter` from `load_target`, invalid `run_id`, bad store hints).
+- **Observability** — Log at boundaries (server lifecycle, optional debug) without copying **secrets** or unnecessary verbatim client arguments into logs; this surface has no credential parameters—future tools must keep the same discipline.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Structured success on a replayt-backed tool** — At least `replayt_version_info` returns a stable, documented success shape on a normal install; workflow tools (`workflow_contract_snapshot`, etc.) return documented shapes when given a valid target (see tests for the example target).
+2. **Clear tool errors** — Invalid workflow targets, persistence inputs, and similar **expected** failures yield the structured error object (not an unstructured stack trace **as the tool return value** for those paths).
+3. **Automated coverage** — Unit or contract-style tests exercise handlers directly (with replayt available in CI and lightweight fixtures where persistence is involved), including at least one negative case per replayt-touching tool family. Current suite: `tests/test_mcp_tools.py`.
+
 ## Audience
 
 | Audience | Needs |

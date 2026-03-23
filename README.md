@@ -12,7 +12,7 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 **[docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)** covers **replayt** compatibility, versioning, and (for showcases)
 **LLM** boundaries.
 
-**[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)** lists MCP tool names, JSON-schema-style inputs, and the **tool → replayt** mapping table.
+**[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)** lists MCP tool names, JSON-schema-style inputs, and the **tool → replayt** mapping table. **[docs/MISSION.md § First replayt-backed tool calling](docs/MISSION.md#first-replayt-backed-tool-calling-e2e-milestone)** states refined acceptance criteria for the smallest replayt-backed path and tests.
 
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** describes process boundaries, layering, tool groups, and how this repo stays a thin consumer of replayt.
 
