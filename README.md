@@ -12,6 +12,10 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 **[docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md)** covers **replayt** compatibility, versioning, and (for showcases)
 **LLM** boundaries.
 
+**[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)** lists MCP tool names, JSON-schema-style inputs, and the **tool → replayt** mapping table.
+
+**[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** describes process boundaries, layering, tool groups, and how this repo stays a thin consumer of replayt.
+
 
 ## Reference documentation (optional)
 
@@ -47,6 +51,8 @@ match your team’s tooling.
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |
+| `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
+| `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
 | `docs/reference-documentation/` | Optional markdown snapshot for contributors (when present) |
 | `src/replayt_mcp_bridge/` | Python package (import `replayt_mcp_bridge`) |
 | `pyproject.toml` | Package metadata |
