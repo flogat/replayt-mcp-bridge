@@ -3,7 +3,9 @@ name = "replayt-mcp-bridge"
 version = "0.1.0"
 description = "MCP tool bridge for replayt workflow steps: Python project using replayt; see docs for scope."
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+  "replayt>=0.4.25,<0.5",
+]
 
 [project.optional-dependencies]
 dev = [
