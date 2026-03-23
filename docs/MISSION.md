@@ -44,6 +44,9 @@ imply guarantees replayt does not provide.
 
 ## Security and trust boundaries
 
+**Deployment / transport:** How you run the MCP server (stdio, HTTP/SSE, etc.) determines who can reach it; bind
+listeners, authentication, and network exposure to a threat model that matches where the bridge runs.
+
 **MCP clients:** Any host the operator connects can invoke registered tools; keep the tool surface small, document side
 effects (filesystem, network, subprocesses), and align exposure with organizational access policy.
 
