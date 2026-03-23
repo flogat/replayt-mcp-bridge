@@ -2,6 +2,8 @@
 
 This document is for **operators and security reviewers** hosting the MCP bridge. It complements [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries) and [ARCHITECTURE.md § Security review](ARCHITECTURE.md#security-review-phase-6).
 
+**Bridge code** (`replayt_mcp_bridge`) does not read environment variables directly; the process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
+
 ## Environment variables
 
 The bridge package does **not** define its own `REPLAYT_MCP_*` (or similar) variables. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
@@ -37,6 +39,14 @@ Replayt also maintains an **audited list** of other provider API key names (pres
 
 If replayt or dependencies perform HTTPS calls, standard proxy and trust variables may apply, for example `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, and similar. Treat their **values** as sensitive where they embed credentials.
 
+## MCP host and client logs
+
+This package logs only **tool name** and **outcome status** for replayt-backed tools (see `server.py`). That does **not** limit what the **MCP host** records: many clients can trace or persist full JSON-RPC messages, including tool `arguments` and structured results. Misconfigured host logging is a common way **tokens, paths, and persistence payloads** leak into centralized telemetry.
+
+- Prefer **disabled or minimized** MCP/protocol debug logging in production and on shared workstations.
+- Treat **support bundles**, **crash reports**, and **IDE “share logs”** flows as untrusted until verified—they may contain full tool traffic.
+- If you forward MCP-related logs to a vendor or SIEM, define **redaction or sampling** for tool parameters and results.
+
 ## What must never be logged
 
 Operators and contributors should enforce these rules on **server logs**, **CI output**, and **shared telemetry**:
@@ -46,8 +56,9 @@ Operators and contributors should enforce these rules on **server logs**, **CI o
 - **High-cardinality client input** — The bridge’s replayt-backed tools intentionally log only **tool name** and **outcome status** at info level, not MCP argument values. **Do not** change that to log `target`, `store_hint`, `run_id`, or raw JSON-RPC bodies at info level in environments where logs are broadly visible.
 - **URLs with embedded secrets** — Strip userinfo and sensitive query parameters before logging URLs (replayt exposes helpers such as `sanitize_base_url_for_output` for base URLs).
 - **Stack traces in shared logs** — `logger.exception` in the bridge may include paths and internal details; restrict log destinations accordingly. Structured tool errors returned to MCP clients intentionally avoid Python tracebacks for covered failure modes; unhandled exceptions may still propagate per host/SDK behavior.
+- **Verbose MCP or JSON-RPC traces** — Full message bodies from hosts, proxies, or debug modes can duplicate secrets and PII that the bridge itself never writes to its own logger.
 
-**MCP tool results:** `persistence_list_run_events` returns stored events **as-is**. Those payloads may contain secrets or PII. Restrict which MCP clients and users may call that tool, and avoid echoing results into unsecured logging pipelines.
+**MCP tool results:** `persistence_list_run_events` returns stored events **as-is**. Those payloads may contain secrets or PII. Restrict which MCP clients and users may call that tool, and avoid echoing results into unsecured logging pipelines. The **`replayt_echo`** tool returns the client-supplied string unchanged to the MCP client—do not use it to shuttle secrets, and assume the host may retain that round-trip in traces.
 
 ## Recommended deployment pattern
 
