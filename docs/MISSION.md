@@ -4,7 +4,7 @@ This repository is a **consumer** of [replayt](https://pypi.org/project/replayt/
 steps for hosts that speak the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). It is not a fork of
 replayt. Version pins, compatibility shims, and CI live **here**.
 
-**Primary pattern:** **Bridge** (framework bridge)—among core-gap, showcase, bridge, and combinator options in the ecosystem doc, this repo adapts replayt workflow steps for MCP hosts while replayt remains upstream for workflow semantics; see “Framework bridge” and “Your choice” in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
+**Primary pattern:** **Bridge** (framework bridge)—among core-gap, showcase, bridge, and combinator options in the ecosystem doc, this repo adapts replayt workflow steps for MCP hosts while replayt remains upstream for workflow semantics; see [Framework bridge](REPLAYT_ECOSYSTEM_IDEA.md#3-framework-bridge) and [Your choice](REPLAYT_ECOSYSTEM_IDEA.md#your-choice) in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
 
 ## Users and problem
 
