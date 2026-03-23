@@ -16,9 +16,15 @@ from replayt.cli.targets import load_target
 from replayt.cli.validation import validate_workflow_graph, validation_report
 from replayt.graph_export import workflow_to_mermaid
 from replayt.persistence import SQLiteStore
-from replayt.persistence.jsonl import JSONLStore, validate_run_id as validate_run_id_for_store
+from replayt.persistence.jsonl import (
+    JSONLStore,
+    validate_run_id as validate_run_id_for_store,
+)
 
-from replayt_mcp_bridge import installed_replayt_version, installed_replayt_version_tuple
+from replayt_mcp_bridge import (
+    installed_replayt_version,
+    installed_replayt_version_tuple,
+)
 
 mcp = FastMCP("replayt-mcp-bridge")
 logger = logging.getLogger(__name__)
@@ -37,10 +43,14 @@ def _log_replayt_tool_boundaries(fn: F) -> F:
         try:
             out = fn(*args, **kwargs)
         except Exception:
-            logger.exception("replayt_mcp_bridge.tool.unhandled_exception", extra={"tool": name})
+            logger.exception(
+                "replayt_mcp_bridge.tool.unhandled_exception", extra={"tool": name}
+            )
             raise
         status = out.get("status") if isinstance(out, dict) else None
-        logger.info("replayt_mcp_bridge.tool.end", extra={"tool": name, "status": status})
+        logger.info(
+            "replayt_mcp_bridge.tool.end", extra={"tool": name, "status": status}
+        )
         return out
 
     return wrapped  # type: ignore[return-value]
@@ -55,7 +65,9 @@ def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, A
     }
 
 
-def _resolve_persistence_paths(store_hint: str | None) -> tuple[Path | None, Path | None, str | None]:
+def _resolve_persistence_paths(
+    store_hint: str | None,
+) -> tuple[Path | None, Path | None, str | None]:
     """Return ``(log_dir, sqlite_path, error)`` for JSONL (directory) or SQLite file backends."""
 
     if store_hint is None:
@@ -78,7 +90,9 @@ def _resolve_persistence_paths(store_hint: str | None) -> tuple[Path | None, Pat
 
 
 @contextmanager
-def _open_read_store(log_dir: Path | None, sqlite: Path | None) -> Iterator[JSONLStore | SQLiteStore]:
+def _open_read_store(
+    log_dir: Path | None, sqlite: Path | None
+) -> Iterator[JSONLStore | SQLiteStore]:
     if sqlite is not None:
         st = SQLiteStore(sqlite, read_only=True)
         try:
@@ -174,7 +188,9 @@ def runner_dry_run_plan(target: str, inputs_json: str | None = None) -> dict[str
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def persistence_list_run_events(run_id: str, store_hint: str | None = None) -> dict[str, Any]:
+def persistence_list_run_events(
+    run_id: str, store_hint: str | None = None
+) -> dict[str, Any]:
     """List persisted events for a run_id (aligned with EventStore.load_events and `replayt runs` tooling)."""
 
     tool = "persistence_list_run_events"

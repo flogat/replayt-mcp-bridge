@@ -2,6 +2,8 @@
 
 **[docs/MISSION.md](docs/MISSION.md)** — scope, non-goals, success criteria, and how this repo relates to upstream replayt.
 
+**[CONTRIBUTING.md](CONTRIBUTING.md)** — local **pytest** / **Ruff** commands and PR expectations (aligned with CI).
+
 ## Overview
 
 This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
@@ -39,6 +41,18 @@ pip install -e .
 
 On **Windows**, if `pip install -e .` fails with `WinError 2` while updating `replayt.exe` under `Scripts\`, you usually have a **mixed user-site and system** install or a half-removed script. Use the venv above (so everything installs under `.venv\`) or repair/remove the broken `replayt` install and invalid `~…` folders pip warns about under `Lib\site-packages`.
 
+## Local checks (pytest and Ruff)
+
+After `pip install -e ".[dev]"` in your venv (Ruff is in the `dev` extra; pytest is included by the base editable install):
+
+```bash
+ruff check src tests
+ruff format --check src tests
+pytest
+```
+
+CI runs the same steps; see [.github/workflows/ci.yml](.github/workflows/ci.yml) and [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Optional agent workflows
 
 This repo may include a [`.cursor/skills/`](.cursor/skills/) directory for Cursor-style agent skills. Adapt or remove it to
@@ -48,6 +62,8 @@ match your team’s tooling.
 
 | Path | Purpose |
 | ---- | ------- |
+| `CONTRIBUTING.md` | How to run checks locally and what CI enforces |
+| `.github/workflows/ci.yml` | Automated Ruff + pytest workflow |
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |

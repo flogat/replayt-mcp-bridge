@@ -66,7 +66,9 @@ def test_workflow_contract_snapshot_bad_target() -> None:
     assert "message" in out
 
 
-def test_replayt_version_info_logs_tool_boundaries(caplog: pytest.LogCaptureFixture) -> None:
+def test_replayt_version_info_logs_tool_boundaries(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
     replayt_version_info()
     msgs = {r.msg for r in caplog.records}
@@ -132,7 +134,9 @@ def test_persistence_list_run_events_invalid_run_id() -> None:
     assert out["tool"] == "persistence_list_run_events"
 
 
-def test_persistence_list_run_events_rejects_plain_file_store_hint(tmp_path: Path) -> None:
+def test_persistence_list_run_events_rejects_plain_file_store_hint(
+    tmp_path: Path,
+) -> None:
     f = tmp_path / "note.txt"
     f.write_text("x", encoding="utf-8")
     out = persistence_list_run_events(run_id="any-id", store_hint=str(f))
