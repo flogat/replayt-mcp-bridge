@@ -24,6 +24,13 @@ constraints for reproducible deploys.
 section, and any CI matrix that exercises the boundary; note the change in the changelog when behavior or required
 APIs shift.
 
+**Install environment (especially Windows)** — Run editable installs inside a **project virtualenv** (`python -m venv
+.venv`, then that venv’s `python` / `pip`). Mixing a **system** interpreter with **`pip install --user`** and
+**console scripts** (e.g. `replayt.exe`) can make `pip install -U -e .` fail when pip tries to replace scripts under
+`Scripts\` while uninstalling a different layout (user site vs system). Mission Control’s workflow shell step uses the
+active `python` for `pip install -U -e .`; prefer a venv for that Python so dependency resolution and script installs
+stay in one prefix.
+
 ## LLM / demos (if applicable)
 
 Document models, secrets handling, cost and redaction expectations here or in MISSION.

@@ -13,4 +13,5 @@ build/
 .ruff_cache/
 htmlcov/
 .venv/
+.venv-ci/
 venv/
