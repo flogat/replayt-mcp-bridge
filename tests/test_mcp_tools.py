@@ -77,6 +77,19 @@ def test_replayt_version_info_logs_tool_boundaries(
     assert "replayt_mcp_bridge.tool.end" in msgs
 
 
+def test_replayt_echo_info_logs_exclude_message_payload(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """docs/SECURITY.md: bridge logs tool name and status only, not MCP arguments."""
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    secret_like = "replayt_mcp_bridge_test_secret_payload_7f3a9c"
+    replayt_echo(message=secret_like)
+    blob = "\n".join(r.getMessage() for r in caplog.records)
+    assert secret_like not in blob
+    for r in caplog.records:
+        assert secret_like not in repr(r.__dict__)
+
+
 def test_workflow_graph_mermaid_example_target() -> None:
     out = workflow_graph_mermaid(target=EXAMPLE_TARGET)
     assert out["status"] == "ok"
