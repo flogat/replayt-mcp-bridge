@@ -37,8 +37,9 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 
 ## Reference documentation (optional)
 
-This checkout does not yet include [`docs/reference-documentation/`](docs/reference-documentation/). You can add markdown
-copies of upstream replayt documentation there for offline review or agent context.
+[`docs/reference-documentation/`](docs/reference-documentation/) may include **attributed** snapshots of upstream replayt
+docs (from PyPI sdists) for offline reading. They do **not** replace this repo’s own contract docs ([`docs/MCP_TOOLS.md`](docs/MCP_TOOLS.md), etc.).
+To refresh snapshots after changing the supported replayt range, run `python scripts/refresh_replayt_reference_docs.py` from the repo root (see the reference README for details).
 
 ## Quick start
 

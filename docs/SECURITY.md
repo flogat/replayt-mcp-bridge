@@ -70,6 +70,10 @@ Operators and contributors should enforce these rules on **server logs**, **CI o
 
 The documented primary transport is **stdio**, not an HTTP listener owned by this package. Adding a remote-facing listener without hardening would increase exposure.
 
+## Reference documentation refresh (contributors)
+
+The optional script [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py) is **not** part of the **`replayt_mcp_bridge`** import graph or **`[project.scripts]`** entry points: it is **maintainer tooling** run manually from a git checkout to populate [`docs/reference-documentation/`](reference-documentation/README.md). It performs **HTTPS** requests to **PyPI** (metadata JSON and the published **sdist** URL from that response) and unpacks **only** `README.md` and `LICENSE` from the tarball into a fixed under-`docs/` destination—see [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) for trust notes and tarball handling. **Operators hosting the MCP server do not need to run it** for normal bridge operation.
+
 ## Interaction with replayt “auth”
 
 Replayt does not replace organizational SSO for MCP. **API keys** and **provider credentials** are supplied via **environment** (and project config for non-secret settings) when features need them. The bridge:
