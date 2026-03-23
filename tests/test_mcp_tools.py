@@ -72,9 +72,10 @@ def test_replayt_version_info_logs_tool_boundaries(
 ) -> None:
     caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
     replayt_version_info()
-    msgs = {r.msg for r in caplog.records}
-    assert "replayt_mcp_bridge.tool.begin" in msgs
-    assert "replayt_mcp_bridge.tool.end" in msgs
+    events = [json.loads(r.getMessage()) for r in caplog.records]
+    kinds = {e["event"] for e in events}
+    assert "replayt_mcp_bridge.tool.begin" in kinds
+    assert "replayt_mcp_bridge.tool.end" in kinds
 
 
 def test_replayt_echo_info_logs_exclude_message_payload(
@@ -88,6 +89,8 @@ def test_replayt_echo_info_logs_exclude_message_payload(
     assert secret_like not in blob
     for r in caplog.records:
         assert secret_like not in repr(r.__dict__)
+        payload = json.loads(r.getMessage())
+        assert secret_like not in json.dumps(payload)
 
 
 def test_workflow_graph_mermaid_example_target() -> None:

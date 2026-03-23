@@ -10,6 +10,8 @@ from typing import Any, Callable, Iterator, TypeVar
 
 import typer
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.server import Context
+from mcp.server.fastmcp.utilities.context_injection import find_context_parameter
 
 from replayt.cli.config import DEFAULT_LOG_DIR, resolve_log_dir
 from replayt.cli.targets import load_target
@@ -25,6 +27,7 @@ from replayt_mcp_bridge import (
     installed_replayt_version,
     installed_replayt_version_tuple,
 )
+from replayt_mcp_bridge.observability import configure_bridge_logging, emit_json_log
 
 mcp = FastMCP("replayt-mcp-bridge")
 logger = logging.getLogger(__name__)
@@ -33,23 +36,43 @@ F = TypeVar("F", bound=Callable[..., dict[str, Any]])
 
 
 def _log_replayt_tool_boundaries(fn: F) -> F:
-    """Log tool name and outcome status only (no client argument values)."""
+    """Log tool name, optional MCP request id, and outcome status (no client argument values)."""
 
     name = fn.__name__
+    ctx_kw = find_context_parameter(fn)
 
     @functools.wraps(fn)
     def wrapped(*args: Any, **kwargs: Any) -> dict[str, Any]:
-        logger.info("replayt_mcp_bridge.tool.begin", extra={"tool": name})
+        ctx = kwargs.get(ctx_kw) if ctx_kw else None
+        corr: dict[str, Any] = {}
+        if ctx is not None:
+            try:
+                corr["mcp_request_id"] = ctx.request_id
+            except ValueError:
+                pass
+        emit_json_log(
+            logger, logging.INFO, "replayt_mcp_bridge.tool.begin", tool=name, **corr
+        )
         try:
             out = fn(*args, **kwargs)
         except Exception:
-            logger.exception(
-                "replayt_mcp_bridge.tool.unhandled_exception", extra={"tool": name}
+            emit_json_log(
+                logger,
+                logging.ERROR,
+                "replayt_mcp_bridge.tool.unhandled_exception",
+                tool=name,
+                **corr,
             )
+            logger.exception("replayt_mcp_bridge.tool.unhandled_exception_trace")
             raise
         status = out.get("status") if isinstance(out, dict) else None
-        logger.info(
-            "replayt_mcp_bridge.tool.end", extra={"tool": name, "status": status}
+        emit_json_log(
+            logger,
+            logging.INFO,
+            "replayt_mcp_bridge.tool.end",
+            tool=name,
+            status=status,
+            **corr,
         )
         return out
 
@@ -105,7 +128,8 @@ def _open_read_store(
 
 
 @mcp.tool()
-def replayt_echo(message: str) -> dict[str, Any]:
+@_log_replayt_tool_boundaries
+def replayt_echo(message: str, ctx: Context | None = None) -> dict[str, Any]:
     """Echo a string back to the client to verify MCP tool invocation and stdio wiring."""
 
     return {"status": "ok", "echo": message}
@@ -113,7 +137,7 @@ def replayt_echo(message: str) -> dict[str, Any]:
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def replayt_version_info() -> dict[str, Any]:
+def replayt_version_info(ctx: Context | None = None) -> dict[str, Any]:
     """Report installed replayt and bridge versions (PEP 440 string and replayt's version tuple)."""
 
     major, minor, patch = installed_replayt_version_tuple()
@@ -127,7 +151,9 @@ def replayt_version_info() -> dict[str, Any]:
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def workflow_contract_snapshot(target: str) -> dict[str, Any]:
+def workflow_contract_snapshot(
+    target: str, ctx: Context | None = None
+) -> dict[str, Any]:
     """Return a JSON-serializable workflow contract snapshot for a replayt target (MODULE:VAR or workflow file).
 
     Maps to replayt.workflow.Workflow.contract() after resolving the target the same way as the replayt CLI.
@@ -145,7 +171,7 @@ def workflow_contract_snapshot(target: str) -> dict[str, Any]:
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def workflow_graph_mermaid(target: str) -> dict[str, Any]:
+def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
     tool = "workflow_graph_mermaid"
@@ -160,7 +186,9 @@ def workflow_graph_mermaid(target: str) -> dict[str, Any]:
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def runner_dry_run_plan(target: str, inputs_json: str | None = None) -> dict[str, Any]:
+def runner_dry_run_plan(
+    target: str, inputs_json: str | None = None, ctx: Context | None = None
+) -> dict[str, Any]:
     """Plan or validate a run without committing side effects (aligned with `replayt run --dry-check` semantics)."""
 
     tool = "runner_dry_run_plan"
@@ -189,7 +217,7 @@ def runner_dry_run_plan(target: str, inputs_json: str | None = None) -> dict[str
 @mcp.tool()
 @_log_replayt_tool_boundaries
 def persistence_list_run_events(
-    run_id: str, store_hint: str | None = None
+    run_id: str, store_hint: str | None = None, ctx: Context | None = None
 ) -> dict[str, Any]:
     """List persisted events for a run_id (aligned with EventStore.load_events and `replayt runs` tooling)."""
 
@@ -227,5 +255,8 @@ def persistence_list_run_events(
 def run_stdio() -> None:
     """Run the MCP server on stdin/stdout (JSON-RPC per MCP)."""
 
-    logger.info("replayt_mcp_bridge.server.start", extra={"transport": "stdio"})
+    configure_bridge_logging()
+    emit_json_log(
+        logger, logging.INFO, "replayt_mcp_bridge.server.start", transport="stdio"
+    )
     mcp.run(transport="stdio")

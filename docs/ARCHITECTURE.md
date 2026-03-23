@@ -43,10 +43,10 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Observability
 
-- **Server lifecycle:** `run_stdio()` logs `replayt_mcp_bridge.server.start` with `transport: stdio` once before blocking on the MCP run loop.
-- **Replayt-backed tools:** `_log_replayt_tool_boundaries` logs `replayt_mcp_bridge.tool.begin` (tool name only) and `replayt_mcp_bridge.tool.end` (tool name plus result `status`). Client argument values are omitted on purpose so logs stay usable without copying MCP payloads verbatim.
-- **Unhandled exceptions:** After `logger.exception` with `replayt_mcp_bridge.tool.unhandled_exception`, the exception propagates; FastMCP / host behavior applies (see [MISSION.md](MISSION.md#security-and-trust-boundaries)).
-- **Bridge-only tools:** `replayt_echo` is not wrapped—there is no replayt boundary to mark at the handler level.
+- **Configuration:** `configure_bridge_logging()` (from `observability.py`) runs at server startup: stderr handler, default level **`INFO`**, overridable via **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** (the only `os.environ` read in this package).
+- **Server lifecycle:** `run_stdio()` emits structured `replayt_mcp_bridge.server.start` with `transport: stdio` once before blocking on the MCP run loop.
+- **Tools:** `_log_replayt_tool_boundaries` wraps every registered handler (including `replayt_echo`) and emits JSON lines for `replayt_mcp_bridge.tool.begin` / `.end` with **`tool`**, optional **`mcp_request_id`** from FastMCP `Context`, and result **`status`** on completion. Client argument values are never included. Extra structured fields are redacted via `redact_structure` before emission.
+- **Unhandled exceptions:** A structured `replayt_mcp_bridge.tool.unhandled_exception` line is logged, then `logger.exception` adds a traceback; the exception propagates and FastMCP / host behavior applies (see [MISSION.md](MISSION.md#security-and-trust-boundaries)).
 
 ## Non-goals (architecture)
 
@@ -76,17 +76,17 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Structure and handlers:** Layering and the tool → replayt mapping match `server.py` and [MCP_TOOLS.md](MCP_TOOLS.md). E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, and related handlers) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). Structured errors use `_tool_error` as documented; persistence helpers match the described path resolution.
 
-**Security documentation vs code:** [docs/SECURITY.md](SECURITY.md) expands [MISSION.md](MISSION.md#security-and-trust-boundaries) for operators: env vars that affect replayt in this process, “must never be logged” rules, MCP host / JSON-RPC trace risk, deployment patterns (stdio vs shared host), and replayt credential interaction. The claim that **package code** does not read `os.environ` / `getenv` matches `src/replayt_mcp_bridge/` (enforced by `tests/test_security_docs.py`). **Observability:** `_log_replayt_tool_boundaries` logs tool name and result `status` only; `replayt_echo` is intentionally unwrapped—consistent with SECURITY.md and covered by logging behavior tests in `tests/test_mcp_tools.py`.
+**Security documentation vs code:** [docs/SECURITY.md](SECURITY.md) expands [MISSION.md](MISSION.md#security-and-trust-boundaries) for operators: env vars that affect replayt in this process, “must never be logged” rules, MCP host / JSON-RPC trace risk, deployment patterns (stdio vs shared host), and replayt credential interaction. **`observability.py`** is the **only** module that reads `os.environ` (`REPLAYT_MCP_BRIDGE_LOG_LEVEL` only)—enforced by `tests/test_security_docs.py`. **Observability:** structured JSON logs, optional MCP request correlation, and `redact_structure` for sensitive-shaped keys; covered by `tests/test_mcp_tools.py` and `tests/test_observability.py`.
 
-**Automation:** `tests/test_security_docs.py` anchors required SECURITY.md sections, README discoverability, DESIGN_PRINCIPLES pointer, and the no-`getenv` policy. Together with handler tests, claimed behavior is less likely to drift without a deliberate doc-and-test update.
+**Automation:** `tests/test_security_docs.py` anchors required SECURITY.md sections, README discoverability, DESIGN_PRINCIPLES pointer, and the narrow env-read policy. Together with handler tests, claimed behavior is less likely to drift without a deliberate doc-and-test update.
 
-**Residual:** Product choices (staging which tools are exposed per environment, generic catch-all errors for unexpected replayt exceptions) remain; they are not contradictions between architecture and the security doc set. New transports or in-package env reads would require updating SECURITY.md, MISSION, and the contract tests in the same change.
+**Residual:** Product choices (staging which tools are exposed per environment, generic catch-all errors for unexpected replayt exceptions) remain; they are not contradictions between architecture and the security doc set. New transports or additional in-package env reads would require updating SECURITY.md, MISSION, and the contract tests in the same change.
 
 ### Security review (phase 6)
 
 **Scope:** Line-by-line review of `src/replayt_mcp_bridge/server.py` against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the security table in [MCP_TOOLS.md](MCP_TOOLS.md).
 
-**Phase 6 close-out:** Re-checked the current `server.py` (dispatch-only replayt/`pathlib` usage, persistence resolution, structured errors, logging decorator vs `replayt_echo`). The input/surface table, information-disclosure notes, and follow-ups below still match the implementation; no handler changes were needed.
+**Phase 6 close-out:** Re-checked the current `server.py` (dispatch-only replayt/`pathlib` usage, persistence resolution, structured errors, logging decorator including `replayt_echo`). The input/surface table, information-disclosure notes, and follow-ups below still match the implementation; no handler changes were needed.
 
 **Transport and process:** The documented entrypath remains **stdio-only**; the bridge does not open its own network listeners. Whoever controls the parent process (or can substitute stdio) can invoke tools—treat MCP attachment as a **trusted-operator** boundary, not anonymous wide-area exposure.
 
@@ -98,11 +98,11 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `inputs_json` (`runner_dry_run_plan`) | Passed to `validation_report` after graph validation | Malformed JSON is reported as `status: "invalid"` via replayt’s validation report (not a bridge-level exception in spot checks). Other unexpected replayt exceptions remain possible and follow the unhandled path below. |
 | `store_hint` | `expanduser`, `Path.resolve(strict=False)`, then read-only `JSONLStore` / `SQLiteStore` | Any path the OS allows the process to open; **symlinks** resolve per platform rules. Plain files that are not SQLite are rejected with `_tool_error`. |
 | `run_id` | `validate_run_id_for_store` before `load_events` | Identifier validation only; **event payloads** are returned as stored (no bridge redaction). |
-| `replayt_echo(message)` | Returned in the structured result | **Reflection** if echoed content is fed into models or UIs; bridge-only, **not** wrapped by `_log_replayt_tool_boundaries`. |
+| `replayt_echo(message)` | Returned in the structured result | **Reflection** if echoed content is fed into models or UIs; bridge-only tool, still wrapped by `_log_replayt_tool_boundaries` for consistent lifecycle logs (arguments are not logged). |
 
-**Information disclosure:** `_tool_error` returns string `message` fields (from `typer.BadParameter`, `ValueError`, `OSError`, or hint validation). Those strings may include paths or operational detail useful to integrators and visible to **any** connected MCP client—scope who may attach. **Unhandled** exceptions are logged with `replayt_mcp_bridge.tool.unhandled_exception` and then propagate; presentation to clients depends on FastMCP / host behavior (see [MISSION.md](MISSION.md#security-and-trust-boundaries)).
+**Information disclosure:** `_tool_error` returns string `message` fields (from `typer.BadParameter`, `ValueError`, `OSError`, or hint validation). Those strings may include paths or operational detail useful to integrators and visible to **any** connected MCP client—scope who may attach. **Unhandled** exceptions emit a structured `replayt_mcp_bridge.tool.unhandled_exception` line, then `logger.exception` and propagation; presentation to clients depends on FastMCP / host behavior (see [MISSION.md](MISSION.md#security-and-trust-boundaries)).
 
-**Logging:** Replayt-backed tools log tool name and result `status` at begin/end only—**no** client argument values in those records.
+**Logging:** Tool handlers emit JSON lines with **tool** name, optional **mcp_request_id**, and result **status** at begin/end—**no** client argument values. Sensitive-shaped extra fields are redacted in `observability.py`.
 
 **Follow-ups (product / optional hardening):** Catch a narrow set of unexpected exceptions and return a generic structured error (with correlation id); allowlist `store_hint` roots for multi-tenant deploys; optional event field redaction; stricter documentation staging if integrators want a “milestone 1 only” tool exposure story.
 
@@ -114,7 +114,9 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `CONTRIBUTING.md` | Local check commands aligned with CI |
 | `docs/SECURITY.md` | Env vars, logging/redaction, deployment, MCP host trust (operator-facing) |
 | `src/replayt_mcp_bridge/server.py` | FastMCP app, tool implementations, persistence helpers |
+| `src/replayt_mcp_bridge/observability.py` | Structured JSON logging, redaction, log level env |
 | `src/replayt_mcp_bridge/__main__.py` | Stdio server entry |
 | `docs/MCP_TOOLS.md` | Tool → replayt mapping and input shapes |
 | `tests/test_mcp_tools.py` | Contract tests at the replayt boundary |
-| `tests/test_security_docs.py` | Doc and policy contract tests (SECURITY.md, README, no `getenv` in package) |
+| `tests/test_security_docs.py` | Doc and policy contract tests (SECURITY.md, README, env read policy) |
+| `tests/test_observability.py` | Redaction and structured log emission tests |
