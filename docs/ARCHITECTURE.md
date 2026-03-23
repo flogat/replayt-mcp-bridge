@@ -64,11 +64,23 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Review notes (risks and follow-ups)
 
-- **Phase 5 (architecture review):** Confirmed layering, error mapping, and trust boundaries in this doc and [MCP_TOOLS.md](MCP_TOOLS.md) match `server.py`; E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, etc.) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). [CI and contributor automation](#ci-and-contributor-automation) above records how CI, README, CONTRIBUTING, and mission criteria fit together for the backlog item. Remaining gaps are product choices (strict staging of “milestone 1” vs expanded surface, generic catch-all errors), not structural contradictions.
+- **Phase 5 (architecture review):** Documented under [Architecture review (phase 5)](#architecture-review-phase-5) below—code, operator security docs, and contract tests aligned for the MCP hosting trust boundary.
 - **Phase 6 (security review):** `server.py` was reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler changes were required for the stated stdio / trusted-operator model; CI gained explicit read-only `contents` permissions; optional hardenings remain follow-ups.
 - **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
 - **Event privacy:** Returned events are replayt’s stored JSON as-is; any redaction policy belongs in docs and optional bridge-level filtering if integrators require it.
+
+### Architecture review (phase 5)
+
+**Scope:** Backlog “Document secrets, env vars, and trust boundary for MCP hosting”—confirm [docs/SECURITY.md](SECURITY.md), this doc, [MCP_TOOLS.md](MCP_TOOLS.md), and `server.py` tell a consistent story.
+
+**Structure and handlers:** Layering and the tool → replayt mapping match `server.py` and [MCP_TOOLS.md](MCP_TOOLS.md). E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, and related handlers) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). Structured errors use `_tool_error` as documented; persistence helpers match the described path resolution.
+
+**Security documentation vs code:** [docs/SECURITY.md](SECURITY.md) expands [MISSION.md](MISSION.md#security-and-trust-boundaries) for operators: env vars that affect replayt in this process, “must never be logged” rules, MCP host / JSON-RPC trace risk, deployment patterns (stdio vs shared host), and replayt credential interaction. The claim that **package code** does not read `os.environ` / `getenv` matches `src/replayt_mcp_bridge/` (enforced by `tests/test_security_docs.py`). **Observability:** `_log_replayt_tool_boundaries` logs tool name and result `status` only; `replayt_echo` is intentionally unwrapped—consistent with SECURITY.md and covered by logging behavior tests in `tests/test_mcp_tools.py`.
+
+**Automation:** `tests/test_security_docs.py` anchors required SECURITY.md sections, README discoverability, DESIGN_PRINCIPLES pointer, and the no-`getenv` policy. Together with handler tests, claimed behavior is less likely to drift without a deliberate doc-and-test update.
+
+**Residual:** Product choices (staging which tools are exposed per environment, generic catch-all errors for unexpected replayt exceptions) remain; they are not contradictions between architecture and the security doc set. New transports or in-package env reads would require updating SECURITY.md, MISSION, and the contract tests in the same change.
 
 ### Security review (phase 6)
 
@@ -98,7 +110,9 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | ---- | ------- |
 | `.github/workflows/ci.yml` | Ruff + pytest workflow and replayt floor job |
 | `CONTRIBUTING.md` | Local check commands aligned with CI |
+| `docs/SECURITY.md` | Env vars, logging/redaction, deployment, MCP host trust (operator-facing) |
 | `src/replayt_mcp_bridge/server.py` | FastMCP app, tool implementations, persistence helpers |
 | `src/replayt_mcp_bridge/__main__.py` | Stdio server entry |
 | `docs/MCP_TOOLS.md` | Tool → replayt mapping and input shapes |
 | `tests/test_mcp_tools.py` | Contract tests at the replayt boundary |
+| `tests/test_security_docs.py` | Doc and policy contract tests (SECURITY.md, README, no `getenv` in package) |
