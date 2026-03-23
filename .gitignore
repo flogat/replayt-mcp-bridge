@@ -1,5 +1,6 @@
 # Local / tooling (not for publication)
 .orchestrator/
+.cursor/skills/
 
 # Python
 __pycache__/
