@@ -41,6 +41,13 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 - **Persistence resolution:** `_resolve_persistence_paths` interprets `store_hint` (default dir, JSONL directory, or `.sqlite`/`.db` file). `_open_read_store` yields a read-only store for `load_events`.
 - **Schema stability:** Tool inputs are plain Python parameters on `@mcp.tool()` functions; hosts receive JSON Schema derived by FastMCP. Prefer additive optional parameters over breaking renames.
 
+## Observability
+
+- **Server lifecycle:** `run_stdio()` logs `replayt_mcp_bridge.server.start` with `transport: stdio` once before blocking on the MCP run loop.
+- **Replayt-backed tools:** `_log_replayt_tool_boundaries` logs `replayt_mcp_bridge.tool.begin` (tool name only) and `replayt_mcp_bridge.tool.end` (tool name plus result `status`). Client argument values are omitted on purpose so logs stay usable without copying MCP payloads verbatim.
+- **Unhandled exceptions:** After `logger.exception` with `replayt_mcp_bridge.tool.unhandled_exception`, the exception propagates; FastMCP / host behavior applies (see [MISSION.md](MISSION.md#security-and-trust-boundaries)).
+- **Bridge-only tools:** `replayt_echo` is not wrapped—there is no replayt boundary to mark at the handler level.
+
 ## Non-goals (architecture)
 
 - **Vendoring replayt** or reimplementing workflow execution here.
@@ -49,6 +56,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Review notes (risks and follow-ups)
 
+- **Phase 5 (architecture review):** Layering, error mapping, and trust boundaries in this doc and [MCP_TOOLS.md](MCP_TOOLS.md) match `server.py`; E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, etc.) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). Remaining gaps are product choices (strict staging of “milestone 1” vs expanded surface, generic catch-all errors), not structural contradictions.
 - **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
 - **Event privacy:** Returned events are replayt’s stored JSON as-is; any redaction policy belongs in docs and optional bridge-level filtering if integrators require it.
