@@ -20,7 +20,7 @@ Run the same commands CI uses, in order (any failure should block the PR):
 ```bash
 ruff check src tests
 ruff format --check src tests
-pytest
+pytest -q
 ```
 
 To apply Ruff’s formatter when `ruff format --check` fails:

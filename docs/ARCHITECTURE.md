@@ -54,9 +54,17 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 - **Implicit network or subprocess tool calls** beyond what replayt’s imported APIs already do when loading targets or stores.
 - **Large generic “run arbitrary replayt CLI” tools** without explicit contracts—new tools should map to documented replayt capabilities like the mapping table in [MCP_TOOLS.md](MCP_TOOLS.md).
 
+## CI and contributor automation
+
+**Source of truth:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) installs with `pip install -e ".[dev]"`, then runs **`ruff check`**, **`ruff format --check`**, and **`pytest -q`** as **separate steps** so the first failure is obvious. Pip cache uses `actions/setup-python` with `cache-dependency-path: pyproject.toml`. The matrix covers Python **3.11** and **3.12**; the **`replayt-floor`** job reinstalls **`replayt==0.4.25`** after the editable install to guard the declared lower bound in `pyproject.toml`.
+
+**Documentation mirror:** [README.md](../README.md) (“Local checks”) and [CONTRIBUTING.md](../CONTRIBUTING.md) list the same Ruff and pytest invocations so contributors can reproduce CI without a shared script—duplication is intentional so each doc stands alone.
+
+**Backlog alignment:** The “pytest + ruff CI + CONTRIBUTING expectations” item is structurally satisfied: workflow on PR/push (plus `mc/**` pushes), README and CONTRIBUTING document local commands and `pip install -e ".[dev]"` for Ruff, and [MISSION.md](MISSION.md#ci-and-contributor-automation) records the refined acceptance criteria. **Default branch green** remains an operational outcome after merge.
+
 ## Review notes (risks and follow-ups)
 
-- **Phase 5 (architecture review):** Layering, error mapping, and trust boundaries in this doc and [MCP_TOOLS.md](MCP_TOOLS.md) match `server.py`; E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, etc.) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). Remaining gaps are product choices (strict staging of “milestone 1” vs expanded surface, generic catch-all errors), not structural contradictions.
+- **Phase 5 (architecture review):** Confirmed layering, error mapping, and trust boundaries in this doc and [MCP_TOOLS.md](MCP_TOOLS.md) match `server.py`; E2E milestone tools (`replayt_version_info`, `workflow_contract_snapshot`, etc.) align with [MISSION.md](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone). [CI and contributor automation](#ci-and-contributor-automation) above records how CI, README, CONTRIBUTING, and mission criteria fit together for the backlog item. Remaining gaps are product choices (strict staging of “milestone 1” vs expanded surface, generic catch-all errors), not structural contradictions.
 - **Phase 6 (security review):** `server.py` was reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler changes were required for the stated stdio / trusted-operator model; optional hardenings remain follow-ups.
 - **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
@@ -88,6 +96,8 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 | Path | Purpose |
 | ---- | ------- |
+| `.github/workflows/ci.yml` | Ruff + pytest workflow and replayt floor job |
+| `CONTRIBUTING.md` | Local check commands aligned with CI |
 | `src/replayt_mcp_bridge/server.py` | FastMCP app, tool implementations, persistence helpers |
 | `src/replayt_mcp_bridge/__main__.py` | Stdio server entry |
 | `docs/MCP_TOOLS.md` | Tool → replayt mapping and input shapes |

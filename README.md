@@ -48,7 +48,7 @@ After `pip install -e ".[dev]"` in your venv (Ruff is in the `dev` extra; pytest
 ```bash
 ruff check src tests
 ruff format --check src tests
-pytest
+pytest -q
 ```
 
 CI runs the same steps; see [.github/workflows/ci.yml](.github/workflows/ci.yml) and [CONTRIBUTING.md](CONTRIBUTING.md).
