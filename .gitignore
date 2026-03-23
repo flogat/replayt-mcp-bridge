@@ -1,0 +1,16 @@
+# Local / tooling (not for publication)
+.orchestrator/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.venv/
+venv/
