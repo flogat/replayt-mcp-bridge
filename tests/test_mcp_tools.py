@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 import pytest
+from replayt.persistence import SQLiteStore
 
 from replayt_mcp_bridge import installed_replayt_version
 from replayt_mcp_bridge.server import (
@@ -149,3 +150,24 @@ def test_persistence_list_run_events_missing_sqlite(tmp_path: Path) -> None:
     out = persistence_list_run_events(run_id="rid-1", store_hint=str(missing))
     assert out["status"] == "error"
     assert "not found" in out["message"].lower()
+
+
+def test_persistence_list_run_events_reads_sqlite(tmp_path: Path) -> None:
+    run_id = "sqlite-run-1"
+    db = tmp_path / "events.sqlite"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={"x": 2},
+        )
+    finally:
+        st.close()
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(db))
+    assert out["status"] == "ok"
+    assert out["run_id"] == run_id
+    assert out["event_count"] == 1
+    assert out["events"][0]["type"] == "unit_test_marker"
+    assert out["store"]["kind"] == "sqlite"
