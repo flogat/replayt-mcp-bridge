@@ -22,6 +22,8 @@ copies of upstream replayt documentation there for offline review or agent conte
 
 **MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
 
+**Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries) in the mission doc.
+
 ```bash
 python -m venv .venv
 # Windows: .venv\Scripts\activate
