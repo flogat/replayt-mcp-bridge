@@ -27,7 +27,8 @@ python -m venv .venv
 # Windows: .venv\Scripts\activate
 # Editable install pulls replayt (see pyproject.toml) and pytest; add [dev] for ruff.
 pip install -U pip
-pip install -e ".[dev]"
+pip install -e .
+# Optional: pip install -e ".[dev]"  # includes ruff
 ```
 
 On **Windows**, if `pip install -e .` fails with `WinError 2` while updating `replayt.exe` under `Scripts\`, you usually have a **mixed user-site and system** install or a half-removed script. Use the venv above (so everything installs under `.venv\`) or repair/remove the broken `replayt` install and invalid `~…` folders pip warns about under `Lib\site-packages`.
