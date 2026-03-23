@@ -86,9 +86,11 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ### Security review (phase 6)
 
-**Scope:** Line-by-line review of `src/replayt_mcp_bridge/server.py` against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the security table in [MCP_TOOLS.md](MCP_TOOLS.md).
+**Scope:** Security pass on **`server.py`** (tool surface and dispatch) against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the security table in [MCP_TOOLS.md](MCP_TOOLS.md), plus **`observability.py`** for the structured-logging / redaction contract tied to backlog **“Ship structured logging with redaction hooks.”**
 
-**Phase 6 close-out:** Re-checked the current `server.py` (dispatch-only replayt/`pathlib` usage, persistence resolution, structured errors, logging decorator including `replayt_echo`). The input/surface table, information-disclosure notes, and follow-ups below still match the implementation; no handler changes were needed.
+**Observability (`observability.py`):** `emit_json_log` runs caller fields through **`redact_structure`** (case-insensitive key substrings: password, secret, token, api_key, etc.) before `json.dumps`; values under non-matching keys are unchanged—same residual as phase 5. **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** is the sole in-package `os.environ` read (verbosity only; invalid names fall back to **INFO**). `configure_bridge_logging` attaches one stderr `StreamHandler` with `%(message)s`, **`propagate=False`** on `replayt_mcp_bridge` to avoid duplicate root handlers, and does not log environment values. `json.dumps(..., default=str)` is a last resort for non-JSON-native field values; current bridge emissions use JSON-safe primitives.
+
+**Phase 6 close-out:** Re-checked `server.py` and `observability.py` against the tables and docs above. Dispatch remains replayt/`pathlib` only (no shell or subprocess for MCP args); `_log_replayt_tool_boundaries` still omits tool arguments from log payloads; contract tests (`test_security_docs.py`, `test_observability.py`, `test_mcp_tools.py`) still enforce the env-read surface and redaction. No code changes were required; findings below are unchanged aside from the explicit observability verification.
 
 **Transport and process:** The documented entrypath remains **stdio-only**; the bridge does not open its own network listeners. Whoever controls the parent process (or can substitute stdio) can invoke tools—treat MCP attachment as a **trusted-operator** boundary, not anonymous wide-area exposure.
 
