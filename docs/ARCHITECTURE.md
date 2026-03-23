@@ -64,7 +64,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Review notes (risks and follow-ups)
 
-- **Phase 5 (architecture review):** Documented under [Architecture review (phase 5)](#architecture-review-phase-5) below—**declared replayt range**, integrator-facing docs, **`replayt-floor`** CI, and **version/doc contract tests** stay aligned (backlog: compatibility matrix and CHANGELOG).
+- **Phase 5 (architecture review):** [Declared replayt range, integrator docs, CI, and contract tests](#architecture-review-phase-5); [optional upstream doc mirror](#reference-documentation-mirror) under `docs/reference-documentation/` (offline convenience only—bridge contracts stay in first-party docs).
 - **Phase 6 (security review):** `server.py` was reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler changes were required for the stated stdio / trusted-operator model; CI gained explicit read-only `contents` permissions; optional hardenings remain follow-ups.
 - **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
@@ -88,6 +88,16 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 **Automation:** [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) parses `pyproject.toml` and asserts README, CHANGELOG, CONTRIBUTING, CI, and DESIGN_PRINCIPLES stay consistent with the declared range and `[project].version`. Tests use a literal `_EXPECTED_REPLAYT_SPEC` alongside `pyproject.toml` so a partial bump fails loudly (update the constant and docs together). Floor parsing today expects a **`>=x.y.z`** patch triple; a more exotic constraint string would need a richer parser.
 
 **Residual / extension rules:** When the minimum or range changes, update **`pyproject.toml`**, **README**, **CHANGELOG**, **CONTRIBUTING**, **DESIGN_PRINCIPLES** (if the narrative changes), **CI** `replayt-floor` reinstall and job label, and **`_EXPECTED_REPLAYT_SPEC`** in the contract tests in one maintainer pass. **Structured logging** and MCP trust-boundary architecture remain under [Observability](#observability) and [Security review (phase 6)](#security-review-phase-6).
+
+### Reference documentation mirror
+
+**Scope:** Optional **attributed** copies of replayt’s **sdist**-shipped `README.md` and `LICENSE` under [`docs/reference-documentation/`](reference-documentation/README.md), refreshed via [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py). This supports **offline reading** for humans and agents; it is **not** part of the MCP runtime or install graph.
+
+**Architectural boundary:** [MISSION.md](MISSION.md) and [MCP_TOOLS.md](MCP_TOOLS.md) remain the **only** mission-critical integration contracts. The mirror README states explicitly that snapshots must not override bridge docs. Relative links inside vendored replayt README may target paths absent from the partial mirror (full tree requires upstream or a wider refresh policy).
+
+**Alignment with packaging:** The default refresh version is parsed from the **`replayt>=…`** lower bound in `pyproject.toml`; [`tests/test_reference_documentation.py`](../tests/test_reference_documentation.py) locks snapshot directory naming, attribution content, and helper behavior **without PyPI** (synthetic tar fixtures + `importlib` load of the script). Drift rules: when the declared floor changes, run the refresh script, update [`docs/reference-documentation/README.md`](reference-documentation/README.md) layout table if the path changes, and extend tests if layout rules change.
+
+**Operational / trust:** `pypi_sdist_url` and `main()` perform **HTTPS fetches to PyPI** only; contributors run refresh manually. CI does not depend on network for this feature. No secrets or subprocess shells are involved in the refresh helpers beyond stdlib `urllib` and `tarfile`.
 
 ### Security review (phase 6)
 
@@ -133,3 +143,6 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `tests/test_mcp_tools.py` | Contract tests at the replayt boundary |
 | `tests/test_security_docs.py` | Doc and policy contract tests (SECURITY.md, README, env read policy) |
 | `tests/test_observability.py` | Redaction and structured log emission tests |
+| `docs/reference-documentation/README.md` | Optional mirror scope, attribution policy, refresh instructions |
+| `scripts/refresh_replayt_reference_docs.py` | PyPI sdist download and snapshot refresh (network in `main()` only) |
+| `tests/test_reference_documentation.py` | Contract tests for mirror layout and offline-safe refresh helpers |
