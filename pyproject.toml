@@ -5,9 +5,13 @@ description = "MCP tool bridge for replayt workflow steps: Python project using 
 requires-python = ">=3.11"
 dependencies = [
   "replayt>=0.4.25,<0.5",
+  "mcp>=1.0,<2",
   # So `pip install -e .` (e.g. Mission Control workflow step 4) can run `pytest` without requiring `.[dev]`.
   "pytest>=8.0",
 ]
+
+[project.scripts]
+replayt-mcp-bridge = "replayt_mcp_bridge.__main__:main"
 
 [project.optional-dependencies]
 dev = [

@@ -20,7 +20,7 @@ copies of upstream replayt documentation there for offline review or agent conte
 
 ## Quick start
 
-**MCP hosts:** use **stdio** transport and run the launch command defined in [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) once the server scaffold is merged (console script and/or `python -m replayt_mcp_bridge` will be listed there and in `pyproject.toml`).
+**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
 
 ```bash
 python -m venv .venv

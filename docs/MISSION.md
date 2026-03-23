@@ -69,10 +69,10 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 
 **Intent:** Introduce a **minimal** MCP server using the **official Python MCP SDK** (or an equivalent documented pattern from [modelcontextprotocol.io](https://modelcontextprotocol.io/)), with **stdio** as the default transport. Tool implementations may be stubs initially; the first milestone is a **correct process boundary** and **documented launch** surface.
 
-**Packaging (target):**
+**Packaging (implemented):**
 
-- Declare a console entry point under `[project.scripts]` in `pyproject.toml` **and/or** support `python -m replayt_mcp_bridge` as documented in the README.
-- README **Quick start** must name the **same** canonical command(s) MCP hosts should run.
+- Console entry point **`replayt-mcp-bridge`** is declared under `[project.scripts]` in `pyproject.toml`; **`python -m replayt_mcp_bridge`** is also supported via `replayt_mcp_bridge.__main__`.
+- README **Quick start** names the **same** canonical commands MCP hosts should run.
 
 **Acceptance criteria (refined, for implementation and review):**
 
