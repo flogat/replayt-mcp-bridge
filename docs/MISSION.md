@@ -144,6 +144,20 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
 6. **Default branch health** — After the workflow merges, **CI on the default branch stays green** (operational bar for closing the backlog item).
 
+## Replayt minor-line compatibility spike (0.5.x)
+
+**User story:** As a **maintainer**, I want an early **compatibility spike** when replayt publishes **`0.5.x`** so we can widen `pyproject.toml`, adjust pins, and schedule breaking API migrations before integrators are blocked.
+
+**Context:** The declared range today excludes the next pre-1.0 minor line (`<0.5`). When upstream ships **0.5.x**, validate against a **pre-release or GA** artifact, file issues for breaks, and add integrator-facing **CHANGELOG** notes when the range changes.
+
+**Living record:** Findings, rerun commands, API touchpoints, effort guesses, and a **draft migration blurb** for the changelog are maintained in **[REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md)**.
+
+**Refined acceptance criteria (for PRs that actually widen support):**
+
+1. **Recorded findings** — Pass/fail summary against replayt **0.5.x** (exact version, wheel/sdist if relevant, date).
+2. **Change list** — Required code or documentation edits with **rough effort** and suggested order.
+3. **If widening the range** — Update **`pyproject.toml`**, **README** compatibility table, **`replayt-floor`** pin and job label in **CI**, **`test_version_contract_docs.py`** (`_EXPECTED_REPLAYT_SPEC`), prose in **DESIGN_PRINCIPLES** / **MCP_TOOLS** / **ARCHITECTURE** that quotes the range, optional **reference doc** refresh, and **CHANGELOG** migration text. Work may be **split across follow-up PRs**.
+
 ## Audience
 
 | Audience | Needs |

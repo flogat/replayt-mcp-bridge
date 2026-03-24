@@ -24,7 +24,8 @@ constraints for reproducible deploys.
 
 **Tracking upstream** — When replayt publishes releases outside the declared range, update `pyproject.toml`, this
 section, and any CI matrix that exercises the boundary; note the change in the changelog when behavior or required
-APIs shift.
+APIs shift. For the next minor line (**0.5.x**), maintainers run the procedure and record outcomes in
+**[REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md)** before bumping the upper bound.
 
 **Install environment (especially Windows)** — Run editable installs inside a **project virtualenv** (`python -m venv
 .venv`, then that venv’s `python` / `pip`). Mixing a **system** interpreter with **`pip install --user`** and

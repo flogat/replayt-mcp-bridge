@@ -82,6 +82,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 - **[CHANGELOG.md](../CHANGELOG.md)** — Keep a Changelog sections; each release notes user-visible bridge changes and references the declared replayt range when it matters to consumers.
 - **[CONTRIBUTING.md](../CONTRIBUTING.md) § Releases** — One paragraph tying **version bump**, **changelog**, **`pyproject.toml`**, **README** table, **`replayt-floor`** pin in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml), green CI, and **git tag**.
 - **[DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) § replayt version contract** — Long-form policy (range vs pin, tracking upstream, Windows venv note); must quote the same range as `pyproject.toml` for discoverability.
+- **[REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md)** — Spike log and rerun steps for the **0.5.x** minor line (PyPI check, test procedure, API touchpoints, draft changelog migration text). Update when a 0.5.x wheel/sdist exists.
 
 **CI boundary:** Besides the default matrix (latest **replayt** compatible with the declared range), the **`replayt-floor`** job reinstalls **`replayt=={minimum}`** after `pip install -e ".[dev]"` so the **lower bound** is not only documented but **tested** against the same suite as the default job.
 

@@ -14,7 +14,7 @@ Declared support is **`replayt>=0.4.25,<0.5`** in [`pyproject.toml`](pyproject.t
 | -------------- | ---------------------------- | ----------------- |
 | 0.1.0          | `>=0.4.25,<0.5`              | **0.4.25** (minimum); latest in range on matrix jobs |
 
-When replayt **minor** or **major** lines change behavior or APIs this bridge uses, maintainers should bump the dependency range in `pyproject.toml`, refresh this table and [CHANGELOG.md](CHANGELOG.md), and extend CI if a new floor pin is needed.
+When replayt **minor** or **major** lines change behavior or APIs this bridge uses, maintainers should bump the dependency range in `pyproject.toml`, refresh this table and [CHANGELOG.md](CHANGELOG.md), and extend CI if a new floor pin is needed. For the upcoming **0.5.x** line, see **[docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md](docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md)** (status, rerun commands, and migration draft).
 
 ## Overview
 
@@ -90,6 +90,7 @@ match your team’s tooling.
 | `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor) |
 | `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
 | `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
+| `docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md` | Maintainer spike log for replayt 0.5.x compatibility (procedure + findings) |
 | `docs/SECURITY.md` | Env vars, logging rules, deployment trust boundary, replayt credentials |
 | `docs/reference-documentation/` | Optional markdown snapshot for contributors (when present) |
 | `src/replayt_mcp_bridge/` | Python package (import `replayt_mcp_bridge`) |
