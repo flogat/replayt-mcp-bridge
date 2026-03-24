@@ -83,6 +83,33 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 3. **Discoverable entry surface** — Integrators can find **one** primary launch path in README (console script name and/or `python -m …`) that matches `pyproject.toml` or the package’s documented `__main__` module.
 4. **MCP host orientation** — README **Quick start** includes **at least one sentence** aimed at MCP client operators (stdio + how to run the bridge), with a pointer to this section for details.
 
+## Stdio MCP session integration smoke test
+
+**Intent:** Handler-focused tests (for example `tests/test_mcp_tools.py`) exercise replayt boundaries by calling tool functions **in-process**; they do **not** validate FastMCP **stdio framing**, JSON-RPC message flow, or **tool registration** the way a real MCP host does. A **small integration smoke test** closes that gap by driving **at least one full MCP conversation**—session setup (handshake) plus a **single trivial tool call**—against the same **stdio** entrypath operators use.
+
+**User story:** As a **maintainer**, I want **CI** to run that conversation so regressions in bridge wiring, SDK upgrades, or transport show up **before merge**, without replacing the existing fast handler suite.
+
+**Relationship to existing automation:**
+
+- `tests/test_mcp_server_stdio.py` — Confirms the server **process starts** without a traceback; it does **not** send MCP messages.
+- `tests/test_mcp_tools.py` — Contract-style coverage at the **handler / replayt** boundary; **no** stdio client.
+
+**Recommended implementation shape (refined):**
+
+- Run inside the **default** CI pytest job (same install as other tests), with an explicit **per-test timeout** in the tens-of-seconds range so a broken server cannot hang the job.
+- Prefer the **official MCP Python SDK** **client** running **in the pytest process**: `ClientSession` with `stdio_client`, launching the bridge via `StdioServerParameters` using **`sys.executable`** and **`["-m", "replayt_mcp_bridge"]`** (or the installed console script) and **`cwd`** at the repository root—aligned with [MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md) and [ARCHITECTURE.md](ARCHITECTURE.md#process-and-transport). **Await handshake / session setup and the tool round-trip** instead of using fixed **`sleep()`** delays for readiness.
+- **Happy-path tool:** Prefer **`replayt_version_info`** (proves replayt import and structured success through the full stack). **`replayt_echo`** is an acceptable alternative when the goal is **MCP wiring only**; document the choice in the test module.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Default CI** — The new test module is collected and run by the standard **`pytest`** step in `.github/workflows/ci.yml` (no extra job required unless maintainers later choose to split slow tests).
+2. **Bounded runtime** — The test finishes within **CI-reasonable** wall time and uses **timeouts** (async, subprocess, or pytest) so failures fail **fast**.
+3. **Successful tool path** — After MCP session initialization succeeds, **one** `tools/call` (or SDK equivalent) returns a **structured** result consistent with [MCP_TOOLS.md](MCP_TOOLS.md) for the chosen tool (for example `status: "ok"` for `replayt_version_info`).
+4. **Clear failures** — Broken stdio, **registration** mistakes (tool missing from `tools/list`), or server startup errors produce **actionable** assertion failures or exceptions (no silent stall).
+5. **Determinism** — Avoid **race-prone** “sleep then hope” patterns; rely on protocol-level completion or SDK-managed subprocess lifecycle.
+
+Architecture layering, gaps vs handler tests, and follow-up file naming are recorded under [ARCHITECTURE.md § Architecture review: stdio MCP integration smoke test](ARCHITECTURE.md#architecture-review-stdio-mcp-integration-smoke-test).
+
 ## First replayt-backed tool calling (E2E milestone)
 
 **Intent:** Validate that this bridge can call **replayt in-process** with **MCP-appropriate structured payloads**, clear error mapping, and **automated tests** at the handler boundary—before treating a larger tool set as “done.”

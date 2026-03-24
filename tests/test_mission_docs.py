@@ -49,6 +49,15 @@ def test_mission_defines_mcp_stdio_spec_and_acceptance() -> None:
     assert "python -m replayt_mcp_bridge" in text
 
 
+def test_mission_defines_stdio_session_smoke_spec() -> None:
+    text = MISSION_PATH.read_text(encoding="utf-8")
+    assert "## Stdio MCP session integration smoke test" in text
+    assert "ClientSession" in text
+    assert "stdio_client" in text
+    assert "replayt_version_info" in text
+    assert "ARCHITECTURE.md" in text
+
+
 def test_readme_quick_start_orients_mcp_hosts() -> None:
     text = README_PATH.read_text(encoding="utf-8")
     assert "## Quick start" in text
