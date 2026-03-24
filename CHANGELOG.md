@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Observability** configuration bullet corrected so it matches SECURITY.md: bridge `os.environ` reads include optional **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`**, not log level alone; § **Security review (phase 6)** close-out explicitly records verification of the store_hint allowlist backlog against code and docs.
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)** close-out ties **`correlation_id`** on tool lifecycle JSON logs to mapped `_tool_error` payloads and [MCP_TOOLS.md](docs/MCP_TOOLS.md) (architecture review phase 5).
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)** adds an explicit security sign-off for **Return structured tool errors with correlation IDs for bounded failures**: mapped paths only, wrapper re-raise for unmapped exceptions, and **`correlation_id`** as a non-credential correlation handle (see **`test_mcp_tools.py`**).
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)** (backlog **“Add an integration smoke test over the real stdio MCP session”**): documents **`test_mcp_stdio_session_smoke.py`**—fixed subprocess launch and empty **`replayt_version_info`** args, checkout/SDK-env residuals; **Review notes** and phase **6** close-out cross-link the smoke module.
 
 ## [0.1.0] - 2026-03-23
 
