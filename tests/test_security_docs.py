@@ -57,7 +57,9 @@ def test_readme_links_security_under_clear_heading() -> None:
     assert "## Security, secrets, and MCP hosting" in text
     assert "docs/SECURITY.md" in text
     lines = text.splitlines()
-    head = "\n".join(lines[:35])
+    # Keep the link near the top of the README; raise the window when new
+    # sections (compatibility tables, Python matrix copy) push the block down.
+    head = "\n".join(lines[:45])
     assert "docs/SECURITY.md" in head
 
 

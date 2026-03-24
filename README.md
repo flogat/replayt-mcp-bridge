@@ -16,6 +16,8 @@ Declared support is **`replayt>=0.4.25,<0.5`** in [`pyproject.toml`](pyproject.t
 
 When replayt **minor** or **major** lines change behavior or APIs this bridge uses, maintainers should bump the dependency range in `pyproject.toml`, refresh this table and [CHANGELOG.md](CHANGELOG.md), and extend CI if a new floor pin is needed. For the upcoming **0.5.x** line, see **[docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md](docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md)** (status, rerun commands, and migration draft).
 
+**Python:** [`pyproject.toml`](pyproject.toml) sets **`requires-python = ">=3.11"`**. CI exercises **CPython 3.11, 3.12, and 3.13** with the same **Ruff** + **pytest** steps as [Local checks](#local-checks-pytest-and-ruff) (see [.github/workflows/ci.yml](.github/workflows/ci.yml)). Trove classifiers list the interpreter minors CI covers; newer CPython releases within `requires-python` are best validated locally until the matrix expands.
+
 ## Overview
 
 This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
