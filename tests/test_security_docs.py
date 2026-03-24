@@ -20,6 +20,7 @@ def test_security_doc_lists_environment_variables() -> None:
     assert "| Variable | Role |" in text or "| Variable |" in text
     assert "`REPLAYT_LOG_DIR`" in text
     assert "`OPENAI_API_KEY`" in text
+    assert "`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`" in text
 
 
 def test_security_doc_states_do_not_log_rules() -> None:
@@ -66,7 +67,7 @@ def test_design_principles_points_at_security_doc() -> None:
 
 
 def test_bridge_package_does_not_read_process_environ_directly() -> None:
-    """Matches docs/SECURITY.md: only observability reads REPLAYT_MCP_BRIDGE_LOG_LEVEL."""
+    """Matches docs/SECURITY.md: only observability reads bridge-specific env vars."""
     pkg = REPO_ROOT / "src" / "replayt_mcp_bridge"
     for path in sorted(pkg.rglob("*.py")):
         if path.name == "observability.py":
@@ -84,3 +85,9 @@ def test_observability_defines_log_level_env_var() -> None:
     obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
     text = obs.read_text(encoding="utf-8")
     assert "REPLAYT_MCP_BRIDGE_LOG_LEVEL" in text
+
+
+def test_observability_defines_store_hint_allowlist_env_var() -> None:
+    obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
+    text = obs.read_text(encoding="utf-8")
+    assert "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS" in text

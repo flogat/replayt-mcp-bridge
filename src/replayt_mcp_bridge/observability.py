@@ -7,6 +7,7 @@ import logging
 import os
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 DEFAULT_BRIDGE_LOG_LEVEL = logging.INFO
@@ -70,6 +71,43 @@ def resolve_log_level_from_env() -> int:
 
     raw = os.environ.get("REPLAYT_MCP_BRIDGE_LOG_LEVEL", "INFO").strip().upper()
     return getattr(logging, raw, DEFAULT_BRIDGE_LOG_LEVEL)
+
+
+def parse_store_hint_allowlist_roots() -> list[Path] | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`` for ``persistence_list_run_events``.
+
+    Returns:
+        ``None`` — allowlist not configured; explicit ``store_hint`` paths are not restricted by
+        this feature (normal validation still applies).
+        ``[]`` — the variable was set to a non-empty value but no usable absolute roots were
+        parsed; explicit ``store_hint`` is rejected.
+        Non-empty list — each path is a resolved absolute root; the resolved store path must be
+        equal to or under one of them (``Path.is_relative_to``).
+    """
+
+    raw = os.environ.get("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS")
+    if raw is None:
+        return None
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for part in stripped.split(","):
+        seg = part.strip()
+        if not seg:
+            continue
+        try:
+            r = Path(seg).expanduser().resolve(strict=False)
+        except (OSError, RuntimeError):
+            continue
+        if not r.is_absolute():
+            continue
+        key = os.path.normcase(str(r))
+        if key not in seen:
+            seen.add(key)
+            roots.append(r)
+    return roots
 
 
 def configure_bridge_logging() -> None:

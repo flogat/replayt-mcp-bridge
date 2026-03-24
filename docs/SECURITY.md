@@ -2,11 +2,11 @@
 
 This document is for **operators and security reviewers** hosting the MCP bridge. It complements [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries) and [ARCHITECTURE.md § Security review](ARCHITECTURE.md#security-review-phase-6).
 
-**Bridge code** (`replayt_mcp_bridge`) does not read environment variables directly **except** for **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** (verbosity only; not a secret—see `observability.py`). The process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
+**Bridge code** (`replayt_mcp_bridge`) reads **`REPLAYT_MCP_BRIDGE_*`** variables only in **`observability.py`**: **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** (verbosity; not a secret) and, optionally, **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (comma-separated absolute paths that constrain explicit `store_hint` values on `persistence_list_run_events`—see below). The process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
 
 ## Environment variables
 
-Aside from **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`**, the bridge package does **not** define its own `REPLAYT_MCP_*` (or similar) variables. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
+Aside from the **`REPLAYT_MCP_BRIDGE_…`** variables implemented in **`observability.py`**, the bridge package does **not** define other `REPLAYT_MCP_*` knobs. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
 
 1. **Whatever the MCP parent process inherits** (shell, IDE, agent runner, container image).
 2. **Replayt’s configuration**, which combines project files (`.replaytrc.toml`, `pyproject.toml` `[tool.replayt]`) with several `REPLAYT_*` and related variables.
@@ -16,6 +16,7 @@ Aside from **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`**, the bridge package does **not** d
 | Variable | Role |
 | -------- | ---- |
 | `REPLAYT_MCP_BRIDGE_LOG_LEVEL` | Optional stdlib log level name for the `replayt_mcp_bridge` logger (default **`INFO`** if unset or invalid), e.g. `DEBUG` or `WARNING`. Read only in `observability.py`; does not carry secrets. |
+| `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS` | **Optional hardening.** When **unset** or **whitespace-only**, behavior matches releases before this feature: explicit `store_hint` paths are not restricted by the bridge (subject to normal validation). When set to a **non-empty** value, it must be **one or more absolute paths**, separated by **commas** (spaces after commas are trimmed). Each entry is expanded with `~` / user home rules, then resolved with `Path.resolve(strict=False)` the same way as `store_hint`. If **at least one** valid absolute root is parsed, every **explicit** `store_hint` on `persistence_list_run_events` must resolve to a path **equal to or under** one of those roots (using `Path.is_relative_to`); otherwise the tool returns the usual structured `{ status: error, … }` object **without** embedding the client-supplied hint in the message. **Omitted** `store_hint` (default log directory via replayt’s `resolve_log_dir`) is **not** checked against this list, so enabling the allowlist does not tighten default resolution. If the variable is non-empty but **no** valid absolute roots parse (e.g. only relative segments or `,,`), explicit `store_hint` is **rejected** with a generic configuration error. Read only in `observability.py`. |
 | `REPLAYT_LOG_DIR` | When `persistence_list_run_events` is called **without** `store_hint`, replayt’s `resolve_log_dir` may use this (after project config) to locate the default JSONL run log directory. |
 | `REPLAYT_TARGET` | Default workflow target for **replayt CLI** workflows of discovery; bridge tools usually pass `target` explicitly, but cwd-based config discovery still applies. |
 | `REPLAYT_INPUTS_FILE` | Used by replayt CLI paths that read inputs from env; relevant if you extend tooling or share the same process environment with CLI wrappers. |
@@ -23,6 +24,20 @@ Aside from **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`**, the bridge package does **not** d
 | `REPLAYT_POLICY_HOOK_CONTEXT_JSON` | JSON context forwarded to trusted policy-hook subprocesses in replayt (not written to JSONL by replayt’s contract). |
 | `REPLAYT_RUN_HOOK`, `REPLAYT_RESUME_HOOK`, … | Hook commands resolved from env in replayt when runs/resume/export paths execute (see replayt’s `run_support` / config docs). |
 | `REPLAYT_JSONL_POSIX_MODE` | Optional portability toggle for JSONL persistence in replayt. |
+
+### Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`
+
+- **Single root** — JSONL directories and SQLite files opened via explicit `store_hint` must resolve under this tree:
+
+  `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS=/var/lib/replayt/persistence`
+
+- **Multiple roots** (comma-separated; spaces after commas are ignored):
+
+  `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS=/data/replayt/logs,/archive/replayt/sqlite`
+
+- **Windows** — use the same drive-qualified style you pass as `store_hint`, e.g. `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS=C:\Data\replayt\logs`.
+
+**Rejection logging:** When a hint is denied, the bridge logs **`replayt_mcp_bridge.store_hint.rejected`** with **`reason`** set to **`outside_allowlist`** or **`allowlist_unusable`**. It intentionally does **not** log the client `store_hint` value or the resolved filesystem path, so centralized telemetry is less likely to capture hostile probe strings.
 
 ### Credentials and LLM / API access (replayt)
 

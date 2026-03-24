@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Optional `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** — comma-separated absolute filesystem roots (parsed in `observability.py`); when set, **explicit** `store_hint` arguments to `persistence_list_run_events` must resolve under one of them. Omitted `store_hint` still uses replayt’s default log directory resolution (no default tightening). Documented in **[docs/SECURITY.md](docs/SECURITY.md)** with examples; rejections log **`replayt_mcp_bridge.store_hint.rejected`** without the client path string.
 - **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)** — copy-paste MCP host stdio configuration (**Claude Desktop** `mcpServers` and **Cursor** `.cursor/mcp.json` with **`type: "stdio"`**), **`replayt-mcp-bridge`** vs **`python -m replayt_mcp_bridge`**, Windows vs POSIX paths, and pointers to **[docs/SECURITY.md](docs/SECURITY.md)**.
 
 ### Changed
