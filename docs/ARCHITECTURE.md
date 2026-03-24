@@ -68,7 +68,17 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Single source of truth:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) **`strategy.matrix.python-version`** lists CI-tested interpreters. **`[project].requires-python`** in [`pyproject.toml`](../pyproject.toml) is the broader PEP 621 install contract (`>=3.11` today). **`Programming Language :: Python :: 3.*`** classifiers should match **matrix minors** so PyPI metadata reflects what CI proves.
 
-**Integrator surfaces:** [README.md](../README.md) (**Compatibility with replayt** / **Python** bullet), [MISSION.md](MISSION.md#python-313-ci-matrix-supported-cpython-line) (refined acceptance criteria), and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) (matrix + classifier consistency) keep claims aligned.
+**Integrator surfaces:** [README.md](../README.md) (**Compatibility with replayt** / **Python** bullet), [CONTRIBUTING.md](../CONTRIBUTING.md) (CI sentence lists matrix minors + **`replayt-floor`**), [MISSION.md](MISSION.md#python-313-ci-matrix-supported-cpython-line) (refined acceptance criteria), and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) (matrix + classifier consistency, README **Python** paragraph, and CONTRIBUTING mentions per minor) keep claims aligned.
+
+**Backlog alignment:** [MISSION.md](MISSION.md#python-313-ci-matrix-supported-cpython-line) prefers an explicit matrix row for **3.13** over deferral; the workflow implements **3.13** (no tracking-issue deferral in MISSION).
+
+**Quality bar:** Each matrix row runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest -q`**; default **`pytest`** collection includes the stdio MCP smoke modules per [Architecture review: stdio MCP integration smoke test](#architecture-review-stdio-mcp-integration-smoke-test), so **3.13** gets the same wiring signal as **3.11** / **3.12**.
+
+**Phase 5 review (architecture):** Re-read [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) **`test.strategy.matrix.python-version`**, [`pyproject.toml`](../pyproject.toml) **`requires-python`** and **`Programming Language :: Python :: 3.*`** classifiers, [README.md](../README.md) **Python** bullet, [CONTRIBUTING.md](../CONTRIBUTING.md) CI sentence, [MISSION.md](MISSION.md#python-313-ci-matrix-supported-cpython-line), and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) (`_EXPECTED_CI_PYTHON_VERSIONS`, matrix, classifier, README, and CONTRIBUTING tests): the **matrix + constant** pair is the interpreter SSoT; **`requires-python >=3.11`** stays the broad install contract while classifiers list **CI-tested** minors only; **`replayt-floor`** remains **Python 3.11** only with **`replayt==…`** matching the declared lower bound. Implementation landed in prior workflow phases (matrix, classifiers, docs, and phase **3** README/CONTRIBUTING contract tests); this pass required **documentation-only** updates in **ARCHITECTURE** / **CHANGELOG**.
+
+**Residual / extension rules:** When adding another matrix minor, update **`ci.yml`**, **`pyproject.toml`** classifiers, **`_EXPECTED_CI_PYTHON_VERSIONS`**, README **Python** copy, CONTRIBUTING, and MISSION (use the deferral + issue AC only if wheels or deps block the new row). Confirm **GitHub Actions** green on the new interpreter before merge.
+
+**Conclusion:** Architecture is **appropriate**: CI proves **replayt**, **`mcp`**, Ruff, and pytest on **3.11–3.13**; packaging metadata and contributor docs stay contract-tested; **`replayt-floor`** guards the replayt lower bound without duplicating the interpreter matrix.
 
 ## Review notes (risks and follow-ups)
 
