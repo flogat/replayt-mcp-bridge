@@ -93,7 +93,8 @@ Target loading, persistence validation, and store resolution failures return a J
   "status": "error",
   "tool": "<tool_name>",
   "replayt_surface": "<short mapping label>",
-  "message": "…"
+  "message": "…",
+  "correlation_id": "<request_id or uuid4>"
 }
 ```
 
@@ -107,11 +108,11 @@ Target loading, persistence validation, and store resolution failures return a J
 | **Stderr logs** | Every structured JSON log line emitted by the bridge for that **same invocation** (at minimum `replayt_mcp_bridge.tool.begin`, `replayt_mcp_bridge.tool.end`, `replayt_mcp_bridge.tool.unhandled_exception` when applicable, and bridge events such as `replayt_mcp_bridge.store_hint.rejected` that occur inside a tool handler) **MUST** include the **same** **`correlation_id`** value. |
 | **Value** | If FastMCP exposes a non-empty `Context.request_id` for the call, **`correlation_id` MUST** reuse that string. Otherwise the bridge **MUST** generate a new UUID (version 4) once per tool entry and reuse it until the handler returns or raises. |
 
-**Implementation status:** The current code path returns the four-field object above and logs optional **`mcp_request_id`** on boundaries when the SDK provides it; **`correlation_id`** on tool results and in logs is **not yet implemented**—this subsection is the integrator contract for that work.
+**Implementation status:** Handlers return **`correlation_id`** on every mapped `{ "status": "error", … }` result. Structured stderr lines for the same invocation (`replayt_mcp_bridge.tool.begin` / `.end`, `.unhandled_exception` when applicable, and `replayt_mcp_bridge.store_hint.rejected`) include the **same** value. Optional **`mcp_request_id`** is still logged when FastMCP provides it (often identical to **`correlation_id`**).
 
 ### Mapped failure paths (exception / branch inventory)
 
-These are the **only** bridge-recognized routes to `{ "status": "error", … }` today. After `correlation_id` ships, each row’s errors **MUST** carry the field per the table above.
+These are the **only** bridge-recognized routes to `{ "status": "error", … }` today. Each row’s errors **MUST** carry **`correlation_id`** per the specification above.
 
 | MCP tool(s) | Trigger | Mechanism | Typical `replayt_surface` (handler) |
 | ----------- | ------- | --------- | ------------------------------------- |
@@ -136,7 +137,7 @@ Handlers return plain dicts that the MCP SDK serializes as structured tool conte
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors) using the error object above—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior. When the [correlation identifier specification](#specification-correlation_id-bounded-structured-errors-backlog) is implemented, mapped errors will also include **`correlation_id`**, mirrored in stderr logs.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 
@@ -157,4 +158,4 @@ The bridge does **not** add shell indirection for these parameters. **Operators*
 
 **Operator guidance:** Required environment variables, “do not log” expectations, deployment patterns (local stdio vs shared host), and MCP host logging risks are documented in [docs/SECURITY.md](SECURITY.md).
 
-**Error payloads:** Structured `{ status: error, tool, replayt_surface, message }` responses may include filesystem paths or other operational detail in `message` (e.g. from `typer.BadParameter`, I/O errors). Treat them as visible to every attached client unless you filter at the host. Bridge stderr logs are JSON lines with tool name, optional MCP request id, and result status—not full MCP arguments—with redaction for sensitive-shaped keys (see [ARCHITECTURE.md § Observability](ARCHITECTURE.md#observability)). After **`correlation_id`** is implemented (see [Error response shape](#error-response-shape)), operators can align client-reported ids with the same field in those logs. Deeper review notes live under [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6).
+**Error payloads:** Structured `{ status: error, tool, replayt_surface, message, correlation_id }` responses (mapped paths) may include filesystem paths or other operational detail in `message` (e.g. from `typer.BadParameter`, I/O errors). Treat them as visible to every attached client unless you filter at the host. Bridge stderr logs are JSON lines with tool name, **`correlation_id`**, optional MCP request id, and result status—not full MCP arguments—with redaction for sensitive-shaped keys (see [ARCHITECTURE.md § Observability](ARCHITECTURE.md#observability)). Operators can align client-reported ids with the same field in those logs. Deeper review notes live under [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6).
