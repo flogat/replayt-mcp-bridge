@@ -14,6 +14,26 @@ def test_security_doc_exists() -> None:
     assert SECURITY_PATH.is_file(), "docs/SECURITY.md must exist"
 
 
+def test_security_doc_defines_tool_capability_tiers() -> None:
+    """Guards the operator tier table: six tools, each named once (backlog: selective exposure)."""
+    text = SECURITY_PATH.read_text(encoding="utf-8")
+    assert "## MCP tool capability tiers" in text
+    start = text.index("## MCP tool capability tiers")
+    end = text.index("\n\n**Bridge code** (`replayt_mcp_bridge`)", start)
+    tier_section = text[start:end]
+    tools = (
+        "`replayt_echo`",
+        "`replayt_version_info`",
+        "`workflow_contract_snapshot`",
+        "`workflow_graph_mermaid`",
+        "`runner_dry_run_plan`",
+        "`persistence_list_run_events`",
+    )
+    for t in tools:
+        assert tier_section.count(t) == 1, f"{t} should appear exactly once in tier section"
+    assert "MISSION.md#security-and-trust-boundaries" in tier_section
+
+
 def test_security_doc_lists_environment_variables() -> None:
     text = SECURITY_PATH.read_text(encoding="utf-8")
     assert "## Environment variables" in text
@@ -57,6 +77,7 @@ def test_readme_links_security_under_clear_heading() -> None:
     text = README_PATH.read_text(encoding="utf-8")
     assert "## Security, secrets, and MCP hosting" in text
     assert "docs/SECURITY.md" in text
+    assert "docs/SECURITY.md#mcp-tool-capability-tiers" in text
     lines = text.splitlines()
     # Keep the link near the top of the README; raise the window when new
     # sections (compatibility tables, Python matrix copy) push the block down.

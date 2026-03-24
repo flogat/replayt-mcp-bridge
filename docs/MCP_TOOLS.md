@@ -183,6 +183,8 @@ For the **first end-to-end replayt milestone** (import + optional target resolut
 
 ## Security
 
+**Selective exposure:** Operators choosing which tools to allow in a host config should start from the authoritative **[MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers)** table in [SECURITY.md](SECURITY.md) (one row per tool, with suggested defaults for local vs shared environments). The per-tool filesystem notes below stay for quick reference beside schemas.
+
 Tools that load workflow definitions or read event stores follow the **same trust model as running replayt locally** (see [MISSION.md](MISSION.md#security-and-trust-boundaries)). Concretely for this surface:
 
 | Tool | Filesystem / code | Notes |
