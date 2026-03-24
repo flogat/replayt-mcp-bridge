@@ -89,6 +89,29 @@ def run_events_redaction_enabled() -> bool:
     return raw.strip().lower() in _RUN_EVENTS_REDACTION_TRUTHY
 
 
+def parse_default_run_event_field_allowlist() -> list[str] | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`` for ``persistence_list_run_events``.
+
+    Comma-separated **top-level** JSON object keys (trimmed; empty segments ignored). Returns ``None`` when unset,
+    whitespace-only, or no usable names after parsing—meaning **no** default field allowlist (full event objects).
+    Duplicate names are deduplicated in first-seen order.
+    """
+
+    raw = os.environ.get("REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS")
+    if raw is None:
+        return None
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        return None
+    seen: set[str] = set()
+    out: list[str] = []
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
 def parse_store_hint_allowlist_roots() -> list[Path] | None:
     """Parse ``REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`` for ``persistence_list_run_events``.
 
