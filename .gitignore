@@ -15,6 +15,7 @@ build/
 htmlcov/
 .venv/
 .venv-ci/
+.venv-p3/
 # Orchestrator / local alignment venvs (must never be committed)
 .venv-align/
 .venv-align-check/

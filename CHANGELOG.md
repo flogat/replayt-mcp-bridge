@@ -10,9 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - **Typed `store_hint` prefixes** — `persistence_list_run_events` accepts optional **`jsonl:`** and **`sqlite:`** prefixes (ASCII, case-insensitive) before the filesystem path so integrators can force a JSONL directory vs SQLite file without relying on suffix heuristics alone. Legacy bare paths are unchanged. Documented with grammar and examples in **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#store_hint-grammar)**; **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** persistence notes updated. **`tests/test_mcp_tools.py`** covers both typed kinds and empty-prefix / `jsonl:`-on-file negative cases.
+- **Phase 3 — `store_hint` prefix parsing tests** — Direct coverage of **`_split_typed_store_hint`** (case-insensitive `jsonl:` / `sqlite:`, path trimming, Windows drive paths staying legacy, unknown pseudo-schemes unchanged).
 
 ### Changed
 
+- **Ruff scope (local dev)** — **`pyproject.toml`** extends Ruff **`exclude`** for common repo-local virtualenv directories (`.ci-venv`, `.phase7b-venv`, `.venv-ci`, `.venv-p3`, `.venv`, `venv`) so `ruff check .` does not lint third-party **`pywin32_postinstall`** copies on Windows. **`.gitignore`** includes **`.venv-p3/`** for disposable test envs.
 - **Stdio MCP smoke tests (phase 3)** — `tests/test_mcp_server_stdio.py` resolves the **`replayt-mcp-bridge`** console script via **`sysconfig.get_path("scripts")`** first so Windows and venv layouts match real install locations. `tests/test_mcp_stdio_session_smoke.py` **skips** at collection with a clear reason if the MCP SDK stdio client cannot be imported (backlog allowance when client tooling is unavailable on a platform).
 - **Docs (backlog CI smoke spec)** — [docs/MISSION.md](docs/MISSION.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) name backlog **CI smoke: subprocess MCP stdio handshake** and map its original acceptance criteria (traceback/startup, local run, no extra CI network) to **`test_mcp_server_stdio.py`** and **`test_mcp_stdio_session_smoke.py`**. [CONTRIBUTING.md](CONTRIBUTING.md) states that default **`pytest`** includes both modules and links to the mission section.
 

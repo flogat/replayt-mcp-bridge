@@ -12,6 +12,7 @@ from replayt.persistence import SQLiteStore
 
 from replayt_mcp_bridge import installed_replayt_version
 from replayt_mcp_bridge.server import (
+    _split_typed_store_hint,
     persistence_list_run_events,
     replayt_echo,
     replayt_version_info,
@@ -44,6 +45,38 @@ def test_mcp_tools_doc_defines_store_hint_grammar() -> None:
     assert "### store_hint grammar" in text
     assert "jsonl:" in text
     assert "sqlite:" in text
+
+
+@pytest.mark.parametrize(
+    ("hint", "expected_kind", "expected_path"),
+    [
+        ("jsonl:/tmp/logs", "jsonl", "/tmp/logs"),
+        ("JSONL:  /tmp/logs", "jsonl", "/tmp/logs"),
+        ("sqlite:./events.db", "sqlite", "./events.db"),
+        ("SQLite:C:\\data\\db", "sqlite", "C:\\data\\db"),
+    ],
+)
+def test_split_typed_store_hint_recognizes_prefixes(
+    hint: str, expected_kind: str, expected_path: str
+) -> None:
+    kind, path = _split_typed_store_hint(hint)
+    assert kind == expected_kind
+    assert path == expected_path
+
+
+def test_split_typed_store_hint_legacy_windows_drive_not_a_scheme() -> None:
+    """Paths like ``C:\\foo`` must stay legacy so we do not treat the drive letter as a URI scheme."""
+
+    hint = r"C:\replayt\logs"
+    kind, path = _split_typed_store_hint(hint)
+    assert kind is None
+    assert path == hint
+
+
+def test_split_typed_store_hint_unknown_prefix_is_legacy() -> None:
+    kind, path = _split_typed_store_hint("file:///tmp/x")
+    assert kind is None
+    assert path == "file:///tmp/x"
 
 
 def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
