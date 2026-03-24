@@ -23,6 +23,9 @@ def test_mcp_host_config_doc_covers_entrypoints_and_security() -> None:
     assert "modelcontextprotocol.io" in text
     assert "Claude Desktop" in text
     assert "Cursor" in text
+    assert "Zed" in text
+    assert "context_servers" in text
+    assert "https://zed.dev/docs/ai/mcp" in text
     assert "https://cursor.com/docs/context/mcp" in text
     assert ".cursor/mcp.json" in text
     assert '"type": "stdio"' in text
@@ -33,3 +36,4 @@ def test_readme_links_mcp_host_config_near_quick_start() -> None:
     text = README_PATH.read_text(encoding="utf-8")
     assert "docs/MCP_HOST_CONFIG.md" in text
     assert "**MCP hosts:**" in text
+    assert "## Integrator recipes" in text

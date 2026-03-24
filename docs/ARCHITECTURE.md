@@ -112,7 +112,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Scope:** Backlog **“Document copy-paste MCP host configuration for stdio”**—confirm operator-facing host JSON stays aligned with the **stdio process model**, **replayt config discovery** (`cwd`), and documented **trust boundaries**.
 
-**Doc surface:** [MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md) holds copy-paste **Claude Desktop** (`mcpServers`) and **Cursor** (`.cursor/mcp.json`, `type: "stdio"`, `${workspaceFolder}`) examples; [README.md](../README.md) Quick start names **`replayt-mcp-bridge`** / **`python -m replayt_mcp_bridge`** and links there first. Host field names and UI evolve independently—examples defer detail to [Model Context Protocol](https://modelcontextprotocol.io/) and each host’s current docs.
+**Doc surface:** [MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md) holds copy-paste **Claude Desktop** (`mcpServers`), **Cursor** (`.cursor/mcp.json`, `type: "stdio"`, `${workspaceFolder}`), and **Zed** (`context_servers`) examples; [README.md](../README.md) Quick start and **Integrator recipes** name **`replayt-mcp-bridge`** / **`python -m replayt_mcp_bridge`** and link there. Host field names and UI evolve independently—examples defer detail to [Model Context Protocol](https://modelcontextprotocol.io/) and each host’s current docs.
 
 **Process alignment:** Recommending **`python -m replayt_mcp_bridge`** with a **venv-resolved interpreter path** matches GUI parents that lack shell activation and matches [Process and transport](#process-and-transport) (JSON-RPC on stdin/stdout, no bridge-owned network listener).
 
@@ -120,7 +120,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Trust and security:** The host doc states the **MCP attachment** boundary up front and links [SECURITY.md](SECURITY.md) for env vars, logging, and deployment—consistent with [Security review (phase 6)](#security-review-phase-6) and [MISSION.md](MISSION.md).
 
-**Automation:** [`tests/test_mcp_host_config_docs.py`](../tests/test_mcp_host_config_docs.py) guards presence of entrypoint strings, **SECURITY** cross-link, Claude + Cursor coverage, upstream URLs, `.cursor/mcp.json`, **`"type": "stdio"`**, **`${workspaceFolder}`**, and README Quick start linkage—parallel in spirit to [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) for the declared replayt range.
+**Automation:** [`tests/test_mcp_host_config_docs.py`](../tests/test_mcp_host_config_docs.py) guards presence of entrypoint strings, **SECURITY** cross-link, Claude + Cursor + Zed coverage, upstream URLs, `.cursor/mcp.json`, **`"type": "stdio"`**, **`${workspaceFolder}`**, **`context_servers`**, and README Quick start linkage—parallel in spirit to [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) for the declared replayt range.
 
 **Residual / extension rules:** New **named host** blocks should follow the same pattern: minimal JSON, link upstream, extend contract tests for stable substrings, avoid unmaintainable host-version UI narrative.
 
@@ -249,7 +249,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `src/replayt_mcp_bridge/observability.py` | Structured JSON logging, redaction, log level env |
 | `src/replayt_mcp_bridge/__main__.py` | Stdio server entry |
 | `docs/MCP_TOOLS.md` | Tool → replayt mapping and input shapes |
-| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor) |
+| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor, Zed) |
 | `tests/test_mcp_tools.py` | Contract tests at the replayt boundary |
 | `tests/test_mcp_stdio_session_smoke.py` | MCP stdio session smoke: handshake + `replayt_version_info` via real JSON-RPC—see [Architecture review: stdio MCP integration smoke test](#architecture-review-stdio-mcp-integration-smoke-test) |
 | `tests/test_mcp_server_stdio.py` | Subprocess startup without traceback (no MCP messages) |

@@ -43,7 +43,7 @@ To refresh snapshots after changing the supported replayt range, run `python scr
 
 ## Quick start
 
-**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. Copy-paste **JSON examples** for **Claude Desktop** (`mcpServers`) and **Cursor** (`.cursor/mcp.json`), plus **`cwd`** / working-directory notes and Windows vs POSIX paths, are in **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)**. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
+**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. See **[Integrator recipes](#integrator-recipes)** for copy-paste host JSON and [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
 
 **Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
@@ -59,6 +59,10 @@ pip install -e .
 ```
 
 On **Windows**, if `pip install -e .` fails with `WinError 2` while updating `replayt.exe` under `Scripts\`, you usually have a **mixed user-site and system** install or a half-removed script. Use the venv above (so everything installs under `.venv\`) or repair/remove the broken `replayt` install and invalid `~…` folders pip warns about under `Lib\site-packages`.
+
+## Integrator recipes
+
+Copy-paste **stdio** MCP host configuration for **Claude Desktop** (`mcpServers`), **Cursor** (`.cursor/mcp.json` with **`type: "stdio"`**), and **Zed** (`context_servers`)—including **`command` / `args`**, **`cwd`** or workspace notes, and **generic** path placeholders (no real secrets)—is in **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)**. Examples use the same canonical entrypoints as this README: **`replayt-mcp-bridge`** and **`python -m replayt_mcp_bridge`**.
 
 ## Local checks (pytest and Ruff)
 
@@ -87,7 +91,7 @@ match your team’s tooling.
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |
-| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor) |
+| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor, Zed) |
 | `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
 | `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
 | `docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md` | Maintainer spike log for replayt 0.5.x compatibility (procedure + findings) |

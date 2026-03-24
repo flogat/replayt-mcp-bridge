@@ -39,7 +39,7 @@ Use **forward slashes** or **escaped backslashes** in JSON on Windows when you e
 
 ## Example: Claude Desktop (`mcpServers`)
 
-[Claude Desktop](https://claude.ai/download) reads a JSON file with a top-level **`mcpServers`** object. Exact file location depends on OS (see Anthropic / MCP “local servers” docs). Replace paths with your checkout and venv.
+[Claude Desktop](https://claude.ai/download) reads a JSON file with a top-level **`mcpServers`** object. Exact file location depends on OS (see Anthropic / MCP “local servers” docs). Each listed server is spawned as a **stdio** child: MCP runs as JSON-RPC over that process’s **stdin** and **stdout**. Replace placeholder paths with your checkout and venv (keep real secrets and machine-specific layout out of committed snippets).
 
 **Using the module entrypoint (recommended in config files):**
 
@@ -47,23 +47,23 @@ Use **forward slashes** or **escaped backslashes** in JSON on Windows when you e
 {
   "mcpServers": {
     "replayt": {
-      "command": "/home/you/projects/my-workflow/.venv/bin/python",
+      "command": "/path/to/workflow/.venv/bin/python",
       "args": ["-m", "replayt_mcp_bridge"],
-      "cwd": "/home/you/projects/my-workflow"
+      "cwd": "/path/to/workflow"
     }
   }
 }
 ```
 
-**Windows example (same shape, different paths):**
+**Windows example (same shape; use a drive and folder that match your tree):**
 
 ```json
 {
   "mcpServers": {
     "replayt": {
-      "command": "C:\\Users\\you\\projects\\my-workflow\\.venv\\Scripts\\python.exe",
+      "command": "D:\\path\\to\\workflow\\.venv\\Scripts\\python.exe",
       "args": ["-m", "replayt_mcp_bridge"],
-      "cwd": "C:\\Users\\you\\projects\\my-workflow"
+      "cwd": "D:\\path\\to\\workflow"
     }
   }
 }
@@ -77,7 +77,7 @@ Use **forward slashes** or **escaped backslashes** in JSON on Windows when you e
     "replayt": {
       "command": "replayt-mcp-bridge",
       "args": [],
-      "cwd": "/home/you/projects/my-workflow"
+      "cwd": "/path/to/workflow"
     }
   }
 }
@@ -87,7 +87,7 @@ Restart the host application after editing config. If a key such as **`cwd`** is
 
 ## Example: Cursor (`mcp.json`)
 
-[Cursor](https://cursor.com/docs/context/mcp) loads **`mcp.json`** from **`.cursor/mcp.json`** (project) or **`~/.cursor/mcp.json`** (global); see Cursor’s **Configuration locations** in that doc. For **stdio** servers it documents a **`type`** field set to **`"stdio"`** alongside **`command`** / **`args`** / optional **`env`**.
+[Cursor](https://cursor.com/docs/context/mcp) loads **`mcp.json`** from **`.cursor/mcp.json`** (project) or **`~/.cursor/mcp.json`** (global); see Cursor’s **Configuration locations** in that doc. Register the bridge as a **stdio** transport server: keep **`"type": "stdio"`** next to **`command`** / **`args`** / optional **`env`** so the host spawns a subprocess and speaks MCP on **stdin/stdout** (not HTTP/SSE).
 
 Replayt resolves config from the process working directory; Cursor usually starts stdio servers with the **workspace folder** as cwd when you use project config—if tools cannot see your workflow files, confirm cwd behavior in Cursor’s current MCP docs.
 
@@ -120,6 +120,42 @@ Replayt resolves config from the process working directory; Cursor usually start
 ```
 
 You can instead hardcode an absolute path to the venv’s **`python`** if you prefer not to use **`${workspaceFolder}`** interpolation. Restart Cursor after editing **`mcp.json`**.
+
+## Example: Zed (`context_servers`)
+
+[Zed](https://zed.dev/docs/ai/mcp) connects custom MCP servers by adding a **`context_servers`** entry in [settings](https://zed.dev/docs/configuring-zed.html#settings-files). Entries that specify **`command`** and **`args`** (and optional **`env`**) are **stdio** subprocesses—MCP JSON-RPC on **stdin/stdout**—unlike entries that set **`url`** for remote servers.
+
+Zed does not always expose a separate **`cwd`** key in the same way as Claude Desktop; use an **absolute** path to the venv’s **`python`** (as below) and open the **workflow repository** as your workspace so replayt’s cwd-relative discovery matches your intent, or rely on Zed’s current behavior for the Agent panel (see Zed’s MCP docs).
+
+**POSIX (module entrypoint):**
+
+```json
+{
+  "context_servers": {
+    "replayt": {
+      "command": "/path/to/workflow/.venv/bin/python",
+      "args": ["-m", "replayt_mcp_bridge"],
+      "env": {}
+    }
+  }
+}
+```
+
+**Windows (same shape):**
+
+```json
+{
+  "context_servers": {
+    "replayt": {
+      "command": "D:\\path\\to\\workflow\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "replayt_mcp_bridge"],
+      "env": {}
+    }
+  }
+}
+```
+
+Restart Zed or reload settings after editing. In the Agent panel, confirm the server indicator shows **active** when stdio startup succeeds.
 
 ## Other hosts (IDEs, custom runners)
 
