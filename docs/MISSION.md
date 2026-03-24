@@ -85,9 +85,17 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 
 ## Stdio MCP session integration smoke test
 
+**Backlog title:** **CI smoke: subprocess MCP stdio handshake** (same scope as the older phrasing *“Add an integration smoke test over the real stdio MCP session”* in architecture review notes).
+
 **Intent:** Handler-focused tests (for example `tests/test_mcp_tools.py`) exercise replayt boundaries by calling tool functions **in-process**; they do **not** validate FastMCP **stdio framing**, JSON-RPC message flow, or **tool registration** the way a real MCP host does. A **small integration smoke test** closes that gap by driving **at least one full MCP conversation**—session setup (handshake) plus a **single trivial tool call**—against the same **stdio** entrypath operators use.
 
 **User story:** As a **maintainer**, I want **CI** to run that conversation so regressions in bridge wiring, SDK upgrades, or transport show up **before merge**, without replacing the existing fast handler suite.
+
+**Original backlog acceptance criteria (traceability):**
+
+- **Startup / traceback** — Automation must fail if the stdio server exits with a traceback on startup or cannot complete the MCP lifecycle. [`tests/test_mcp_server_stdio.py`](../tests/test_mcp_server_stdio.py) asserts **no traceback** when spawning the bridge **without** sending MCP frames; [`tests/test_mcp_stdio_session_smoke.py`](../tests/test_mcp_stdio_session_smoke.py) catches **wiring / registration / transport** failures when real JSON-RPC traffic runs (subprocess exit, protocol errors, hung session covered by the async wall timeout).
+- **Local reproduction** — [CONTRIBUTING.md](../CONTRIBUTING.md) documents running the same checks as CI, including **`pytest tests/test_mcp_stdio_session_smoke.py -q`** for the full handshake + one tool call against **`python -m replayt_mcp_bridge`**.
+- **No extra CI network** — The smoke test uses only the **already-installed** bridge, replayt, and MCP Python SDK from **`pip install -e ".[dev]"`**; it does **not** open outbound network connections or fetch remote resources as part of the assertion path.
 
 **Relationship to existing automation:**
 

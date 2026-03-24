@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import sysconfig
 import time
 from pathlib import Path
 
@@ -11,14 +12,18 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _console_script_path() -> Path:
-    """Resolve the installed console script next to this interpreter.
+    """Resolve the installed console script for this interpreter.
 
-    Windows venvs place ``python.exe`` and entry-point scripts in the same
-    ``Scripts`` directory. A system-wide install keeps ``python.exe`` in the
-    prefix root and scripts under ``Scripts\\``.
+    Prefer :func:`sysconfig.get_path` so Windows and venv layouts resolve the
+    same ``Scripts`` / ``bin`` directory even when ``python.exe`` is not beside
+    the entry-point wrapper.
     """
 
     name = "replayt-mcp-bridge.exe" if sys.platform == "win32" else "replayt-mcp-bridge"
+    scripts_dir = Path(sysconfig.get_path("scripts"))
+    primary = scripts_dir / name
+    if primary.is_file():
+        return primary
     exe_dir = Path(sys.executable).resolve().parent
     same_dir = exe_dir / name
     if same_dir.is_file():
@@ -27,7 +32,7 @@ def _console_script_path() -> Path:
         under_scripts = exe_dir / "Scripts" / name
         if under_scripts.is_file():
             return under_scripts
-    return same_dir
+    return primary
 
 
 def test_module_invocation_starts_without_traceback() -> None:
