@@ -232,6 +232,36 @@ def test_persistence_list_run_events_reads_sqlite(tmp_path: Path) -> None:
     assert out["store"]["kind"] == "sqlite"
 
 
+def test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitted ``store_hint`` uses ``resolve_log_dir``; allowlist checks only explicit hints."""
+
+    allow_root = tmp_path / "allow_only_here"
+    allow_root.mkdir()
+    default_logs = tmp_path / "actual_default_logs"
+    default_logs.mkdir()
+    run_id = "r-omit-hint"
+    (default_logs / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allow_root))
+
+    def fake_resolve_log_dir(_default: Path) -> Path:
+        return default_logs
+
+    monkeypatch.setattr(
+        "replayt_mcp_bridge.server.resolve_log_dir",
+        fake_resolve_log_dir,
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=None)
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+    assert Path(out["store"]["path"]) == default_logs
+
+
 def test_persistence_list_run_events_allowlist_allows_under_root(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
