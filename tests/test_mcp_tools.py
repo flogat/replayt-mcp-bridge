@@ -45,8 +45,8 @@ def test_mcp_tools_doc_exists_and_has_mapping_table() -> None:
 def test_mcp_tools_doc_defines_store_hint_grammar() -> None:
     text = MCP_TOOLS_DOC.read_text(encoding="utf-8")
     assert "### store_hint grammar" in text
-    assert "jsonl:" in text
-    assert "sqlite:" in text
+    for token in ("file:", "jsonl-dir:", "jsonl:", "sqlite:"):
+        assert token in text
 
 
 @pytest.mark.parametrize(
@@ -54,8 +54,12 @@ def test_mcp_tools_doc_defines_store_hint_grammar() -> None:
     [
         ("jsonl:/tmp/logs", "jsonl", "/tmp/logs"),
         ("JSONL:  /tmp/logs", "jsonl", "/tmp/logs"),
+        ("jsonl-dir:/tmp/logs", "jsonl", "/tmp/logs"),
+        ("JSONL-DIR:  ./logs", "jsonl", "./logs"),
         ("sqlite:./events.db", "sqlite", "./events.db"),
         ("SQLite:C:\\data\\db", "sqlite", "C:\\data\\db"),
+        ("file:/tmp/logs", "file", "/tmp/logs"),
+        ("FILE:  ./logs", "file", "./logs"),
     ],
 )
 def test_split_typed_store_hint_recognizes_prefixes(
@@ -75,10 +79,18 @@ def test_split_typed_store_hint_legacy_windows_drive_not_a_scheme() -> None:
     assert path == hint
 
 
-def test_split_typed_store_hint_unknown_prefix_is_legacy() -> None:
+def test_split_typed_store_hint_file_uri_stays_legacy_opaque() -> None:
+    """RFC 8089 ``file:///…`` must not be parsed as the ``file:`` typed prefix."""
+
     kind, path = _split_typed_store_hint("file:///tmp/x")
     assert kind is None
     assert path == "file:///tmp/x"
+
+
+def test_split_typed_store_hint_unknown_scheme_is_legacy() -> None:
+    kind, path = _split_typed_store_hint("ftp://tmp/x")
+    assert kind is None
+    assert path == "ftp://tmp/x"
 
 
 def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
@@ -436,6 +448,42 @@ def test_persistence_list_run_events_typed_jsonl_prefix(tmp_path: Path) -> None:
     assert out["store"]["kind"] == "jsonl"
 
 
+def test_persistence_list_run_events_typed_jsonl_dir_prefix(tmp_path: Path) -> None:
+    run_id = "typed-jsonl-dir-run"
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=f"jsonl-dir:{log_dir}")
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+    assert out["store"]["kind"] == "jsonl"
+
+
+def test_persistence_list_run_events_file_prefix_matches_legacy_sqlite_suffix(
+    tmp_path: Path,
+) -> None:
+    run_id = "file-prefix-sqlite"
+    db = tmp_path / "events.sqlite"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+    bare = persistence_list_run_events(run_id=run_id, store_hint=str(db))
+    prefixed = persistence_list_run_events(run_id=run_id, store_hint=f"file:{db}")
+    assert bare == prefixed
+    assert prefixed["status"] == "ok"
+    assert prefixed["store"]["kind"] == "sqlite"
+
+
 def test_persistence_list_run_events_typed_sqlite_prefix_without_suffix(
     tmp_path: Path,
 ) -> None:
@@ -456,8 +504,14 @@ def test_persistence_list_run_events_typed_sqlite_prefix_without_suffix(
     assert out["store"]["kind"] == "sqlite"
 
 
-def test_persistence_list_run_events_typed_prefix_empty_path_rejected() -> None:
-    out = persistence_list_run_events(run_id="any", store_hint="jsonl:")
+@pytest.mark.parametrize(
+    "hint",
+    ["jsonl:", "jsonl-dir:", "sqlite:", "file:"],
+)
+def test_persistence_list_run_events_typed_prefix_empty_path_rejected(
+    hint: str,
+) -> None:
+    out = persistence_list_run_events(run_id="any", store_hint=hint)
     assert out["status"] == "error"
     assert out["tool"] == "persistence_list_run_events"
     assert "empty" in out["message"].lower()
@@ -479,7 +533,18 @@ def test_persistence_list_run_events_jsonl_prefix_rejects_existing_file(
         st.close()
     out = persistence_list_run_events(run_id="x", store_hint=f"jsonl:{db}")
     assert out["status"] == "error"
-    assert "jsonl:" in out["message"].lower()
+    assert "jsonl" in out["message"].lower()
+    assert "directory" in out["message"].lower()
+
+
+def test_persistence_list_run_events_jsonl_dir_prefix_rejects_existing_file(
+    tmp_path: Path,
+) -> None:
+    f = tmp_path / "notadir.txt"
+    f.write_text("x", encoding="utf-8")
+    out = persistence_list_run_events(run_id="x", store_hint=f"jsonl-dir:{f}")
+    assert out["status"] == "error"
+    assert "jsonl" in out["message"].lower()
     assert "directory" in out["message"].lower()
 
 
