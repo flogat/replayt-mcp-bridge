@@ -147,11 +147,11 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Contract surface:** Success means **initialize** (or the SDK’s session establishment) completes, **`replayt_version_info`** or **`replayt_echo`** appears in **`tools/list`**, and **`tools/call`** returns a JSON-shaped result matching [MCP_TOOLS.md](MCP_TOOLS.md). Failure modes worth catching early: **stdio deadlock**, **broken registration** (tool absent from list), **import/wiring errors** after a dependency upgrade, and **hung server** (address with explicit timeouts).
 
-**Automation (planned):** Add a dedicated module (working name **`tests/test_mcp_stdio_session_smoke.py`**) so the smoke test stays isolated from handler contracts and subprocess-only startup checks. Run it in the **existing** CI pytest step—no separate workflow job required unless runtime grows enough to warrant optional splitting.
+**Automation:** [`tests/test_mcp_stdio_session_smoke.py`](../tests/test_mcp_stdio_session_smoke.py) runs in the **existing** CI pytest step (MCP SDK `stdio_client` + `ClientSession`, `StdioServerParameters` with `sys.executable` and `-m replayt_mcp_bridge`, `cwd` at repo root, `asyncio.wait_for` wall timeout). It stays isolated from handler contracts and subprocess-only startup checks—no separate workflow job unless runtime grows enough to warrant optional splitting.
 
 **Residual:** If a future maintainer introduces an **official in-memory** transport for FastMCP tests, the **stdio** smoke test should **remain** as the canonical check for the operator entrypath; secondary tests may duplicate coverage for speed only if they do not replace stdio.
 
-**Conclusion:** Architecture expectation is **appropriate**: one focused pytest module, MCP SDK client, operator-aligned launch args, handshake-driven synchronization, bounded timeouts. Implementation is **outstanding**; [MISSION.md](MISSION.md#stdio-mcp-session-integration-smoke-test) holds the refined acceptance criteria.
+**Conclusion:** Architecture expectation is **appropriate**: one focused pytest module, MCP SDK client, operator-aligned launch args, handshake-driven synchronization, bounded timeouts. Implementation is **in place**; [MISSION.md](MISSION.md#stdio-mcp-session-integration-smoke-test) holds the refined acceptance criteria.
 
 ### Reference documentation mirror
 
@@ -224,7 +224,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `docs/MCP_TOOLS.md` | Tool → replayt mapping and input shapes |
 | `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor) |
 | `tests/test_mcp_tools.py` | Contract tests at the replayt boundary |
-| `tests/test_mcp_stdio_session_smoke.py` | (Planned) MCP stdio session smoke: handshake + one tool call—see [Architecture review: stdio MCP integration smoke test](#architecture-review-stdio-mcp-integration-smoke-test) |
+| `tests/test_mcp_stdio_session_smoke.py` | MCP stdio session smoke: handshake + `replayt_version_info` via real JSON-RPC—see [Architecture review: stdio MCP integration smoke test](#architecture-review-stdio-mcp-integration-smoke-test) |
 | `tests/test_mcp_server_stdio.py` | Subprocess startup without traceback (no MCP messages) |
 | `tests/test_mcp_host_config_docs.py` | Contract tests for MCP host config doc and README linkage |
 | `tests/test_security_docs.py` | Doc and policy contract tests (SECURITY.md, README, env read policy) |
