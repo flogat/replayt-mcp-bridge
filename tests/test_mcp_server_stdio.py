@@ -11,8 +11,23 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
 def _console_script_path() -> Path:
+    """Resolve the installed console script next to this interpreter.
+
+    Windows venvs place ``python.exe`` and entry-point scripts in the same
+    ``Scripts`` directory. A system-wide install keeps ``python.exe`` in the
+    prefix root and scripts under ``Scripts\\``.
+    """
+
     name = "replayt-mcp-bridge.exe" if sys.platform == "win32" else "replayt-mcp-bridge"
-    return Path(sys.executable).resolve().parent / name
+    exe_dir = Path(sys.executable).resolve().parent
+    same_dir = exe_dir / name
+    if same_dir.is_file():
+        return same_dir
+    if sys.platform == "win32":
+        under_scripts = exe_dir / "Scripts" / name
+        if under_scripts.is_file():
+            return under_scripts
+    return same_dir
 
 
 def test_module_invocation_starts_without_traceback() -> None:
