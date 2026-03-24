@@ -30,6 +30,8 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 
 **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)** lists MCP tool names, JSON-schema-style inputs, and the **tool → replayt** mapping table. **[docs/MISSION.md § First replayt-backed tool calling](docs/MISSION.md#first-replayt-backed-tool-calling-e2e-milestone)** states refined acceptance criteria for the smallest replayt-backed path and tests.
 
+**[docs/MISSION.md § One-shot operator health check](docs/MISSION.md#one-shot-operator-health-check-install-probe)** specifies the **`health`** subcommand (non-interactive import / logging / replayt-version probe). Rationale, non-goals, and architecture notes are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#architecture-review-one-shot-operator-health-check-install-probe).
+
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** describes process boundaries, layering, tool groups, and how this repo stays a thin consumer of replayt.
 
 ## Security, secrets, and MCP hosting
@@ -50,6 +52,23 @@ To refresh snapshots after changing the supported replayt range, run `python scr
 **Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
 **Logging:** On startup the bridge configures the `replayt_mcp_bridge` logger at **`INFO`** by default and writes **JSON lines** to stderr (`event`, `tool`, optional `mcp_request_id`, `status`, …). Set **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** to another stdlib level name (e.g. `DEBUG` or `WARNING`) to tune verbosity. See [docs/SECURITY.md](docs/SECURITY.md) for redaction rules and MCP host logging risks.
+
+**Operator install probe:** Use the **`health`** subcommand for a one-shot check (no MCP session, process exits immediately):
+
+```bash
+python -m replayt_mcp_bridge health
+replayt-mcp-bridge health
+```
+
+The probe imports the bridge and **replayt**, resolves the replayt version the same way as the **`replayt_version_info`** tool, calls **`configure_bridge_logging()`**, and writes human-readable lines plus at least one **JSON** log line ( **`replayt_mcp_bridge.health.ok`** ) to **stderr** on success.
+
+| Exit code | Meaning |
+| --------- | ------- |
+| **0** | All checks passed. |
+| **1** | Critical failure: missing or broken **replayt** / bridge import, replayt **version resolution** error, or **logging** configuration error. |
+| **2** | Invalid CLI usage (e.g. unknown command or extra arguments after **`health`**). |
+
+Full acceptance criteria and non-goals are in [docs/MISSION.md § One-shot operator health check](docs/MISSION.md#one-shot-operator-health-check-install-probe).
 
 ```bash
 python -m venv .venv

@@ -83,6 +83,40 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 3. **Discoverable entry surface** — Integrators can find **one** primary launch path in README (console script name and/or `python -m …`) that matches `pyproject.toml` or the package’s documented `__main__` module.
 4. **MCP host orientation** — README **Quick start** includes **at least one sentence** aimed at MCP client operators (stdio + how to run the bridge), with a pointer to this section for details.
 
+## One-shot operator health check (install probe)
+
+**Backlog title:** **Add a one-shot server health command for operators**
+
+**User story:** As an **operator** automating deploy checks, I want **`replayt-mcp-bridge`** (or **`python -m replayt_mcp_bridge`**) to support a **non-interactive** mode that verifies **imports**, **logging setup**, and **replayt version visibility**, then **exits 0**, so scripts can probe installs **without** holding stdio open for a long-running MCP server.
+
+**Intent:** Long-running stdio servers are awkward in health probes (Kubernetes `exec`, CI sanity checks, post-install scripts). A **single discoverable subcommand** on the **same packaged entrypoints** as the MCP server keeps automation aligned with how hosts already launch the bridge.
+
+**Non-goals:** This is **not** a substitute for full MCP integration tests (handshake, `tools/list`, `tools/call`)—those remain covered by [`tests/test_mcp_stdio_session_smoke.py`](../tests/test_mcp_stdio_session_smoke.py) and related modules.
+
+**Recommended CLI shape (refined):**
+
+- **Primary interface:** a **`health`** subcommand on both **`python -m replayt_mcp_bridge`** and the **`replayt-mcp-bridge`** console script (e.g. **`python -m replayt_mcp_bridge health`**, **`replayt-mcp-bridge health`**). A **global flag** alternative (e.g. **`--health-check`**) is acceptable only if it stays **mutually exclusive** with default stdio-server behavior and is documented beside the subcommand.
+- **Behavior:** run **before** entering the FastMCP stdio loop; perform the checks below; write **human-readable** status to **stderr** (and optionally **one** structured JSON line compatible with [`observability.py`](../src/replayt_mcp_bridge/observability.py) conventions for operators who parse logs); **exit 0** on success.
+- **Checks (minimum):** (1) **Bridge import** — `import replayt_mcp_bridge` (and any minimal `server` / `observability` surface needed for the probe). (2) **Replayt import and version** — import **`replayt`** successfully and report the same resolved version string (or tuple) as **`replayt_version_info`** / `installed_replayt_version` helpers in [`server.py`](../src/replayt_mcp_bridge/server.py), so the probe proves the **declared dependency range** is satisfiable at runtime. (3) **Logging setup** — call **`configure_bridge_logging()`** (or an extracted shared helper) once and emit at least one **INFO**-level line so deploy scripts can confirm stderr logging works (without starting MCP).
+
+**Critical failures (nonzero exit, refined):**
+
+- **`ImportError`** or **`ModuleNotFoundError`** for **`replayt`** or **`replayt_mcp_bridge`** (missing / broken install).
+- **Unexpected errors** while resolving the replayt version (treat as **critical** so “silent unknown version” does not pass CI).
+- **Logging configuration failure** if the implementation defines configuration errors as **fatal** for the probe (document the choice in README).
+
+**Out of scope for “critical” (unless later expanded and documented):** MCP transport readiness, workflow **target** resolution, persistence paths, and optional **`REPLAYT_MCP_BRIDGE_*`** env semantics—the health command validates **packaging + core imports + observability bootstrap**, not full tool contracts.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **README** — Documents the **exact** invocation(s) (`health` subcommand and console-script parity); states **exit codes** (0 success, nonzero on the critical failures above); points to this section for rationale and non-goals.
+2. **Nonzero on critical failures** — Implementation exits **nonzero** when replayt (or the bridge) cannot be imported or version resolution fails per the table above; document any additional **critical** cases explicitly.
+3. **Pytest without MCP host** — Tests assert **exit codes** by spawning **`sys.executable`** with **`-m replayt_mcp_bridge health`** (and optionally the console script) in a **subprocess**—**no** MCP client, **no** JSON-RPC session. Include at least: **happy path** → exit **0**; **one negative path** that proves nonzero exits without relying on a real MCP host (for example a **monkeypatched** or **isolated** import failure **or** a documented test helper that simulates a missing dependency—choose an approach that stays **reliable in CI**).
+
+**Implementation status (shipped):** The probe is live on both packaged entrypoints; **[README.md](../README.md)** is the operator copy-of-record for exact invocations and the **0 / 1 / 2** exit-code table. Implementation: [`health_probe.py`](../src/replayt_mcp_bridge/health_probe.py); tests: [`test_cli_health.py`](../tests/test_cli_health.py).
+
+Architecture layering and traceability are recorded under [ARCHITECTURE.md § Architecture review: one-shot operator health check (install probe)](ARCHITECTURE.md#architecture-review-one-shot-operator-health-check-install-probe).
+
 ## Stdio MCP session integration smoke test
 
 **Backlog title:** **CI smoke: subprocess MCP stdio handshake** (same scope as the older phrasing *“Add an integration smoke test over the real stdio MCP session”* in architecture review notes).
