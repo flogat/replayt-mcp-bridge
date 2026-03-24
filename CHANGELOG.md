@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Structured error specification** — [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) now defines a planned **`correlation_id`** on mapped `{ status: error, … }` tool results and the same value on structured stderr logs per invocation, plus an explicit exception/branch inventory and unmapped-exception rules. Cross-linked from [docs/MISSION.md](docs/MISSION.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), and [docs/SECURITY.md](docs/SECURITY.md). *(Field not yet returned by handlers; spec-first for backlog implementation.)*
 - **Optional `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** — comma-separated absolute filesystem roots (parsed in `observability.py`); when set, **explicit** `store_hint` arguments to `persistence_list_run_events` must resolve under one of them. Omitted `store_hint` still uses replayt’s default log directory resolution (no default tightening). Documented in **[docs/SECURITY.md](docs/SECURITY.md)** with examples; rejections log **`replayt_mcp_bridge.store_hint.rejected`** without the client path string.
 - **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)** — copy-paste MCP host stdio configuration (**Claude Desktop** `mcpServers` and **Cursor** `.cursor/mcp.json` with **`type: "stdio"`**), **`replayt-mcp-bridge`** vs **`python -m replayt_mcp_bridge`**, Windows vs POSIX paths, and pointers to **[docs/SECURITY.md](docs/SECURITY.md)**.
 

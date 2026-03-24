@@ -39,6 +39,17 @@ def test_mcp_tools_doc_exists_and_has_mapping_table() -> None:
         assert name in text
 
 
+def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
+    """Lock the integrator contract for correlation_id + mapped failure inventory (MCP_TOOLS.md)."""
+    text = MCP_TOOLS_DOC.read_text(encoding="utf-8")
+    assert "## Error response shape" in text
+    assert "### Specification: `correlation_id` (bounded structured errors backlog)" in text
+    assert "### Mapped failure paths (exception / branch inventory)" in text
+    assert "### Unmapped exceptions (explicit)" in text
+    assert "typer.BadParameter" in text
+    assert "replayt_mcp_bridge.tool.unhandled_exception" in text
+
+
 def test_replayt_echo_returns_payload() -> None:
     assert replayt_echo(message="hello") == {"status": "ok", "echo": "hello"}
 
