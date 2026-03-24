@@ -85,9 +85,45 @@ Use **forward slashes** or **escaped backslashes** in JSON on Windows when you e
 
 Restart the host application after editing config. If a key such as **`cwd`** is ignored, consult the host’s current documentation or fall back to launching from the desired directory.
 
-## Other hosts (Cursor, IDEs, custom runners)
+## Example: Cursor (`mcp.json`)
 
-Many tools use the same **`command` / `args` / `env`** pattern as above; some read **`mcp.json`**, workspace settings, or UI-only configuration. Prefer **`python -m replayt_mcp_bridge`** plus an absolute **`command`** path to the venv interpreter so the bridge does not depend on shell activation inside the GUI app.
+[Cursor](https://cursor.com/docs/context/mcp) loads **`mcp.json`** from **`.cursor/mcp.json`** (project) or **`~/.cursor/mcp.json`** (global); see Cursor’s **Configuration locations** in that doc. For **stdio** servers it documents a **`type`** field set to **`"stdio"`** alongside **`command`** / **`args`** / optional **`env`**.
+
+Replayt resolves config from the process working directory; Cursor usually starts stdio servers with the **workspace folder** as cwd when you use project config—if tools cannot see your workflow files, confirm cwd behavior in Cursor’s current MCP docs.
+
+**Project-local example (POSIX venv under the repo):**
+
+```json
+{
+  "mcpServers": {
+    "replayt": {
+      "type": "stdio",
+      "command": "${workspaceFolder}/.venv/bin/python",
+      "args": ["-m", "replayt_mcp_bridge"]
+    }
+  }
+}
+```
+
+**Windows (same shape; adjust the venv path):**
+
+```json
+{
+  "mcpServers": {
+    "replayt": {
+      "type": "stdio",
+      "command": "${workspaceFolder}\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "replayt_mcp_bridge"]
+    }
+  }
+}
+```
+
+You can instead hardcode an absolute path to the venv’s **`python`** if you prefer not to use **`${workspaceFolder}`** interpolation. Restart Cursor after editing **`mcp.json`**.
+
+## Other hosts (IDEs, custom runners)
+
+Many tools use the same **`command` / `args` / `env`** pattern as above; some read **`mcp.json`**, workspace settings, or UI-only configuration. Prefer **`python -m replayt_mcp_bridge`** plus a **full path** to the venv interpreter (or Cursor-style **`${workspaceFolder}`** interpolation) so the bridge does not depend on shell activation inside the GUI app.
 
 ## Optional environment
 

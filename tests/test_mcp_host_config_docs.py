@@ -20,6 +20,13 @@ def test_mcp_host_config_doc_covers_entrypoints_and_security() -> None:
     assert "python -m" in text or "`-m`" in text
     assert "[SECURITY.md](SECURITY.md)" in text
     assert "mcpServers" in text
+    assert "modelcontextprotocol.io" in text
+    assert "Claude Desktop" in text
+    assert "Cursor" in text
+    assert "https://cursor.com/docs/context/mcp" in text
+    assert ".cursor/mcp.json" in text
+    assert '"type": "stdio"' in text
+    assert "${workspaceFolder}" in text
 
 
 def test_readme_links_mcp_host_config_near_quick_start() -> None:

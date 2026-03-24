@@ -43,7 +43,7 @@ To refresh snapshots after changing the supported replayt range, run `python scr
 
 ## Quick start
 
-**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. Copy-paste **JSON examples** (Claude Desktop **`mcpServers`** shape), **`cwd`** notes, and Windows vs POSIX paths are in **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)**. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
+**MCP hosts:** configure your client for **stdio** and run either the **`replayt-mcp-bridge`** console script (from `[project.scripts]` in `pyproject.toml`) or **`python -m replayt_mcp_bridge`** after install; both speak MCP over stdin/stdout. Copy-paste **JSON examples** for **Claude Desktop** (`mcpServers`) and **Cursor** (`.cursor/mcp.json`), plus **`cwd`** / working-directory notes and Windows vs POSIX paths, are in **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)**. See [docs/MISSION.md#mcp-server-stdio](docs/MISSION.md#mcp-server-stdio) for the full spec and acceptance notes.
 
 **Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
@@ -87,7 +87,7 @@ match your team’s tooling.
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |
-| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (e.g. Claude Desktop) |
+| `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor) |
 | `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
 | `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
 | `docs/SECURITY.md` | Env vars, logging rules, deployment trust boundary, replayt credentials |
