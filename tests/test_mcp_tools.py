@@ -39,6 +39,20 @@ def test_mcp_tools_doc_exists_and_has_mapping_table() -> None:
         assert name in text
 
 
+def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
+    """Lock the integrator contract for correlation_id + mapped failure inventory (MCP_TOOLS.md)."""
+    text = MCP_TOOLS_DOC.read_text(encoding="utf-8")
+    assert "## Error response shape" in text
+    assert (
+        "### Specification: `correlation_id` (bounded structured errors backlog)"
+        in text
+    )
+    assert "### Mapped failure paths (exception / branch inventory)" in text
+    assert "### Unmapped exceptions (explicit)" in text
+    assert "typer.BadParameter" in text
+    assert "replayt_mcp_bridge.tool.unhandled_exception" in text
+
+
 def test_replayt_echo_returns_payload() -> None:
     assert replayt_echo(message="hello") == {"status": "ok", "echo": "hello"}
 
@@ -66,6 +80,58 @@ def test_workflow_contract_snapshot_bad_target() -> None:
     assert out["status"] == "error"
     assert out["tool"] == "workflow_contract_snapshot"
     assert "message" in out
+    assert isinstance(out.get("correlation_id"), str) and out["correlation_id"]
+
+
+def test_mapped_tool_error_correlation_id_matches_structured_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Acceptance: same correlation_id on mapped tool result and stderr JSON for that call."""
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    out = workflow_contract_snapshot(target="definitely_not_a_module:wf")
+    assert out["status"] == "error"
+    cid = out["correlation_id"]
+    events = [json.loads(r.getMessage()) for r in caplog.records]
+    begins = [e for e in events if e.get("event") == "replayt_mcp_bridge.tool.begin"]
+    ends = [e for e in events if e.get("event") == "replayt_mcp_bridge.tool.end"]
+    assert len(begins) == 1
+    assert len(ends) == 1
+    assert begins[0]["correlation_id"] == cid
+    assert ends[0]["correlation_id"] == cid
+    assert ends[0].get("status") == "error"
+
+
+def test_unmapped_exception_keeps_correlation_in_logs_then_propagates(
+    caplog: pytest.LogCaptureFixture,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Unmapped failures are not converted to structured errors; logs still carry correlation_id."""
+    from unittest.mock import MagicMock
+
+    mock_wf = MagicMock()
+
+    def _boom_contract() -> None:
+        raise RuntimeError("deliberate_unmapped_contract")
+
+    mock_wf.contract = _boom_contract
+    monkeypatch.setattr("replayt_mcp_bridge.server.load_target", lambda _t: mock_wf)
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    with pytest.raises(RuntimeError, match="deliberate_unmapped_contract"):
+        workflow_contract_snapshot(target="ignored_target:wf")
+    events = [
+        json.loads(r.getMessage())
+        for r in caplog.records
+        if r.getMessage().lstrip().startswith("{")
+    ]
+    begins = [e for e in events if e.get("event") == "replayt_mcp_bridge.tool.begin"]
+    unhandled = [
+        e
+        for e in events
+        if e.get("event") == "replayt_mcp_bridge.tool.unhandled_exception"
+    ]
+    assert len(begins) == 1
+    assert len(unhandled) == 1
+    assert begins[0]["correlation_id"] == unhandled[0]["correlation_id"]
 
 
 def test_replayt_version_info_logs_tool_boundaries(
@@ -77,6 +143,12 @@ def test_replayt_version_info_logs_tool_boundaries(
     kinds = {e["event"] for e in events}
     assert "replayt_mcp_bridge.tool.begin" in kinds
     assert "replayt_mcp_bridge.tool.end" in kinds
+    for e in events:
+        if e["event"] in (
+            "replayt_mcp_bridge.tool.begin",
+            "replayt_mcp_bridge.tool.end",
+        ):
+            assert isinstance(e.get("correlation_id"), str) and e["correlation_id"]
 
 
 def test_replayt_echo_info_logs_exclude_message_payload(
@@ -107,6 +179,7 @@ def test_workflow_graph_mermaid_bad_target() -> None:
     assert out["status"] == "error"
     assert out["tool"] == "workflow_graph_mermaid"
     assert "message" in out
+    assert out.get("correlation_id")
 
 
 def test_runner_dry_run_plan_example_target() -> None:
@@ -130,6 +203,7 @@ def test_runner_dry_run_plan_bad_target() -> None:
     assert out["status"] == "error"
     assert out["tool"] == "runner_dry_run_plan"
     assert "message" in out
+    assert out.get("correlation_id")
 
 
 def test_runner_dry_run_plan_strict_graph_changes_outcome(tmp_path: Path) -> None:
@@ -192,6 +266,7 @@ def test_persistence_list_run_events_invalid_run_id() -> None:
     out = persistence_list_run_events(run_id="../../etc/passwd", store_hint=None)
     assert out["status"] == "error"
     assert out["tool"] == "persistence_list_run_events"
+    assert out.get("correlation_id")
 
 
 def test_persistence_list_run_events_rejects_plain_file_store_hint(
@@ -330,8 +405,16 @@ def test_persistence_list_run_events_allowlist_rejection_logs_omit_probe_path(
     caplog.set_level(logging.WARNING, logger="replayt_mcp_bridge.server")
     out = persistence_list_run_events(run_id="x", store_hint=str(probe))
     assert out["status"] == "error"
+    assert out.get("correlation_id")
     blob = "\n".join(r.getMessage() for r in caplog.records)
     assert "mcp_bridge_probe_path_aa11bb22" not in blob
+    rejected = [
+        json.loads(r.getMessage())
+        for r in caplog.records
+        if "store_hint.rejected" in r.getMessage()
+    ]
+    assert len(rejected) == 1
+    assert rejected[0]["correlation_id"] == out["correlation_id"]
 
 
 def test_persistence_list_run_events_allowlist_unusable_env_rejects_hint(
