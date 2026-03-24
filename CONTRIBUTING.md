@@ -33,6 +33,10 @@ ruff format src tests
 
 GitHub Actions runs those steps on push and pull requests (see [.github/workflows/ci.yml](.github/workflows/ci.yml)). If you do not use GitHub, reproduce the same steps in your automation or run them locally before merge.
 
+## MCP host snippets (`docs/MCP_HOST_CONFIG.md`)
+
+When you edit copy-paste JSON or host-specific notes, keep placeholders generic (no real API keys, tokens, or machine-specific home paths) and preserve an explicit **stdio** story per host (stdin/stdout MCP, or the host’s **`type: "stdio"`** field where required). To validate that your snippet still matches a working launch, install the bridge in a venv and use the same **`command`** and **`args`** as in the doc, then attach your MCP client and confirm the server is **active** and **`replayt_version_info`** (or at least **`tools/list`**) succeeds. From the repo root you can also run **`pytest tests/test_mcp_stdio_session_smoke.py -q`**, which drives **`python -m replayt_mcp_bridge`** over real stdio with the MCP Python SDK (handshake plus one tool call). **`pytest tests/test_mcp_host_config_docs.py -q`** guards required doc strings, upstream links, and README wiring.
+
 ## Scope
 
 Stay within the bridge’s mission and tool contracts in [docs/MISSION.md](docs/MISSION.md) and [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md).

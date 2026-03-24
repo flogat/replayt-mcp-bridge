@@ -85,7 +85,7 @@ Operators and contributors should enforce these rules on **server logs**, **CI o
 
 The documented primary transport is **stdio**, not an HTTP listener owned by this package. Adding a remote-facing listener without hardening would increase exposure.
 
-Copy-paste **host JSON** (Claude Desktop, Cursor, and similar) lives in **[MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md)**—stdio launch commands, **`cwd`** / workspace behavior for replayt discovery, and the **do not commit secrets** rule for **`env`** blocks.
+Copy-paste **host JSON** (Claude Desktop, Cursor, Zed, and similar) lives in **[MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md)**—stdio launch commands, **`cwd`** / workspace behavior for replayt discovery, and the **do not commit secrets** rule for **`env`** blocks.
 
 ## Reference documentation refresh (contributors)
 
