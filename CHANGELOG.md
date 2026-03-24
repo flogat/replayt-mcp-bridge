@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Docs (workflow phase 2 — one-shot operator health check)** — [docs/MISSION.md](docs/MISSION.md#one-shot-operator-health-check-install-probe) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#architecture-review-one-shot-operator-health-check-install-probe) add refined backlog spec and acceptance criteria for **Add a one-shot server health command for operators** (planned **`health`** subcommand, exit semantics, subprocess pytest expectations without an MCP host). README [Quick start](README.md#quick-start) links the planned probe and defers exact CLI copy until implementation.
+
 - **Python 3.13 in CI** — GitHub Actions **`test`** matrix now includes **CPython 3.13** alongside **3.11** and **3.12** (same **Ruff** + **pytest** steps). **`pyproject.toml`** adds **`Programming Language :: Python :: 3.*`** trove classifiers for the CI-tested minors. README, [docs/MISSION.md](docs/MISSION.md) (**Python 3.13+ CI matrix**), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) (**Architecture review: Python CI matrix**), and **`tests/test_version_contract_docs.py`** document and guard alignment.
 
 - **Tests (phase 3 — Python 3.13 CI matrix)** — **`tests/test_version_contract_docs.py`** asserts README **Python** copy and **CONTRIBUTING** mention every CI matrix minor; **`tests/test_security_docs.py`** widens the README “above the fold” check so **`docs/SECURITY.md`** stays discoverable after compatibility-section growth.

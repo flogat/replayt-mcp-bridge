@@ -30,6 +30,8 @@ This project builds on **[replayt](https://pypi.org/project/replayt/)**. Use
 
 **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)** lists MCP tool names, JSON-schema-style inputs, and the **tool → replayt** mapping table. **[docs/MISSION.md § First replayt-backed tool calling](docs/MISSION.md#first-replayt-backed-tool-calling-e2e-milestone)** states refined acceptance criteria for the smallest replayt-backed path and tests.
 
+**[docs/MISSION.md § One-shot operator health check](docs/MISSION.md#one-shot-operator-health-check-install-probe)** specifies the planned **`health`** subcommand (non-interactive import / logging / replayt-version probe, exit codes, pytest expectations)—implementation is tracked there and in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#architecture-review-one-shot-operator-health-check-install-probe).
+
 **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** describes process boundaries, layering, tool groups, and how this repo stays a thin consumer of replayt.
 
 ## Security, secrets, and MCP hosting
@@ -50,6 +52,8 @@ To refresh snapshots after changing the supported replayt range, run `python scr
 **Security:** Any MCP client attached to the process can invoke registered tools; stdio is controlled by the parent process, so run the bridge only in environments where that boundary matches your policy. See [Security, secrets, and MCP hosting](#security-secrets-and-mcp-hosting) and [Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries).
 
 **Logging:** On startup the bridge configures the `replayt_mcp_bridge` logger at **`INFO`** by default and writes **JSON lines** to stderr (`event`, `tool`, optional `mcp_request_id`, `status`, …). Set **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** to another stdlib level name (e.g. `DEBUG` or `WARNING`) to tune verbosity. See [docs/SECURITY.md](docs/SECURITY.md) for redaction rules and MCP host logging risks.
+
+**Operator install probe (planned):** A dedicated **`health`** subcommand on **`python -m replayt_mcp_bridge`** and **`replayt-mcp-bridge`** will exit after checking imports, logging setup, and replayt version visibility (exit **0** on success, **nonzero** on critical install failures)—for deploy scripts that must not keep an MCP stdio session open. Full acceptance criteria and failure semantics are in [docs/MISSION.md § One-shot operator health check](docs/MISSION.md#one-shot-operator-health-check-install-probe); this README will list the exact commands once the feature ships.
 
 ```bash
 python -m venv .venv
