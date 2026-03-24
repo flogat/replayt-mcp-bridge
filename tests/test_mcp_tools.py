@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import textwrap
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
@@ -146,12 +147,14 @@ def test_mapped_tool_error_correlation_id_matches_structured_logs(
 def test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check() -> (
     None
 ):
-    """Spot-check distinct correlation_id per invocation when bridge synthesizes UUID4 (no MCP Context)."""
+    """Spot-check distinct UUID4 correlation_id per invocation (no MCP Context / request_id)."""
     bad = "definitely_not_a_module:wf"
     a = workflow_contract_snapshot(target=bad)["correlation_id"]
     b = workflow_contract_snapshot(target=bad)["correlation_id"]
     assert isinstance(a, str) and isinstance(b, str)
     assert a != b
+    assert uuid.UUID(a).version == 4
+    assert uuid.UUID(b).version == 4
 
 
 def test_unmapped_exception_keeps_correlation_in_logs_then_propagates(

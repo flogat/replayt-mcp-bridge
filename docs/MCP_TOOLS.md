@@ -139,7 +139,7 @@ Backlog **Return correlation ids on structured tool errors** — integrator-faci
 
 1. **Documented field** — This section (payload example, specification table, and mapped inventory) plus the architecture review cross-link define **`correlation_id`** for mapped `{ "status": "error", … }` results and stderr JSON. **Out of scope:** changing FastMCP transport-level errors.
 2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see **`test_mapped_tool_error_correlation_id_matches_structured_logs`** in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py), using logging capture on `replayt_mcp_bridge.server`).
-3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest includes a spot check (**`test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check`**).
+3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest spot check **`test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check`** asserts **distinct** ids and **`uuid.UUID(…).version == 4`** for both.
 
 ### Mapped failure paths (exception / branch inventory)
 
