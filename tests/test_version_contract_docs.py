@@ -74,6 +74,25 @@ def test_readme_compatibility_matches_pyproject_replayt_and_version() -> None:
     )
 
 
+def test_readme_python_paragraph_lists_each_ci_matrix_minor() -> None:
+    readme = README_PATH.read_text(encoding="utf-8")
+    assert "**Python:**" in readme
+    for ver in _EXPECTED_CI_PYTHON_VERSIONS:
+        assert ver in readme, (
+            f"README must mention CPython minor {ver!r} alongside other CI-tested versions "
+            f"(expected: {_EXPECTED_CI_PYTHON_VERSIONS})"
+        )
+
+
+def test_contributing_mentions_each_ci_matrix_minor() -> None:
+    text = CONTRIBUTING_PATH.read_text(encoding="utf-8")
+    for ver in _EXPECTED_CI_PYTHON_VERSIONS:
+        assert ver in text, (
+            f"CONTRIBUTING must mention CPython minor {ver!r} for local/CI parity "
+            f"(expected: {_EXPECTED_CI_PYTHON_VERSIONS})"
+        )
+
+
 def test_changelog_has_release_section_for_package_version() -> None:
     version = _project_version_from_pyproject()
     text = CHANGELOG_PATH.read_text(encoding="utf-8")
