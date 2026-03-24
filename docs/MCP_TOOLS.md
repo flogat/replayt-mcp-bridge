@@ -133,6 +133,14 @@ Target loading, persistence validation, and store resolution failures return a J
 
 **Implementation status:** Handlers return **`correlation_id`** on every mapped `{ "status": "error", … }` result. Structured stderr lines for the same invocation (`replayt_mcp_bridge.tool.begin` / `.end`, `.unhandled_exception` when applicable, and `replayt_mcp_bridge.store_hint.rejected`) include the **same** value. Optional **`mcp_request_id`** is still logged when FastMCP provides it (often identical to **`correlation_id`**).
 
+### Acceptance criteria (refined, workflow phase 2)
+
+Backlog **Return correlation ids on structured tool errors** — integrator-facing bar (see also [ARCHITECTURE.md § Architecture review: structured tool errors and correlation IDs](ARCHITECTURE.md#architecture-review-structured-tool-errors-and-correlation-ids)):
+
+1. **Documented field** — This section (payload example, specification table, and mapped inventory) plus the architecture review cross-link define **`correlation_id`** for mapped `{ "status": "error", … }` results and stderr JSON. **Out of scope:** changing FastMCP transport-level errors.
+2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see **`test_mapped_tool_error_correlation_id_matches_structured_logs`** in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py), using logging capture on `replayt_mcp_bridge.server`).
+3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest includes a spot check (**`test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check`**).
+
 ### Mapped failure paths (exception / branch inventory)
 
 These are the **only** bridge-recognized routes to `{ "status": "error", … }` today. Each row’s errors **MUST** carry **`correlation_id`** per the specification above.

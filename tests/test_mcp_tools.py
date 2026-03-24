@@ -88,6 +88,7 @@ def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
         "### Specification: `correlation_id` (bounded structured errors backlog)"
         in text
     )
+    assert "### Acceptance criteria (refined, workflow phase 2)" in text
     assert "### Mapped failure paths (exception / branch inventory)" in text
     assert "### Unmapped exceptions (explicit)" in text
     assert "typer.BadParameter" in text
@@ -140,6 +141,17 @@ def test_mapped_tool_error_correlation_id_matches_structured_logs(
     assert begins[0]["correlation_id"] == cid
     assert ends[0]["correlation_id"] == cid
     assert ends[0].get("status") == "error"
+
+
+def test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check() -> (
+    None
+):
+    """Spot-check distinct correlation_id per invocation when bridge synthesizes UUID4 (no MCP Context)."""
+    bad = "definitely_not_a_module:wf"
+    a = workflow_contract_snapshot(target=bad)["correlation_id"]
+    b = workflow_contract_snapshot(target=bad)["correlation_id"]
+    assert isinstance(a, str) and isinstance(b, str)
+    assert a != b
 
 
 def test_unmapped_exception_keeps_correlation_in_logs_then_propagates(

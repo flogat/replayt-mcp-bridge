@@ -260,9 +260,11 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ### Architecture review: structured tool errors and correlation IDs
 
-**Scope:** Backlog **“Return structured tool errors with correlation IDs for bounded failures”**—nail down which failures become `{ "status": "error", … }`, how **`correlation_id`** ties MCP tool results to stderr JSON for the same invocation, and what stays **unmapped** (still logged + propagated).
+**Scope:** Backlog **“Return structured tool errors with correlation IDs for bounded failures”** (workflow title **Return correlation ids on structured tool errors**)—nail down which failures become `{ "status": "error", … }`, how **`correlation_id`** ties MCP tool results to stderr JSON for the same invocation, and what stays **unmapped** (still logged + propagated).
 
-**Single source of truth:** [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape) (payload fields, **`correlation_id`** policy, mapped inventory table, unmapped exception rule). [SECURITY.md § MCP host and client logs](SECURITY.md#mcp-host-and-client-logs) explains operator-facing log matching.
+**Acceptance criteria (refined, workflow phase 2):** (1) **`correlation_id`** is documented in [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape) (this subsection defers to that SSoT). (2) Pytest asserts at least one mapped path emits the **same** id in the structured tool result and in captured **`replayt_mcp_bridge.tool.begin` / `.end`** JSON log lines. (3) A spot check asserts **distinct** ids across two failing invocations when the bridge synthesizes UUID4 (in-process tests without MCP `request_id`). FastMCP **transport** errors remain unchanged.
+
+**Single source of truth:** [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape) (payload fields, **`correlation_id`** policy, mapped inventory table, unmapped exception rule, and **Acceptance criteria (refined, workflow phase 2)**). [SECURITY.md § MCP host and client logs](SECURITY.md#mcp-host-and-client-logs) explains operator-facing log matching.
 
 **Code alignment:** `server.py` uses `_tool_error` only on the listed mapped paths; `_log_replayt_tool_boundaries` assigns one **`correlation_id`** per invocation (FastMCP `request_id` when non-empty, else UUID4), emits it on begin/end/unhandled logs, and `_tool_error` attaches the same value. `replayt_mcp_bridge.store_hint.rejected` lines include **`correlation_id`** when emitted inside a tool handler.
 
