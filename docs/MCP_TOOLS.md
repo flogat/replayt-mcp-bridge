@@ -52,7 +52,7 @@ No properties (empty object).
 
 ### Dry-check parity specification (runner_dry_run_plan)
 
-This section refines **what “CLI parity” means** between the MCP tool and **`replayt run … --dry-check`** for integrators and for a future implementation pass. It is derived from the **public Python entrypoints** the bridge already calls (`replayt.cli.validation.validate_workflow_graph`, `validation_report`) and from **`replayt run … --dry-check`** in `replayt.cli.commands.run` within the declared **`replayt>=0.4.25,<0.5`** range.
+This section refines **what “CLI parity” means** between the MCP tool and **`replayt run … --dry-check`** for integrators. It is derived from the **public Python entrypoints** the bridge calls (`replayt.cli.validation.validate_workflow_graph`, `validation_report`) and from **`replayt run … --dry-check`** in `replayt.cli.commands.run` within the declared **`replayt>=0.4.25,<0.5`** range.
 
 **Handler behavior:** `runner_dry_run_plan` loads the target, runs `validate_workflow_graph(wf, strict_graph=…)`, then `validation_report` with the same `strict_graph`, `inputs_json`, `metadata_json`, `experiment_json`, and `policy_hook_context_json` values supplied by the client (omitted parameters use the defaults below, matching CLI defaults: `--strict-graph` off, optional JSON flags omitted).
 

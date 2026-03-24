@@ -64,7 +64,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ## Review notes (risks and follow-ups)
 
-- **Phase 5 (architecture review):** [Declared replayt range, integrator docs, CI, and contract tests](#architecture-review-phase-5); [optional upstream doc mirror](#reference-documentation-mirror) under `docs/reference-documentation/` (offline convenience only—bridge contracts stay in first-party docs).
+- **Phase 5 (architecture review):** [Declared replayt range, integrator docs, CI, and contract tests](#architecture-review-phase-5); [runner dry-check parity parameters](#architecture-review-runner-dry-check-parity); [optional upstream doc mirror](#reference-documentation-mirror) under `docs/reference-documentation/` (offline convenience only—bridge contracts stay in first-party docs).
 - **Phase 6 (security review):** `server.py` and the optional [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py) refresh path were reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler or refresh-script changes were required for the stated stdio / trusted-operator model and maintainer-only PyPI refresh; CI already uses explicit read-only `contents` permissions; optional hardenings remain follow-ups.
 - **Parity:** `runner_dry_run_plan` forwards `strict_graph` to `validate_workflow_graph` / `validation_report` and passes `inputs_json`, `metadata_json`, `experiment_json`, and `policy_hook_context_json` into `validation_report`, matching the CLI `--dry-check` knobs. Full CLI input merging (`resolve_run_inputs_json`) remains out of scope per [MCP_TOOLS.md](MCP_TOOLS.md#dry-check-parity-specification-runner_dry_run_plan).
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
@@ -88,6 +88,22 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 **Automation:** [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) parses `pyproject.toml` and asserts README, CHANGELOG, CONTRIBUTING, CI, and DESIGN_PRINCIPLES stay consistent with the declared range and `[project].version`. Tests use a literal `_EXPECTED_REPLAYT_SPEC` alongside `pyproject.toml` so a partial bump fails loudly (update the constant and docs together). Floor parsing today expects a **`>=x.y.z`** patch triple; a more exotic constraint string would need a richer parser.
 
 **Residual / extension rules:** When the minimum or range changes, update **`pyproject.toml`**, **README**, **CHANGELOG**, **CONTRIBUTING**, **DESIGN_PRINCIPLES** (if the narrative changes), **CI** `replayt-floor` reinstall and job label, and **`_EXPECTED_REPLAYT_SPEC`** in the contract tests in one maintainer pass. **Structured logging** and MCP trust-boundary architecture remain under [Observability](#observability) and [Security review (phase 6)](#security-review-phase-6).
+
+### Architecture review: runner dry-check parity
+
+**Scope:** Backlog **“Add optional dry-run parity parameters to runner_dry_run_plan”**—confirm the MCP tool stays a **thin adapter** over replayt’s public validation entrypoints, optional parameters remain **additive** for existing clients, and documented **parity vs CLI** boundaries match the code path.
+
+**Layering check:** `runner_dry_run_plan` resolves the target with `replayt.cli.targets.load_target`, then calls `replayt.cli.validation.validate_workflow_graph(wf, strict_graph=…)` and `validation_report(...)` with the same `strict_graph`, `inputs_json`, `metadata_json`, `experiment_json`, and `policy_hook_context_json` the client supplied. No shell, no subprocess, and **no reimplementation** of CLI-only resolution (`resolve_run_inputs_json` merging `--inputs-file`, repeatable `--input`, and defaults)—that gap stays explicit in [MCP_TOOLS.md § Dry-check parity](MCP_TOOLS.md#dry-check-parity-specification-runner_dry_run_plan).
+
+**Schema / compatibility:** FastMCP derives JSON Schema from Python signatures; new knobs are optional with defaults identical to the pre-change behavior (`strict_graph=False`, other JSON parameters `None` / omitted). This matches the backlog’s “default behavior unchanged” requirement.
+
+**Policy hook and JSON blobs:** The bridge passes client strings straight into `validation_report`; replayt validates object-shaped JSON the same way as other `*_json` slots. The CLI’s extra normalization for `--policy-hook-context-json` is **not** duplicated here—integrators supply JSON object text, as documented in MCP_TOOLS and phase 3 handoff.
+
+**Contract tests:** `tests/test_mcp_tools.py` uses a **trusted** temporary `.py` workflow under `tmp_path` (two `@wf.step` states, no declared transitions) so `strict_graph=True` flips `status` from `ok` to `invalid` while default `strict_graph` stays `ok`; packaged `replayt_examples` targets include edges and are unsuitable for that flip. Invalid `metadata_json` is covered separately. This matches the intended replayt-boundary testing style for this repo.
+
+**Security alignment:** Expanded inputs are validation-time only (same trust story as `replayt run --dry-check`); the phase 6 matrix row for `runner_dry_run_plan` already lists the new parameters—no dispatch change required beyond documentation cross-links.
+
+**Conclusion:** Architecture is **appropriate** for the stated scope: one handler, replayt-owned semantics, integrator-facing gaps documented. Follow-ups are **product-level** only (e.g. `@path` indirection for MCP JSON strings, or a public upstream helper for full input-resolution parity).
 
 ### Reference documentation mirror
 
