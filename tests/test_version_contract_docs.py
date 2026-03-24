@@ -16,6 +16,9 @@ CI_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 
 _EXPECTED_REPLAYT_SPEC = ">=0.4.25,<0.5"
 
+# Must match .github/workflows/ci.yml test.matrix.python-version (CI-tested CPython minors).
+_EXPECTED_CI_PYTHON_VERSIONS = ("3.11", "3.12", "3.13")
+
 
 def _replayt_dependency_from_pyproject() -> str:
     data = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
@@ -92,6 +95,25 @@ def test_contributing_releases_covers_changelog_readme_and_ci_pins() -> None:
         "replayt-floor",
     ):
         assert needle in text, f"CONTRIBUTING Releases section should mention {needle}"
+
+
+def test_ci_matrix_lists_expected_python_versions() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    for ver in _EXPECTED_CI_PYTHON_VERSIONS:
+        assert f'"{ver}"' in ci, (
+            f".github/workflows/ci.yml matrix must include python-version {ver!r} "
+            f"(expected CI minors: {_EXPECTED_CI_PYTHON_VERSIONS})"
+        )
+
+
+def test_pyproject_classifiers_list_ci_python_minors() -> None:
+    data = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
+    classifiers: list[str] = list(data["project"].get("classifiers") or [])
+    for ver in _EXPECTED_CI_PYTHON_VERSIONS:
+        needle = f"Programming Language :: Python :: {ver}"
+        assert needle in classifiers, (
+            f"pyproject.toml [project].classifiers must include {needle!r} for each CI matrix minor"
+        )
 
 
 def test_ci_reinstalls_replayt_floor_matching_pyproject_minimum() -> None:

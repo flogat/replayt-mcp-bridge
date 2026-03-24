@@ -152,6 +152,18 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
 6. **Default branch health** — After the workflow merges, **CI on the default branch stays green** (operational bar for closing the backlog item).
 
+## Python 3.13+ CI matrix (supported CPython line)
+
+**User story:** As a **library consumer on the latest CPython**, I want **official CI signal** for **Python 3.13** so I can standardize my runtime without guessing compatibility with **replayt**, the **MCP SDK**, and this bridge.
+
+**Context:** Expand the default workflow matrix only when **replayt** and **`mcp`** (and transitive wheels used in CI) install cleanly on **`ubuntu-latest`** runners; keep **`requires-python`** as the broad install contract and use **trove classifiers** + docs to list **CI-tested** minors.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Matrix coverage** — [.github/workflows/ci.yml](../.github/workflows/ci.yml) **`test`** job includes **3.13** alongside **3.11** and **3.12** (or, if ecosystem wheels are still blocked, an **explicit deferral** in this section plus a **tracking issue** link—prefer adding **3.13** when unblocked).
+2. **Metadata alignment** — `[project].requires-python` in **`pyproject.toml`** remains accurate for all matrix minors; **`Programming Language :: Python :: 3.x`** classifiers match **CI-tested** versions; README states **which** Python versions CI runs.
+3. **Same quality bar** — On each matrix row, **`pip install -e ".[dev]"`**, then **`ruff check`**, **`ruff format --check`**, and **`pytest`** all succeed (including stdio MCP smoke modules collected by default **`pytest`**).
+
 ## Replayt minor-line compatibility spike (0.5.x)
 
 **User story:** As a **maintainer**, I want an early **compatibility spike** when replayt publishes **`0.5.x`** so we can widen `pyproject.toml`, adjust pins, and schedule breaking API migrations before integrators are blocked.
