@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)**: workflow phase **5** pass for backlog **Split server module when tool count crosses maintainability threshold**—records scope, acceptance alignment, pytest patch-target traceability, and conclusion; **Review notes** cross-link; § **Security review (phase 6)** wording updated so **`@mcp.tool()`** registration is attributed to **`tools_*`** modules (eager **`server.py`** imports) and **`runner_dry_run_plan`** references [`tools_workflow.py`](src/replayt_mcp_bridge/tools_workflow.py). **No** runtime code changes.
+
 - **Internal:** Split the monolithic MCP server implementation into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with **`server.py`** as the stdio entry and test re-exports—**no** change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
 
 ### Added
