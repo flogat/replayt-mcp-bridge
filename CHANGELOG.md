@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Typed `store_hint` prefixes** — `persistence_list_run_events` accepts optional **`jsonl:`** and **`sqlite:`** prefixes (ASCII, case-insensitive) before the filesystem path so integrators can force a JSONL directory vs SQLite file without relying on suffix heuristics alone. Legacy bare paths are unchanged. Documented with grammar and examples in **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#store_hint-grammar)**; **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** persistence notes updated. **`tests/test_mcp_tools.py`** covers both typed kinds and empty-prefix / `jsonl:`-on-file negative cases.
+
 ### Changed
 
 - **Stdio MCP smoke tests (phase 3)** — `tests/test_mcp_server_stdio.py` resolves the **`replayt-mcp-bridge`** console script via **`sysconfig.get_path("scripts")`** first so Windows and venv layouts match real install locations. `tests/test_mcp_stdio_session_smoke.py` **skips** at collection with a clear reason if the MCP SDK stdio client cannot be imported (backlog allowance when client tooling is unavailable on a platform).

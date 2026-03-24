@@ -39,6 +39,13 @@ def test_mcp_tools_doc_exists_and_has_mapping_table() -> None:
         assert name in text
 
 
+def test_mcp_tools_doc_defines_store_hint_grammar() -> None:
+    text = MCP_TOOLS_DOC.read_text(encoding="utf-8")
+    assert "### store_hint grammar" in text
+    assert "jsonl:" in text
+    assert "sqlite:" in text
+
+
 def test_mcp_tools_doc_defines_correlation_error_spec() -> None:
     """Lock the integrator contract for correlation_id + mapped failure inventory (MCP_TOOLS.md)."""
     text = MCP_TOOLS_DOC.read_text(encoding="utf-8")
@@ -305,6 +312,67 @@ def test_persistence_list_run_events_reads_sqlite(tmp_path: Path) -> None:
     assert out["event_count"] == 1
     assert out["events"][0]["type"] == "unit_test_marker"
     assert out["store"]["kind"] == "sqlite"
+
+
+def test_persistence_list_run_events_typed_jsonl_prefix(tmp_path: Path) -> None:
+    run_id = "typed-jsonl-run"
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    (log_dir / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=f"JSONL:{log_dir}")
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+    assert out["store"]["kind"] == "jsonl"
+
+
+def test_persistence_list_run_events_typed_sqlite_prefix_without_suffix(
+    tmp_path: Path,
+) -> None:
+    run_id = "typed-sqlite-nosuf"
+    db = tmp_path / "events_db"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+    out = persistence_list_run_events(run_id=run_id, store_hint=f"sqlite:{db}")
+    assert out["status"] == "ok"
+    assert out["store"]["kind"] == "sqlite"
+
+
+def test_persistence_list_run_events_typed_prefix_empty_path_rejected() -> None:
+    out = persistence_list_run_events(run_id="any", store_hint="jsonl:")
+    assert out["status"] == "error"
+    assert out["tool"] == "persistence_list_run_events"
+    assert "empty" in out["message"].lower()
+
+
+def test_persistence_list_run_events_jsonl_prefix_rejects_existing_file(
+    tmp_path: Path,
+) -> None:
+    db = tmp_path / "only.sqlite"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            "x",
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+    out = persistence_list_run_events(run_id="x", store_hint=f"jsonl:{db}")
+    assert out["status"] == "error"
+    assert "jsonl:" in out["message"].lower()
+    assert "directory" in out["message"].lower()
 
 
 def test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist(

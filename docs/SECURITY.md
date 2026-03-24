@@ -27,7 +27,7 @@ Aside from the **`REPLAYT_MCP_BRIDGE_…`** variables implemented in **`observab
 
 ### Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`
 
-- **Single root** — JSONL directories and SQLite files opened via explicit `store_hint` must resolve under this tree:
+- **Single root** — JSONL directories and SQLite files opened via explicit `store_hint` (legacy paths or `jsonl:` / `sqlite:` prefixes—see [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) must resolve under this tree:
 
   `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS=/var/lib/replayt/persistence`
 

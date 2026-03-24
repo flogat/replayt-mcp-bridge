@@ -11,7 +11,7 @@ This bridge exposes a small, versioned set of MCP tools that map to **replayt** 
 | `workflow_contract_snapshot` | `Workflow.contract()`, via `replayt.cli.targets.load_target` | Same **target** grammar as `replayt contract` / `replayt run` (e.g. `module.path:wf`, `workflow.py`). Returns `{ status, target, contract }` or `{ status: error, tool, replayt_surface, message }`. |
 | `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Returns `{ status, target, mermaid }` or an error object. |
 | `runner_dry_run_plan` | `replayt run --dry-check` (graph validation + `validation_report`) | Validates graph and optional JSON strings without executing steps or writing logs. Returns `{ status: ok \| invalid, report }` matching `replayt.validate_report.v1`, or an error object. Optional `strict_graph` and `metadata_json` / `experiment_json` / `policy_hook_context_json` match the CLI `--dry-check` knobs; defaults and gaps are documented under [Dry-check parity specification (runner_dry_run_plan)](#dry-check-parity-specification-runner_dry_run_plan). |
-| `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a JSONL **directory** path, or a `.sqlite` / `.db` file. Optional env **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (see [SECURITY.md](SECURITY.md)) restricts **explicit** `store_hint` paths to resolved locations under listed absolute roots. Returns `{ status, run_id, event_count, events, store }` or an error object. |
+| `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a legacy filesystem path (JSONL **directory** or `.sqlite` / `.db` file per suffix heuristics), or an explicit typed hint (`jsonl:…` / `sqlite:…`—see [store_hint grammar](#store_hint-grammar)). Optional env **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (see [SECURITY.md](SECURITY.md)) restricts **explicit** `store_hint` paths to resolved locations under listed absolute roots. Returns `{ status, run_id, event_count, events, store }` or an error object. |
 
 ## Input shapes (JSON Schema concepts)
 
@@ -80,7 +80,28 @@ This section refines **what “CLI parity” means** between the MCP tool and **
 | Property | Type | Required |
 | -------- | ---- | -------- |
 | `run_id` | string | yes |
-| `store_hint` | string \| null | no (optional store URI or path hint for multi-backend setups) |
+| `store_hint` | string \| null | no (optional store path or typed hint for multi-backend setups; see [store_hint grammar](#store_hint-grammar)) |
+
+### store_hint grammar
+
+Integrators may pass **`store_hint`** in one of three forms. Parsing is **additive**: legacy bare paths behave exactly as before typed prefixes existed.
+
+| Form | Syntax | Resolution |
+| ---- | ------ | ----------- |
+| **Omitted** | `null` / omitted | `resolve_log_dir(DEFAULT_LOG_DIR)` (replayt project + env, same as omitting `--log-dir` style defaults in CLI tooling). |
+| **Legacy path** | Any string that does **not** start with `jsonl:` or `sqlite:` (ASCII, case-insensitive prefix test on the trimmed value) | `Path.expanduser`, then `Path.resolve(strict=False)`. If the suffix is `.sqlite` or `.db`, the path is opened as **SQLite**; else if it exists and is a **file**, return a structured error; otherwise treat it as a **JSONL log directory** path. |
+| **Typed JSONL** | `jsonl:` + path | Same `expanduser` / `resolve` on the path part. Always use a **JSONL directory** store (never SQLite), even if the path ends in `.sqlite` / `.db` or the basename looks like a database file. If the path exists and is a **plain file**, return a structured error. |
+| **Typed SQLite** | `sqlite:` + path | Same `expanduser` / `resolve` on the path part. Always open **SQLite** (read-only), **without** requiring a `.sqlite` / `.db` suffix—use this when the file name is ambiguous. |
+
+**Prefix rules:** Only the two keywords **`jsonl:`** and **`sqlite:`** are recognized, compared case-insensitively. One ASCII colon ends the keyword; the path may be absolute or relative, optional leading whitespace after the colon is stripped.
+
+**Examples (POSIX-style paths; Windows accepts drive-qualified paths the same way):**
+
+- Default logs: `store_hint` omitted.
+- Legacy JSONL dir: `"/var/replayt/runs"` or `"~/project/.replayt/logs"`.
+- Legacy SQLite file: `"/data/events.sqlite"`.
+- Explicit JSONL dir (disambiguate a directory whose name ends in `.sqlite`): `"jsonl:/backups/archive.sqlite"`.
+- Explicit SQLite without conventional suffix: `"sqlite:/data/replayt-events"`.
 
 ## Error response shape
 
@@ -120,7 +141,9 @@ These are the **only** bridge-recognized routes to `{ "status": "error", … }` 
 | `workflow_graph_mermaid` | Bad **target** | same | `replayt.graph_export.workflow_to_mermaid` |
 | `runner_dry_run_plan` | Bad **target** | same (`load_target` before validation) | `replayt run --dry-check / validate_workflow_graph + validation_report` |
 | `persistence_list_run_events` | Invalid **run_id** | `ValueError` from `replayt.persistence.jsonl.validate_run_id` → `_tool_error` | `EventStore.load_events (JSONL directory or SQLite file)` |
-| `persistence_list_run_events` | **store_hint** points at a plain file that is not SQLite | `_resolve_persistence_paths` returns an error string → `_tool_error` | same |
+| `persistence_list_run_events` | **store_hint** points at a plain file that is not SQLite (legacy path rules) | `_resolve_persistence_paths` returns an error string → `_tool_error` | same |
+| `persistence_list_run_events` | **store_hint** is `jsonl:` or `sqlite:` with an **empty** path part | `_resolve_persistence_paths` returns an error string → `_tool_error` | same |
+| `persistence_list_run_events` | **store_hint** `jsonl:…` resolves to an existing **file** | `_resolve_persistence_paths` returns an error string → `_tool_error` | same |
 | `persistence_list_run_events` | Explicit **store_hint** rejected by **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** | branch → `_tool_error` (+ optional `replayt_mcp_bridge.store_hint.rejected` log) | same |
 | `persistence_list_run_events` | SQLite path does not exist or is not a file | branch → `_tool_error` | same |
 | `persistence_list_run_events` | Store open / read failure | `OSError` from `_open_read_store` / `load_events` → `_tool_error` | same |
@@ -152,7 +175,7 @@ Tools that load workflow definitions or read event stores follow the **same trus
 | `workflow_contract_snapshot` | **Yes** (via `load_target`) | Can import modules and read workflow files the server user can access—equivalent to `replayt contract` target resolution. |
 | `workflow_graph_mermaid` | **Yes** (same as above) | Same target resolution as contract snapshot. |
 | `runner_dry_run_plan` | **Yes** (target + optional JSON strings: `inputs_json`, `metadata_json`, `experiment_json`, `policy_hook_context_json`, and `strict_graph`) | Same trust model as passing those flags to `replayt run --dry-check`: resolves the target, validates graph/text only; no workflow execution or log writes. |
-| `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns raw stored events (no redaction). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). |
+| `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns raw stored events (no redaction). Explicit hints may be legacy paths or **`jsonl:`** / **`sqlite:`** typed prefixes (see [store_hint grammar](#store_hint-grammar)). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). |
 
 The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.
 
