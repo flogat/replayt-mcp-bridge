@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tests (workflow phase 3 — partial MCP tool exposure docs)** — [`tests/test_security_docs.py`](tests/test_security_docs.py) asserts **`## Host-side partial tool exposure`** content (fixed registration surface, host responsibility, path- / message-bearing disclosure risks, honest scope line) and the README deep link **`docs/SECURITY.md#host-side-partial-tool-exposure`**.
+
 - **Host hardening — partial MCP tool exposure** — [docs/SECURITY.md](docs/SECURITY.md#host-side-partial-tool-exposure) documents that the bridge registers **all** tools in-process (no subset registration switch), common **host-side filtering** patterns, and **residual risks** hosts cannot fully remove (wire-level enforcement vs UI hiding, **path- / `store_hint`-bearing** structured error `message` fields, unhandled exceptions, sensitive success payloads). README **Tool exposure** links to the new section alongside the capability-tier table.
 
 - **MCP tool capability tiers (operator guidance)** — [docs/SECURITY.md](docs/SECURITY.md#mcp-tool-capability-tiers) adds a single authoritative table: tier (diagnostic / workflow introspection / persistence read), each registered tool **once**, filesystem and bridge-owned **network** implications, trust notes aligned with [docs/MISSION.md § Security and trust boundaries](docs/MISSION.md#security-and-trust-boundaries), and suggested defaults for **local dev** vs **shared workstation**. README **Security, secrets, and MCP hosting** links to it; [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) points selective-exposure readers at the same section.
