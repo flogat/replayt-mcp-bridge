@@ -53,7 +53,7 @@ This package emits **one JSON object per line** on stderr for the `replayt_mcp_b
 Operators and contributors should enforce these rules on **server logs**, **CI output**, and **shared telemetry**:
 
 - **Secrets and credentials** — Never log values (or prefixes) of API keys, tokens, passwords, or private keys. This includes `OPENAI_API_KEY` and every name in replayt’s `LLM_CREDENTIAL_ENV_VARS`, webhook secrets, and signed URLs.
-- **PII and sensitive workflow data** — Do not log contents of persistence events, full workflow inputs, or free-form `inputs_json` / tool arguments in production-style logs.
+- **PII and sensitive workflow data** — Do not log contents of persistence events, full workflow inputs, or free-form dry-check JSON strings (`inputs_json`, `metadata_json`, `experiment_json`, `policy_hook_context_json`) / other tool arguments in production-style logs.
 - **High-cardinality client input** — The bridge’s replayt-backed tools intentionally log only **tool name** and **outcome status** at info level, not MCP argument values. **Do not** change that to log `target`, `store_hint`, `run_id`, or raw JSON-RPC bodies at info level in environments where logs are broadly visible.
 - **URLs with embedded secrets** — Strip userinfo and sensitive query parameters before logging URLs (replayt exposes helpers such as `sanitize_base_url_for_output` for base URLs).
 - **Stack traces in shared logs** — `logger.exception` in the bridge may include paths and internal details; restrict log destinations accordingly. Structured tool errors returned to MCP clients intentionally avoid Python tracebacks for covered failure modes; unhandled exceptions may still propagate per host/SDK behavior.
