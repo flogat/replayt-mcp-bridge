@@ -113,6 +113,8 @@ cost, and redaction in this doc or in a dedicated doc linked from the README.
 2. **Nonzero on critical failures** — Implementation exits **nonzero** when replayt (or the bridge) cannot be imported or version resolution fails per the table above; document any additional **critical** cases explicitly.
 3. **Pytest without MCP host** — Tests assert **exit codes** by spawning **`sys.executable`** with **`-m replayt_mcp_bridge health`** (and optionally the console script) in a **subprocess**—**no** MCP client, **no** JSON-RPC session. Include at least: **happy path** → exit **0**; **one negative path** that proves nonzero exits without relying on a real MCP host (for example a **monkeypatched** or **isolated** import failure **or** a documented test helper that simulates a missing dependency—choose an approach that stays **reliable in CI**).
 
+**Implementation status (shipped):** The probe is live on both packaged entrypoints; **[README.md](../README.md)** is the operator copy-of-record for exact invocations and the **0 / 1 / 2** exit-code table. Implementation: [`health_probe.py`](../src/replayt_mcp_bridge/health_probe.py); tests: [`test_cli_health.py`](../tests/test_cli_health.py).
+
 Architecture layering and traceability are recorded under [ARCHITECTURE.md § Architecture review: one-shot operator health check (install probe)](ARCHITECTURE.md#architecture-review-one-shot-operator-health-check-install-probe).
 
 ## Stdio MCP session integration smoke test
