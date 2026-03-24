@@ -75,11 +75,31 @@ def test_security_doc_notes_mcp_host_logging_risk() -> None:
     assert "JSON-RPC" in text or "json-rpc" in text.lower()
 
 
+def test_security_doc_covers_host_side_partial_tool_exposure() -> None:
+    """Guides reviewers on host filtering vs fixed bridge registration (backlog: partial exposure)."""
+    text = SECURITY_PATH.read_text(encoding="utf-8")
+    assert "## Host-side partial tool exposure" in text
+    start = text.index("## Host-side partial tool exposure")
+    try:
+        next_heading = text.index("\n## ", start + 1)
+    except ValueError:
+        next_heading = len(text)
+    section = text[start:next_heading]
+    assert "no" in section.lower() and "subset" in section.lower()
+    assert "host" in section.lower() and "responsibility" in section.lower()
+    assert "path" in section.lower() and "message" in section.lower()
+    assert "**Scope:**" in section
+    assert "shipped behavior only" in section
+    assert "does **not** claim" in section
+    assert "#mcp-tool-capability-tiers" in section
+
+
 def test_readme_links_security_under_clear_heading() -> None:
     text = README_PATH.read_text(encoding="utf-8")
     assert "## Security, secrets, and MCP hosting" in text
     assert "docs/SECURITY.md" in text
     assert "docs/SECURITY.md#mcp-tool-capability-tiers" in text
+    assert "docs/SECURITY.md#host-side-partial-tool-exposure" in text
     lines = text.splitlines()
     # Keep the link near the top of the README; raise the window when new
     # sections (compatibility tables, Python matrix copy) push the block down.
