@@ -135,6 +135,23 @@ def _path_allowed_under_store_hint_roots(path: Path, roots: list[Path]) -> bool:
     return any(path.is_relative_to(root) for root in roots)
 
 
+def _split_typed_store_hint(store_hint: str) -> tuple[str | None, str]:
+    """If ``store_hint`` uses an explicit kind prefix, return ``(kind, path_str)`` else ``(None, original)``.
+
+    Recognized prefixes (ASCII, case-insensitive): ``jsonl:``, ``sqlite:``. The remainder is trimmed of leading
+    whitespace and passed through ``expanduser`` / ``resolve`` like legacy hints. Any other string is treated as a
+    legacy opaque filesystem path (backward compatible).
+    """
+
+    s = store_hint.strip()
+    lower = s.lower()
+    if lower.startswith("jsonl:"):
+        return "jsonl", s[6:].lstrip()
+    if lower.startswith("sqlite:"):
+        return "sqlite", s[7:].lstrip()
+    return None, s
+
+
 def _resolve_persistence_paths(
     store_hint: str | None,
 ) -> tuple[Path | None, Path | None, str | None]:
@@ -142,11 +159,30 @@ def _resolve_persistence_paths(
 
     if store_hint is None:
         return resolve_log_dir(DEFAULT_LOG_DIR), None, None
-    raw = Path(store_hint).expanduser()
+    explicit_kind, path_str = _split_typed_store_hint(store_hint)
+    if explicit_kind is not None and not path_str:
+        return (
+            None,
+            None,
+            "store_hint uses a typed prefix (jsonl: or sqlite:) but the path part is empty; "
+            "see docs/MCP_TOOLS.md (store_hint grammar).",
+        )
+    raw = Path(path_str).expanduser()
     try:
         p = raw.resolve(strict=False)
     except (OSError, RuntimeError):
         p = raw
+    if explicit_kind == "sqlite":
+        return None, p, None
+    if explicit_kind == "jsonl":
+        if p.exists() and p.is_file():
+            return (
+                None,
+                None,
+                "jsonl: store_hint must refer to a JSONL log directory, not a file.",
+            )
+        return p, None, None
+
     suf = p.suffix.lower()
     if suf in (".sqlite", ".db"):
         return None, p, None

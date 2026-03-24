@@ -30,3 +30,16 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# Local venv copies under the repo (orchestrator / CI experiments) must not be linted;
+# they pull in pywin32 and other third-party scripts that fail ruff check.
+[tool.ruff]
+extend-exclude = [
+    ".ci-venv",
+    ".phase7b-venv",
+    ".venv-ci",
+    ".venv-p3",
+    ".venv",
+    "venv",
+]
+
