@@ -138,19 +138,30 @@ def _path_allowed_under_store_hint_roots(path: Path, roots: list[Path]) -> bool:
 
 
 def _split_typed_store_hint(store_hint: str) -> tuple[str | None, str]:
-    """If ``store_hint`` uses an explicit kind prefix, return ``(kind, path_str)`` else ``(None, original)``.
+    """Split ``store_hint`` into an optional explicit kind and filesystem path string.
 
-    Recognized prefixes (ASCII, case-insensitive): ``jsonl:``, ``sqlite:``. The remainder is trimmed of leading
-    whitespace and passed through ``expanduser`` / ``resolve`` like legacy hints. Any other string is treated as a
-    legacy opaque filesystem path (backward compatible).
+    Recognized forms (ASCII, case-insensitive on the keyword):
+
+    * ``jsonl-dir:`` / ``jsonl:`` → kind ``jsonl`` (JSONL log directory only).
+    * ``sqlite:`` → kind ``sqlite``.
+    * ``file:`` when **not** followed by ``//`` → kind ``file`` (same suffix heuristics as a legacy bare path;
+      excludes RFC 8089 ``file://…`` URIs, which stay legacy opaque strings).
+    * Anything else → ``(None, trimmed_string)`` (legacy bare path).
+
+    The path part is trimmed of leading whitespace and passed through ``expanduser`` / ``resolve`` like legacy hints.
     """
 
     s = store_hint.strip()
     lower = s.lower()
+    # ``jsonl:`` is a prefix of ``jsonl-dir:`` — match the longer keyword first.
+    if lower.startswith("jsonl-dir:"):
+        return "jsonl", s[10:].lstrip()
     if lower.startswith("jsonl:"):
         return "jsonl", s[6:].lstrip()
     if lower.startswith("sqlite:"):
         return "sqlite", s[7:].lstrip()
+    if lower.startswith("file:") and not lower.startswith("file://"):
+        return "file", s[5:].lstrip()
     return None, s
 
 
@@ -166,7 +177,7 @@ def _resolve_persistence_paths(
         return (
             None,
             None,
-            "store_hint uses a typed prefix (jsonl: or sqlite:) but the path part is empty; "
+            "store_hint uses a typed prefix (file:, jsonl-dir:, jsonl:, or sqlite:) but the path part is empty; "
             "see docs/MCP_TOOLS.md (store_hint grammar).",
         )
     raw = Path(path_str).expanduser()
@@ -181,7 +192,8 @@ def _resolve_persistence_paths(
             return (
                 None,
                 None,
-                "jsonl: store_hint must refer to a JSONL log directory, not a file.",
+                "Typed JSONL-directory store_hint (jsonl: or jsonl-dir:) must refer to a JSONL log directory, "
+                "not a file.",
             )
         return p, None, None
 
