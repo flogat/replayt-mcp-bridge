@@ -21,6 +21,7 @@ def test_security_doc_lists_environment_variables() -> None:
     assert "`REPLAYT_LOG_DIR`" in text
     assert "`OPENAI_API_KEY`" in text
     assert "`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`" in text
+    assert "`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`" in text
 
 
 def test_security_doc_states_do_not_log_rules() -> None:
@@ -91,3 +92,10 @@ def test_observability_defines_store_hint_allowlist_env_var() -> None:
     obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
     text = obs.read_text(encoding="utf-8")
     assert "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS" in text
+
+
+def test_observability_defines_redact_run_events_env_var() -> None:
+    obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
+    text = obs.read_text(encoding="utf-8")
+    assert "REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS" in text
+    assert "run_events_redaction_enabled" in text

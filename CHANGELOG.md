@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Optional `REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** — when set to a truthy token (**`1`**, **`true`**, **`yes`**, **`on`**), `persistence_list_run_events` returns **`events`** through **`redact_structure`** (same key-substring rules as structured stderr logs). **Default remains pass-through** (unset / other values): no redaction walk or extra copies. Documented in **[docs/SECURITY.md](docs/SECURITY.md)**, **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md)**, **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)**, **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**, and **[docs/MISSION.md](docs/MISSION.md)**; **`tests/test_mcp_tools.py`** covers raw vs redacted synthetic fixtures and asserts **`redact_structure`** is not invoked when the toggle is off.
+
 - **Typed `store_hint` prefixes** — `persistence_list_run_events` accepts optional **`jsonl:`** and **`sqlite:`** prefixes (ASCII, case-insensitive) before the filesystem path so integrators can force a JSONL directory vs SQLite file without relying on suffix heuristics alone. Legacy bare paths are unchanged. Documented with grammar and examples in **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#store_hint-grammar)**; **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** persistence notes updated. **`tests/test_mcp_tools.py`** covers both typed kinds and empty-prefix / `jsonl:`-on-file negative cases.
 - **Phase 3 — `store_hint` prefix parsing tests** — Direct coverage of **`_split_typed_store_hint`** (case-insensitive `jsonl:` / `sqlite:`, path trimming, Windows drive paths staying legacy, unknown pseudo-schemes unchanged).
 

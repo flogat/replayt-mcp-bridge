@@ -73,6 +73,22 @@ def resolve_log_level_from_env() -> int:
     return getattr(logging, raw, DEFAULT_BRIDGE_LOG_LEVEL)
 
 
+_RUN_EVENTS_REDACTION_TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
+
+
+def run_events_redaction_enabled() -> bool:
+    """Return whether ``persistence_list_run_events`` should redact sensitive-shaped keys in returned events.
+
+    Reads ``REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS``. When **unset**, empty, or any value other than a case-insensitive
+    match for **1**, **true**, **yes**, or **on**, redaction is **off** (pass-through, no extra structure copies).
+    """
+
+    raw = os.environ.get("REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS")
+    if raw is None:
+        return False
+    return raw.strip().lower() in _RUN_EVENTS_REDACTION_TRUTHY
+
+
 def parse_store_hint_allowlist_roots() -> list[Path] | None:
     """Parse ``REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`` for ``persistence_list_run_events``.
 
