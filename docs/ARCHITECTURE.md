@@ -32,7 +32,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | ----- | ----- | ---- |
 | Wiring / health | `replayt_echo`, `replayt_version_info` | Prove MCP wiring and report the resolved replayt version (integrator diagnostics). |
 | Workflow introspection | `workflow_contract_snapshot`, `workflow_graph_mermaid` | Resolve a CLI-style **target** and expose contract and Mermaid graph text without running steps. |
-| Runner (dry) | `runner_dry_run_plan` | Graph validation plus `validation_report` aligned with `replayt run --dry-check`; optional `inputs_json` string. |
+| Runner (dry) | `runner_dry_run_plan` | Graph validation plus `validation_report` aligned with `replayt run --dry-check`; optional `inputs_json` today. **Parity spec** (planned optional `strict_graph`, `metadata_json`, `experiment_json`, `policy_hook_context_json`) is written up in [MCP_TOOLS.md § Dry-check parity specification](MCP_TOOLS.md#dry-check-parity-specification-runner_dry_run_plan). |
 | Persistence read | `persistence_list_run_events` | Read-only access to events via JSONL log directory or SQLite path; default log dir matches CLI resolution when `store_hint` is omitted. |
 
 ## Shared implementation patterns
@@ -66,7 +66,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 - **Phase 5 (architecture review):** [Declared replayt range, integrator docs, CI, and contract tests](#architecture-review-phase-5); [optional upstream doc mirror](#reference-documentation-mirror) under `docs/reference-documentation/` (offline convenience only—bridge contracts stay in first-party docs).
 - **Phase 6 (security review):** `server.py` and the optional [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py) refresh path were reviewed against [MISSION.md](MISSION.md#security-and-trust-boundaries) and the [MCP_TOOLS.md](MCP_TOOLS.md) security table; findings are summarized in [Security review (phase 6)](#security-review-phase-6) below. No handler or refresh-script changes were required for the stated stdio / trusted-operator model and maintainer-only PyPI refresh; CI already uses explicit read-only `contents` permissions; optional hardenings remain follow-ups.
-- **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and omits optional JSON blobs that the CLI may accept; exposing them as optional MCP parameters is a backward-compatible extension.
+- **Parity:** `runner_dry_run_plan` currently fixes `strict_graph=False` and passes only `inputs_json` into `validation_report`; the CLI’s `--dry-check` path also accepts `--metadata-json`, `--experiment-json`, `--policy-hook-context-json`, and `--strict-graph`. [MCP_TOOLS.md](MCP_TOOLS.md#dry-check-parity-specification-runner_dry_run_plan) now defines the additive MCP contract, defaults, explicit non-goals (full `resolve_run_inputs_json` parity), and pytest expectations for closing the backlog item.
 - **Persistence hints:** Path/suffix heuristics work for JSONL dirs vs SQLite files; a structured `store_hint` (e.g. typed URI prefixes) would be a separate, explicit contract change.
 - **Event privacy:** Returned events are replayt’s stored JSON as-is; any redaction policy belongs in docs and optional bridge-level filtering if integrators require it.
 
@@ -116,7 +116,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | Input / surface | Bridge handling | Residual risk |
 | --------------- | --------------- | ------------- |
 | `target` | Passed to `load_target` | Same as the replayt CLI: **Python import** and **workflow file reads** for resources the server user can access. |
-| `inputs_json` (`runner_dry_run_plan`) | Passed to `validation_report` after graph validation | Malformed JSON is reported as `status: "invalid"` via replayt’s validation report (not a bridge-level exception in spot checks). Other unexpected replayt exceptions remain possible and follow the unhandled path below. |
+| `inputs_json` (`runner_dry_run_plan`); future optional `metadata_json`, `experiment_json`, `policy_hook_context_json` per [MCP_TOOLS parity spec](MCP_TOOLS.md#dry-check-parity-specification-runner_dry_run_plan) | Passed to `validation_report` after graph validation (same as `replayt run --dry-check` JSON slots) | Malformed or non-object JSON is reported as `status: "invalid"` via replayt’s validation report (not a bridge-level exception in spot checks). Other unexpected replayt exceptions remain possible and follow the unhandled path below. |
 | `store_hint` | `expanduser`, `Path.resolve(strict=False)`, then read-only `JSONLStore` / `SQLiteStore` | Any path the OS allows the process to open; **symlinks** resolve per platform rules. Plain files that are not SQLite are rejected with `_tool_error`. |
 | `run_id` | `validate_run_id_for_store` before `load_events` | Identifier validation only; **event payloads** are returned as stored (no bridge redaction). |
 | `replayt_echo(message)` | Returned in the structured result | **Reflection** if echoed content is fed into models or UIs; bridge-only tool, still wrapped by `_log_replayt_tool_boundaries` for consistent lifecycle logs (arguments are not logged). |
