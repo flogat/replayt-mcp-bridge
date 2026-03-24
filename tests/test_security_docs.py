@@ -38,6 +38,12 @@ def test_security_doc_covers_deployment_and_replayt_credentials() -> None:
     assert "auth" in text.lower()
 
 
+def test_security_doc_links_mcp_host_config_from_deployment() -> None:
+    text = SECURITY_PATH.read_text(encoding="utf-8")
+    assert "MCP_HOST_CONFIG.md" in text
+    assert "[MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md)" in text
+
+
 def test_security_doc_notes_mcp_host_logging_risk() -> None:
     text = SECURITY_PATH.read_text(encoding="utf-8")
     assert "## MCP host and client logs" in text
