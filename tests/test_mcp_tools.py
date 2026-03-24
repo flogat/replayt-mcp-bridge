@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import textwrap
 from pathlib import Path
 
 import pytest
@@ -129,6 +130,48 @@ def test_runner_dry_run_plan_bad_target() -> None:
     assert out["status"] == "error"
     assert out["tool"] == "runner_dry_run_plan"
     assert "message" in out
+
+
+def test_runner_dry_run_plan_strict_graph_changes_outcome(tmp_path: Path) -> None:
+    """strict_graph=True promotes multi-state / no-edge graphs from warning-only to errors."""
+    wf_py = tmp_path / "two_state_no_edges.py"
+    wf_py.write_text(
+        textwrap.dedent(
+            """
+            from replayt.workflow import Workflow
+
+            wf = Workflow("mcp_strict_graph_contract")
+            wf.set_initial("a")
+
+            @wf.step("a")
+            def a(ctx):
+                return "b"
+
+            @wf.step("b")
+            def b(ctx):
+                return None
+            """
+        ).strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    target = str(wf_py)
+    loose = runner_dry_run_plan(target=target, inputs_json=None, strict_graph=False)
+    assert loose["status"] == "ok"
+    strict = runner_dry_run_plan(target=target, inputs_json=None, strict_graph=True)
+    assert strict["status"] == "invalid"
+    assert any("strict graph" in e.lower() for e in strict["report"]["errors"])
+
+
+def test_runner_dry_run_plan_metadata_json_invalid() -> None:
+    out = runner_dry_run_plan(
+        target=EXAMPLE_TARGET,
+        inputs_json=None,
+        metadata_json="not-json",
+    )
+    assert out["status"] == "invalid"
+    errs = out["report"]["errors"]
+    assert any("metadata" in e.lower() for e in errs)
 
 
 def test_persistence_list_run_events_reads_jsonl(tmp_path: Path) -> None:

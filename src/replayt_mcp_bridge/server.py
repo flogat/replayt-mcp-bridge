@@ -187,13 +187,18 @@ def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str,
 @mcp.tool()
 @_log_replayt_tool_boundaries
 def runner_dry_run_plan(
-    target: str, inputs_json: str | None = None, ctx: Context | None = None
+    target: str,
+    inputs_json: str | None = None,
+    strict_graph: bool = False,
+    metadata_json: str | None = None,
+    experiment_json: str | None = None,
+    policy_hook_context_json: str | None = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Plan or validate a run without committing side effects (aligned with `replayt run --dry-check` semantics)."""
 
     tool = "runner_dry_run_plan"
     surface = "replayt run --dry-check / validate_workflow_graph + validation_report"
-    strict_graph = False
     try:
         wf = load_target(target)
         errors, warnings = validate_workflow_graph(wf, strict_graph=strict_graph)
@@ -204,9 +209,9 @@ def runner_dry_run_plan(
             errors=errors,
             warnings=warnings,
             inputs_json=inputs_json,
-            metadata_json=None,
-            experiment_json=None,
-            policy_hook_context_json=None,
+            metadata_json=metadata_json,
+            experiment_json=experiment_json,
+            policy_hook_context_json=policy_hook_context_json,
         )
     except typer.BadParameter as exc:
         return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
