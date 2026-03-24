@@ -330,6 +330,108 @@ def test_persistence_list_run_events_reads_jsonl(tmp_path: Path) -> None:
     assert out["store"]["kind"] == "jsonl"
 
 
+def test_persistence_list_run_events_event_fields_filters_top_level_keys(
+    tmp_path: Path,
+) -> None:
+    run_id = "test-run-fields"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    secret = "nested-secret-under-payload"
+    event = {
+        "seq": 1,
+        "type": "unit_test_marker",
+        "payload": {"oauth_token": secret, "note": "x"},
+    }
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(
+        run_id=run_id,
+        store_hint=str(log_dir),
+        event_fields=["type", "seq"],
+    )
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+    ev = out["events"][0]
+    assert set(ev.keys()) == {"type", "seq"}
+    assert ev["type"] == "unit_test_marker"
+    assert "payload" not in ev
+
+
+def test_persistence_list_run_events_event_fields_keeps_nested_values_unchanged(
+    tmp_path: Path,
+) -> None:
+    """Allowlist is top-level only: secrets under a kept key remain visible."""
+    run_id = "test-run-nested"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    secret = "still-visible-nested-token"
+    event = {
+        "seq": 1,
+        "type": "unit_test_marker",
+        "payload": {"oauth_token": secret},
+    }
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(
+        run_id=run_id,
+        store_hint=str(log_dir),
+        event_fields=["payload"],
+    )
+    assert out["status"] == "ok"
+    assert out["events"][0]["payload"]["oauth_token"] == secret
+
+
+def test_persistence_list_run_events_env_default_event_fields(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS", "type, seq")
+    run_id = "test-run-env-fields"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    event = {"seq": 7, "type": "env_allowlist", "extra": "drop-me"}
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
+    assert out["status"] == "ok"
+    assert set(out["events"][0].keys()) == {"seq", "type"}
+
+
+def test_persistence_list_run_events_empty_event_fields_overrides_env_default(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS", "type")
+    run_id = "test-run-override"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    event = {"seq": 1, "type": "x", "payload": {"k": 1}}
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(
+        run_id=run_id, store_hint=str(log_dir), event_fields=[]
+    )
+    assert out["status"] == "ok"
+    assert out["events"][0] == event
+
+
+def test_persistence_list_run_events_field_allowlist_before_redaction(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS", "1")
+    run_id = "test-run-filter-then-redact"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    secret = "deep-token"
+    event = {
+        "seq": 1,
+        "type": "unit_test_marker",
+        "payload": {"oauth_token": secret},
+    }
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(
+        run_id=run_id,
+        store_hint=str(log_dir),
+        event_fields=["payload"],
+    )
+    assert out["status"] == "ok"
+    assert out["events"][0]["payload"]["oauth_token"] == "[REDACTED]"
+
+
 def test_persistence_list_run_events_redacts_sensitive_keys_when_env_enabled(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

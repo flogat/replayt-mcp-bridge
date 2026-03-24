@@ -32,6 +32,7 @@ from replayt_mcp_bridge import (
 from replayt_mcp_bridge.observability import (
     configure_bridge_logging,
     emit_json_log,
+    parse_default_run_event_field_allowlist,
     parse_store_hint_allowlist_roots,
     redact_structure,
     run_events_redaction_enabled,
@@ -135,6 +136,36 @@ def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, A
 
 def _path_allowed_under_store_hint_roots(path: Path, roots: list[Path]) -> bool:
     return any(path.is_relative_to(root) for root in roots)
+
+
+def _effective_run_event_field_allowlist(
+    event_fields: list[str] | None,
+) -> list[str] | None:
+    """Resolve top-level key allowlist: explicit non-empty MCP list wins; else optional env default."""
+
+    if event_fields is not None:
+        if not event_fields:
+            return None
+        return event_fields
+    return parse_default_run_event_field_allowlist()
+
+
+def _filter_run_events_top_level_keys(events: list[Any], keys: list[str]) -> list[Any]:
+    """Keep only listed top-level keys on dict-shaped events; other elements pass through unchanged."""
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for k in keys:
+        if k not in seen:
+            seen.add(k)
+            ordered.append(k)
+    out: list[Any] = []
+    for ev in events:
+        if isinstance(ev, dict):
+            out.append({k: ev[k] for k in ordered if k in ev})
+        else:
+            out.append(ev)
+    return out
 
 
 def _split_typed_store_hint(store_hint: str) -> tuple[str | None, str]:
@@ -319,7 +350,10 @@ def runner_dry_run_plan(
 @mcp.tool()
 @_log_replayt_tool_boundaries
 def persistence_list_run_events(
-    run_id: str, store_hint: str | None = None, ctx: Context | None = None
+    run_id: str,
+    store_hint: str | None = None,
+    event_fields: list[str] | None = None,
+    ctx: Context | None = None,
 ) -> dict[str, Any]:
     """List persisted events for a run_id (aligned with EventStore.load_events and `replayt runs` tooling)."""
 
@@ -379,10 +413,13 @@ def persistence_list_run_events(
             events = store.load_events(safe_run_id)
     except OSError as exc:
         return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
-    if run_events_redaction_enabled():
-        events_for_client: Any = redact_structure(events)
+    allow = _effective_run_event_field_allowlist(event_fields)
+    if allow:
+        events_for_client = _filter_run_events_top_level_keys(events, allow)
     else:
         events_for_client = events
+    if run_events_redaction_enabled():
+        events_for_client = redact_structure(events_for_client)
     store_kind = "sqlite" if sqlite is not None else "jsonl"
     store_path = str(sqlite) if sqlite is not None else str(log_dir)
     return {
