@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Internal:** Split the monolithic MCP server implementation into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with **`server.py`** as the stdio entry and test re-exports—**no** change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
+
 ### Added
 
 - **Tests (workflow phase 3 — partial MCP tool exposure docs)** — [`tests/test_security_docs.py`](tests/test_security_docs.py) asserts **`## Host-side partial tool exposure`** content (fixed registration surface, host responsibility, path- / message-bearing disclosure risks, honest scope line) and the README deep link **`docs/SECURITY.md#host-side-partial-tool-exposure`**.
