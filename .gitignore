@@ -1,3 +1,6 @@
+# Never commit generic documentation placeholder trees (AI agents sometimes create these literally)
+path/
+
 # Local / tooling (not for publication)
 .orchestrator/
 .cursor/skills/
