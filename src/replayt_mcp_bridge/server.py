@@ -27,7 +27,11 @@ from replayt_mcp_bridge import (
     installed_replayt_version,
     installed_replayt_version_tuple,
 )
-from replayt_mcp_bridge.observability import configure_bridge_logging, emit_json_log
+from replayt_mcp_bridge.observability import (
+    configure_bridge_logging,
+    emit_json_log,
+    parse_store_hint_allowlist_roots,
+)
 
 mcp = FastMCP("replayt-mcp-bridge")
 logger = logging.getLogger(__name__)
@@ -86,6 +90,10 @@ def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, A
         "replayt_surface": replayt_surface,
         "message": message,
     }
+
+
+def _path_allowed_under_store_hint_roots(path: Path, roots: list[Path]) -> bool:
+    return any(path.is_relative_to(root) for root in roots)
 
 
 def _resolve_persistence_paths(
@@ -235,6 +243,40 @@ def persistence_list_run_events(
     log_dir, sqlite, hint_err = _resolve_persistence_paths(store_hint)
     if hint_err:
         return _tool_error(tool=tool, replayt_surface=surface, message=hint_err)
+    allow_roots = parse_store_hint_allowlist_roots()
+    if store_hint is not None and allow_roots is not None:
+        if not allow_roots:
+            emit_json_log(
+                logger,
+                logging.WARNING,
+                "replayt_mcp_bridge.store_hint.rejected",
+                reason="allowlist_unusable",
+            )
+            return _tool_error(
+                tool=tool,
+                replayt_surface=surface,
+                message=(
+                    "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS is set but no valid absolute "
+                    "roots were parsed; refusing explicit store_hint."
+                ),
+            )
+        store_path = sqlite if sqlite is not None else log_dir
+        assert store_path is not None
+        if not _path_allowed_under_store_hint_roots(store_path, allow_roots):
+            emit_json_log(
+                logger,
+                logging.WARNING,
+                "replayt_mcp_bridge.store_hint.rejected",
+                reason="outside_allowlist",
+            )
+            return _tool_error(
+                tool=tool,
+                replayt_surface=surface,
+                message=(
+                    "Store hint resolves outside REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS; "
+                    "see docs/SECURITY.md."
+                ),
+            )
     if sqlite is not None and not sqlite.is_file():
         return _tool_error(
             tool=tool,

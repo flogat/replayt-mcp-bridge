@@ -127,4 +127,4 @@ Many tools use the same **`command` / `args` / `env`** pattern as above; some re
 
 ## Optional environment
 
-You can pass **`env`** in host JSON for per-server variables (e.g. **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`**). Do not commit secrets; see **[SECURITY.md](SECURITY.md)** for credential-related variables and logging rules.
+You can pass **`env`** in host JSON for per-server variables (e.g. **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** or optional **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** for persistence path hardening). Do not commit secrets; see **[SECURITY.md](SECURITY.md)** for credential-related variables, allowlist semantics, and logging rules.

@@ -230,3 +230,144 @@ def test_persistence_list_run_events_reads_sqlite(tmp_path: Path) -> None:
     assert out["event_count"] == 1
     assert out["events"][0]["type"] == "unit_test_marker"
     assert out["store"]["kind"] == "sqlite"
+
+
+def test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Omitted ``store_hint`` uses ``resolve_log_dir``; allowlist checks only explicit hints."""
+
+    allow_root = tmp_path / "allow_only_here"
+    allow_root.mkdir()
+    default_logs = tmp_path / "actual_default_logs"
+    default_logs.mkdir()
+    run_id = "r-omit-hint"
+    (default_logs / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allow_root))
+
+    def fake_resolve_log_dir(_default: Path) -> Path:
+        return default_logs
+
+    monkeypatch.setattr(
+        "replayt_mcp_bridge.server.resolve_log_dir",
+        fake_resolve_log_dir,
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=None)
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+    assert Path(out["store"]["path"]) == default_logs
+
+
+def test_persistence_list_run_events_allowlist_allows_under_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    nested = allowed / "logs"
+    nested.mkdir()
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allowed))
+    run_id = "r-allow"
+    (nested / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(nested))
+    assert out["status"] == "ok"
+    assert out["event_count"] == 1
+
+
+def test_persistence_list_run_events_allowlist_allows_second_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    a = tmp_path / "a"
+    b = tmp_path / "b"
+    a.mkdir()
+    b.mkdir()
+    monkeypatch.setenv(
+        "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS",
+        f"{a},{b}",
+    )
+    run_id = "r2"
+    log_b = b / "logs"
+    log_b.mkdir()
+    (log_b / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker"}) + "\n",
+        encoding="utf-8",
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(log_b))
+    assert out["status"] == "ok"
+
+
+def test_persistence_list_run_events_allowlist_denies_outside_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    outside = tmp_path / "secret_probe_store_hint_9f2c1e"
+    outside.mkdir()
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allowed))
+    out = persistence_list_run_events(run_id="any", store_hint=str(outside))
+    assert out["status"] == "error"
+    assert out["tool"] == "persistence_list_run_events"
+    assert "replayt_surface" in out
+    assert "secret_probe_store_hint_9f2c1e" not in out["message"]
+
+
+def test_persistence_list_run_events_allowlist_rejection_logs_omit_probe_path(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    allowed = tmp_path / "allowed"
+    allowed.mkdir()
+    probe = tmp_path / "mcp_bridge_probe_path_aa11bb22"
+    probe.mkdir()
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allowed))
+    caplog.set_level(logging.WARNING, logger="replayt_mcp_bridge.server")
+    out = persistence_list_run_events(run_id="x", store_hint=str(probe))
+    assert out["status"] == "error"
+    blob = "\n".join(r.getMessage() for r in caplog.records)
+    assert "mcp_bridge_probe_path_aa11bb22" not in blob
+
+
+def test_persistence_list_run_events_allowlist_unusable_env_rejects_hint(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", ", , ")
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    run_id = "r1"
+    (log_dir / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker"}) + "\n",
+        encoding="utf-8",
+    )
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
+    assert out["status"] == "error"
+    assert "refusing explicit store_hint" in out["message"].lower()
+
+
+def test_persistence_list_run_events_allowlist_sqlite_under_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "r"
+    root.mkdir()
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(root))
+    db = root / "e.sqlite"
+    run_id = "sql-allow"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(db))
+    assert out["status"] == "ok"
+    assert out["store"]["kind"] == "sqlite"
