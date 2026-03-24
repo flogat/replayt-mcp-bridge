@@ -6,6 +6,7 @@ import json
 import logging
 import textwrap
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 from replayt.persistence import SQLiteStore
@@ -300,6 +301,65 @@ def test_persistence_list_run_events_reads_jsonl(tmp_path: Path) -> None:
     assert out["event_count"] == 1
     assert out["events"][0]["type"] == "unit_test_marker"
     assert out["store"]["kind"] == "jsonl"
+
+
+def test_persistence_list_run_events_redacts_sensitive_keys_when_env_enabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Synthetic fixture: redacted tool output must differ from raw stored JSON (REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS)."""
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS", "1")
+    run_id = "test-run-redact"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    secret = "unit-test-secret-token-value"
+    event = {
+        "seq": 1,
+        "type": "unit_test_marker",
+        "payload": {"note": "visible", "oauth_token": secret},
+    }
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
+    assert out["status"] == "ok"
+    assert out["events"][0]["payload"]["note"] == "visible"
+    assert out["events"][0]["payload"]["oauth_token"] == "[REDACTED]"
+    assert secret not in json.dumps(out["events"])
+
+
+def test_persistence_list_run_events_pass_through_sensitive_keys_when_env_disabled(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.delenv("REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS", raising=False)
+    run_id = "test-run-raw"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    secret = "raw-token-preserved"
+    event = {
+        "seq": 1,
+        "type": "unit_test_marker",
+        "payload": {"oauth_token": secret},
+    }
+    (log_dir / f"{run_id}.jsonl").write_text(json.dumps(event) + "\n", encoding="utf-8")
+    out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
+    assert out["status"] == "ok"
+    assert out["events"][0]["payload"]["oauth_token"] == secret
+
+
+def test_persistence_list_run_events_default_does_not_invoke_redact_structure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """No performance regression on default path: omit env and ensure we never call redact_structure."""
+    monkeypatch.delenv("REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS", raising=False)
+    run_id = "test-run-no-redact-call"
+    log_dir = tmp_path / "runs"
+    log_dir.mkdir()
+    (log_dir / f"{run_id}.jsonl").write_text(
+        json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
+        encoding="utf-8",
+    )
+    with patch("replayt_mcp_bridge.server.redact_structure") as mock_redact:
+        out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
+    mock_redact.assert_not_called()
+    assert out["status"] == "ok"
 
 
 def test_persistence_list_run_events_invalid_run_id() -> None:

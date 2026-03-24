@@ -33,6 +33,8 @@ from replayt_mcp_bridge.observability import (
     configure_bridge_logging,
     emit_json_log,
     parse_store_hint_allowlist_roots,
+    redact_structure,
+    run_events_redaction_enabled,
 )
 
 mcp = FastMCP("replayt-mcp-bridge")
@@ -365,13 +367,17 @@ def persistence_list_run_events(
             events = store.load_events(safe_run_id)
     except OSError as exc:
         return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
+    if run_events_redaction_enabled():
+        events_for_client: Any = redact_structure(events)
+    else:
+        events_for_client = events
     store_kind = "sqlite" if sqlite is not None else "jsonl"
     store_path = str(sqlite) if sqlite is not None else str(log_dir)
     return {
         "status": "ok",
         "run_id": safe_run_id,
         "event_count": len(events),
-        "events": events,
+        "events": events_for_client,
         "store": {"kind": store_kind, "path": store_path},
     }
 
