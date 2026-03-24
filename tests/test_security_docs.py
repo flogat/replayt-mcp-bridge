@@ -30,7 +30,9 @@ def test_security_doc_defines_tool_capability_tiers() -> None:
         "`persistence_list_run_events`",
     )
     for t in tools:
-        assert tier_section.count(t) == 1, f"{t} should appear exactly once in tier section"
+        assert tier_section.count(t) == 1, (
+            f"{t} should appear exactly once in tier section"
+        )
     assert "MISSION.md#security-and-trust-boundaries" in tier_section
 
 
