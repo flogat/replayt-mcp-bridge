@@ -15,9 +15,17 @@ import json
 import sys
 from pathlib import Path
 
-from mcp import ClientSession, StdioServerParameters
-from mcp.client.stdio import stdio_client
-from mcp.types import TextContent
+import pytest
+
+try:
+    from mcp import ClientSession, StdioServerParameters
+    from mcp.client.stdio import stdio_client
+    from mcp.types import TextContent
+except ImportError as exc:  # pragma: no cover - optional skip path
+    pytest.skip(
+        f"MCP Python SDK stdio client tooling unavailable: {exc}",
+        allow_module_level=True,
+    )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 # CI-reasonable wall clock; broken stdio or a hung server must not stall the job.

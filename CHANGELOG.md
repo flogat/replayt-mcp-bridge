@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **Stdio MCP smoke tests (phase 3)** — `tests/test_mcp_server_stdio.py` resolves the **`replayt-mcp-bridge`** console script via **`sysconfig.get_path("scripts")`** first so Windows and venv layouts match real install locations. `tests/test_mcp_stdio_session_smoke.py` **skips** at collection with a clear reason if the MCP SDK stdio client cannot be imported (backlog allowance when client tooling is unavailable on a platform).
 - **Docs (backlog CI smoke spec)** — [docs/MISSION.md](docs/MISSION.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) name backlog **CI smoke: subprocess MCP stdio handshake** and map its original acceptance criteria (traceback/startup, local run, no extra CI network) to **`test_mcp_server_stdio.py`** and **`test_mcp_stdio_session_smoke.py`**. [CONTRIBUTING.md](CONTRIBUTING.md) states that default **`pytest`** includes both modules and links to the mission section.
 
 ### Added
