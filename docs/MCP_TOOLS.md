@@ -1,6 +1,6 @@
 # MCP tools (initial surface)
 
-This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process (see `src/replayt_mcp_bridge/server.py`). For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
+This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process (handlers in `src/replayt_mcp_bridge/tools_*.py`, registered when `server.py` imports those modules). For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Mapping: tool → replayt capability
 

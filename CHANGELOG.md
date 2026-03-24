@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)** and § **Security review (phase 6)**: workflow phase **6** security close-out for backlog **Split server module when tool count crosses maintainability threshold**—re-verifies single shared **`FastMCP`**, eager **`server.py`** **`tools_*`** imports, unchanged six-tool surface, **`tools_common`** boundary logging / **`_tool_error`** / correlation plumbing, **`observability.py`**-only **`REPLAYT_MCP_BRIDGE_*`** reads, and **no** new subprocess/shell dispatch versus the pre-split monolith; **Review notes** cross-link. **No** runtime code changes.
+
+- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)**: workflow phase **5** pass for backlog **Split server module when tool count crosses maintainability threshold**—records scope, acceptance alignment, pytest patch-target traceability, and conclusion; **Review notes** cross-link; § **Security review (phase 6)** wording updated so **`@mcp.tool()`** registration is attributed to **`tools_*`** modules (eager **`server.py`** imports) and **`runner_dry_run_plan`** references [`tools_workflow.py`](src/replayt_mcp_bridge/tools_workflow.py). **No** runtime code changes.
+
+- **Internal:** Split the monolithic MCP server implementation into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with **`server.py`** as the stdio entry and test re-exports—**no** change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
+
 ### Added
 
 - **Tests (workflow phase 3 — partial MCP tool exposure docs)** — [`tests/test_security_docs.py`](tests/test_security_docs.py) asserts **`## Host-side partial tool exposure`** content (fixed registration surface, host responsibility, path- / message-bearing disclosure risks, honest scope line) and the README deep link **`docs/SECURITY.md#host-side-partial-tool-exposure`**.

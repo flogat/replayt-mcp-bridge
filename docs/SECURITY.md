@@ -21,7 +21,7 @@ Use this table when deciding **which tools to register or block** in a given MCP
 
 ## Host-side partial tool exposure
 
-**Fixed registration surface (today):** The packaged server registers **every** `@mcp.tool()` handler in `replayt_mcp_bridge.server` for the lifetime of the process. There is **no** supported flag, subcommand, or environment variable in this bridge to register only a subset of tools. **Narrowing exposure is therefore a host / operator responsibility**—use whatever your MCP client, gateway, or organizational policy provides.
+**Fixed registration surface (today):** Importing **`replayt_mcp_bridge.server`** loads **`tools_health`**, **`tools_workflow`**, and **`tools_persistence`**, which register **every** `@mcp.tool()` handler on the shared FastMCP app for the lifetime of the process. There is **no** supported flag, subcommand, or environment variable in this bridge to register only a subset of tools. **Narrowing exposure is therefore a host / operator responsibility**—use whatever your MCP client, gateway, or organizational policy provides.
 
 **Patterns that usually work (host-dependent):**
 

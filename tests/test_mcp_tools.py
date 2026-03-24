@@ -182,7 +182,9 @@ def test_unmapped_exception_keeps_correlation_in_logs_then_propagates(
         raise RuntimeError("deliberate_unmapped_contract")
 
     mock_wf.contract = _boom_contract
-    monkeypatch.setattr("replayt_mcp_bridge.server.load_target", lambda _t: mock_wf)
+    monkeypatch.setattr(
+        "replayt_mcp_bridge.tools_workflow.load_target", lambda _t: mock_wf
+    )
     caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
     with pytest.raises(RuntimeError, match="deliberate_unmapped_contract"):
         workflow_contract_snapshot(target="ignored_target:wf")
@@ -485,7 +487,7 @@ def test_persistence_list_run_events_default_does_not_invoke_redact_structure(
         json.dumps({"seq": 1, "type": "unit_test_marker", "payload": {}}) + "\n",
         encoding="utf-8",
     )
-    with patch("replayt_mcp_bridge.server.redact_structure") as mock_redact:
+    with patch("replayt_mcp_bridge.tools_persistence.redact_structure") as mock_redact:
         out = persistence_list_run_events(run_id=run_id, store_hint=str(log_dir))
     mock_redact.assert_not_called()
     assert out["status"] == "ok"
@@ -671,7 +673,7 @@ def test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist(
         return default_logs
 
     monkeypatch.setattr(
-        "replayt_mcp_bridge.server.resolve_log_dir",
+        "replayt_mcp_bridge.persistence_support.resolve_log_dir",
         fake_resolve_log_dir,
     )
     out = persistence_list_run_events(run_id=run_id, store_hint=None)
