@@ -162,7 +162,7 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 ### Architecture review: stdio MCP integration smoke test
 
-**Scope:** Backlog **“Add an integration smoke test over the real stdio MCP session”**—define how CI exercises **real MCP JSON-RPC over stdin/stdout** (FastMCP wiring, SDK framing, tool listing and dispatch) **beyond** handler-level tests.
+**Scope:** Backlog **“CI smoke: subprocess MCP stdio handshake”** (same item as **“Add an integration smoke test over the real stdio MCP session”** in older notes)—define how CI exercises **real MCP JSON-RPC over stdin/stdout** (FastMCP wiring, SDK framing, tool listing and dispatch) **beyond** handler-level tests, and how that complements **subprocess startup without traceback** in [`tests/test_mcp_server_stdio.py`](../tests/test_mcp_server_stdio.py).
 
 **Gap addressed:** [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) invokes decorated handlers **synchronously** inside the test process—it never runs `run_stdio()` or the MCP stream loop. [`tests/test_mcp_server_stdio.py`](../tests/test_mcp_server_stdio.py) only checks that launching **`python -m replayt_mcp_bridge`** (and the console script) produces **no traceback** on startup, with **no** MCP traffic. A **session smoke test** is the narrow bridge between those two: **one** client-driven conversation proves the **end-to-end** path hosts rely on.
 

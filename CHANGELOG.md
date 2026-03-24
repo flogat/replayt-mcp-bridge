@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Docs (backlog CI smoke spec)** — [docs/MISSION.md](docs/MISSION.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) name backlog **CI smoke: subprocess MCP stdio handshake** and map its original acceptance criteria (traceback/startup, local run, no extra CI network) to **`test_mcp_server_stdio.py`** and **`test_mcp_stdio_session_smoke.py`**. [CONTRIBUTING.md](CONTRIBUTING.md) states that default **`pytest`** includes both modules and links to the mission section.
+
 ### Added
 
 - **MCP host integrator recipes** — README adds an **Integrator recipes** section; **[docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md)** now includes a **Zed** (`context_servers`) stdio example, explicit **stdin/stdout** wording for **Claude Desktop** and **Cursor**, and **generic** path placeholders (`/path/to/workflow`, `D:\path\to\workflow`). [CONTRIBUTING.md](CONTRIBUTING.md) explains how reviewers can **manually validate** snippets (client attach + `replayt_version_info` / `tools/list`, or **`pytest tests/test_mcp_stdio_session_smoke.py`** and **`test_mcp_host_config_docs.py`**).

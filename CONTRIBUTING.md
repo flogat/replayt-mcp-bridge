@@ -23,6 +23,8 @@ ruff format --check src tests
 pytest -q
 ```
 
+The default **`pytest -q`** run collects **`tests/test_mcp_server_stdio.py`** (bridge subprocess starts **without a Python traceback**, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (MCP SDK client over real stdio: **initialize**, **tools/list**, **`replayt_version_info`**). Failures there usually mean broken stdio wiring, tool registration, or a hung/broken child process—see [docs/MISSION.md](docs/MISSION.md#stdio-mcp-session-integration-smoke-test).
+
 To apply Ruff’s formatter when `ruff format --check` fails:
 
 ```bash
