@@ -20,3 +20,10 @@ htmlcov/
 .venv-align/
 .venv-align-check/
 venv/
+
+# Aider (AI coding assistant artifacts)
+.aider*
+
+# Mis-placed alignment output (safety net if an agent writes at git root)
+alignment_result.json
+.alignment_result.json
