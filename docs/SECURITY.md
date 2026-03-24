@@ -19,6 +19,25 @@ Use this table when deciding **which tools to register or block** in a given MCP
 
 **Bridge code** (`replayt_mcp_bridge`) reads **`REPLAYT_MCP_BRIDGE_*`** variables only in **`observability.py`**: **`REPLAYT_MCP_BRIDGE_LOG_LEVEL`** (verbosity; not a secret); optionally **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (comma-separated absolute paths that constrain explicit `store_hint` values on `persistence_list_run_events`—see below); optionally **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (opt-in key-based redaction of returned persistence events—see below); and optionally **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (default top-level field allowlist for `persistence_list_run_events` when the MCP client omits `event_fields`—see below). The process still inherits the full OS environment, and **replayt**, **Python**, **HTTP stacks**, and the **MCP parent** may read standard variables listed below.
 
+## Host-side partial tool exposure
+
+**Fixed registration surface (today):** The packaged server registers **every** `@mcp.tool()` handler in `replayt_mcp_bridge.server` for the lifetime of the process. There is **no** supported flag, subcommand, or environment variable in this bridge to register only a subset of tools. **Narrowing exposure is therefore a host / operator responsibility**—use whatever your MCP client, gateway, or organizational policy provides.
+
+**Patterns that usually work (host-dependent):**
+
+- **Per-tool enablement** — Many hosts let operators turn individual tools on or off for a given server entry. Pair that with the [MCP tool capability tiers](#mcp-tool-capability-tiers) table: keep diagnostics where useful; disable workflow introspection and persistence reads when end users should not drive **`target`**, **`store_hint`**, or **`run_id`**.
+- **Separate configurations or processes** — Maintain distinct MCP entries (or separate bridge processes under different OS accounts / **`cwd`** roots) for “full maintainer” vs “limited” use, when your toolchain can express it. The Python process still has whatever filesystem and environment rights the OS grants; hiding tools in the UI does **not** shrink those rights.
+- **Layer bridge knobs for persistence only** — **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`**, **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`**, and **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** constrain **`persistence_list_run_events`** (paths, top-level event keys, key-based redaction). They complement host policy but **do not replace** tool-level access control—see [Environment variables](#environment-variables).
+
+**Residual risks — not fully fixable by “turning off” tools in the host UI:**
+
+- **Enforcement vs presentation** — If the host only hides tools from prompts but still accepts `tools/call` for every registered name, a custom or compromised client could invoke “disabled” tools. Strong guarantees require the host (or an MCP gateway) to **reject disallowed calls on the wire**; this package does not ship that layer.
+- **Path- and input-bearing `message` fields** — Structured `{ status: error, … }` results carry a **`message` string** built from replayt/Typer errors, bridge validation text, or `str(exc)` for some `OSError` paths. Examples in the current code include messages that embed **resolved filesystem paths** (e.g. missing SQLite file) or the **literal `store_hint`** for certain shape mistakes—useful for operators, but a **disclosure channel** if copied into logs or shown to untrusted clients. **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** denials are intentionally **generic** (no client path in the tool result or structured rejection log line); that behavior is **not** universal across all error branches—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape).
+- **Unhandled exceptions** — Mapped failures avoid Python tracebacks **in the returned object** for covered paths; **unhandled** exceptions may still surface per FastMCP / SDK / host behavior and can leak different detail than structured errors.
+- **Successful payloads** — Contract snapshots, Mermaid text, dry-check reports, and especially **persistence events** may contain secrets or PII under keys the bridge does not treat as sensitive. Combine host tool policy with [MCP host and client logs](#mcp-host-and-client-logs) discipline and the optional allowlist / redaction env vars above.
+
+**Scope:** This section describes shipped behavior only. It does **not** claim authentication, dynamic tool registration, or host-side enforcement features that are not in this repository.
+
 ## Environment variables
 
 Aside from the **`REPLAYT_MCP_BRIDGE_…`** variables implemented in **`observability.py`**, the bridge package does **not** define other `REPLAYT_MCP_*` knobs. It runs **in-process** with **replayt** and the **Python MCP SDK**, so the effective environment is:
