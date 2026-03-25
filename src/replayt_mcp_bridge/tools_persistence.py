@@ -22,7 +22,7 @@ from replayt_mcp_bridge.persistence_support import (
     _resolve_persistence_paths,
     _effective_run_event_field_allowlist,
 )
-from replayt_mcp_bridge.server import _correlation_id_for_invocation, _tool_error, with_timeout
+from replayt_mcp_bridge.utils import _correlation_id_for_invocation, _tool_error, with_timeout
 from replayt_mcp_bridge.tools_common import (
     _active_tool_correlation_id,
     _log_replayt_tool_boundaries,

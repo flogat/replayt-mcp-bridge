@@ -11,7 +11,7 @@ from replayt.cli.validation import validate_workflow_graph, validation_report
 from replayt.graph_export import workflow_to_mermaid
 
 from replayt_mcp_bridge.mcp_instance import mcp
-from replayt_mcp_bridge.server import _correlation_id_for_invocation, _tool_error, with_timeout
+from replayt_mcp_bridge.utils import _correlation_id_for_invocation, _tool_error, with_timeout
 from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries
 
 
