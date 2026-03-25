@@ -2,23 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Changed
+### Added
 
+- **Execution timeouts for replayt-backed handlers** — Added optional `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` environment variable to enforce per-tool timeouts. When a tool exceeds the timeout, the bridge returns a structured error (`status: "error"`, `replayt_surface: "bridge_timeout"`) and logs a `replayt_mcp_bridge.tool.timeout` event. Documented in `docs/MCP_TOOLS.md` and `docs/SECURITY.md`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
 - **Backlog complete: Split monolithic server module into a small package** — The MCP server implementation has been split into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with `server.py` as the stdio entry and test re-exports. No change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)** and § **Security review (phase 6)**: workflow phase **6** security close-out for backlog **Split server module when tool count crosses maintainability threshold**—re-verifies single shared **`FastMCP`**, eager **`server.py`** **`tools_*`** imports, unchanged six-tool surface, **`tools_common`** boundary logging / **`_tool_error`** / correlation plumbing, **`observability.py`**-only **`REPLAYT_MCP_BRIDGE_*`** reads, and **no** new subprocess/shell dispatch versus the pre-split monolith; **Review notes** cross-link. **No** runtime code changes.
 
-- **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)**: workflow phase **5** pass for backlog **Split server module when tool count crosses maintainability threshold**—records scope, acceptance alignment, pytest patch-target traceability, and conclusion; **Review notes** cross-link; § **Security review (phase 6)** wording updated so **`@mcp.tool()`** registration is attributed to **`tools_*`** modules (eager **`server.py`** imports) and **`runner_dry_run_plan`** references [`tools_workflow.py`](src/replayt_mcp_bridge/tools_workflow.py). **No** runtime code changes.
-
-- **Internal:** Split the monolithic MCP server implementation into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with **`server.py`** as the stdio entry and test re-exports—**no** change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
+## [0.1.0]
 
 ### Added
 
+<<<<<<< HEAD
+- Initial release with MCP tool bridge functionality.
+=======
 - **Tests (workflow phase 3 — partial MCP tool exposure docs)** — [`tests/test_security_docs.py`](tests/test_security_docs.py) asserts **`## Host-side partial tool exposure`** content (fixed registration surface, host responsibility, path- / message-bearing disclosure risks, honest scope line) and the README deep link **`docs/SECURITY.md#host-side-partial-tool-exposure`**.
 
 - **Host hardening — partial MCP tool exposure** — [docs/SECURITY.md](docs/SECURITY.md#host-side-partial-tool-exposure) documents that the bridge registers **all** tools in-process (no subset registration switch), common **host-side filtering** patterns, and **residual risks** hosts cannot fully remove (wire-level enforcement vs UI hiding, **path- / `store_hint`-bearing** structured error `message` fields, unhandled exceptions, sensitive success payloads). README **Tool exposure** links to the new section alongside the capability-tier table.
@@ -99,3 +101,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Initial documented release of the MCP stdio bridge for replayt workflow steps (`replayt-mcp-bridge` / `python -m replayt_mcp_bridge`).
 - Declared **replayt** dependency range `>=0.4.25,<0.5` (see `pyproject.toml`); CI exercises the declared minimum on Python 3.11.
+>>>>>>> master

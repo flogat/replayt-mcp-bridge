@@ -5,18 +5,19 @@ from __future__ import annotations
 from typing import Any
 
 import typer
-from mcp.server.fastmcp.server import Context
+from mcp.server.fastmcp import Context
 from replayt.cli.targets import load_target
 from replayt.cli.validation import validate_workflow_graph, validation_report
 from replayt.graph_export import workflow_to_mermaid
 
 from replayt_mcp_bridge.mcp_instance import mcp
-from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries, _tool_error
+from replayt_mcp_bridge.utils import _correlation_id_for_invocation, _tool_error, with_timeout
+from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries
 
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def workflow_contract_snapshot(
+async def workflow_contract_snapshot(
     target: str, ctx: Context | None = None
 ) -> dict[str, Any]:
     """Return a JSON-serializable workflow contract snapshot for a replayt target (MODULE:VAR or workflow file).
@@ -36,7 +37,7 @@ def workflow_contract_snapshot(
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str, Any]:
+async def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
     tool = "workflow_graph_mermaid"
@@ -51,7 +52,7 @@ def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str,
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def runner_dry_run_plan(
+async def runner_dry_run_plan(
     target: str,
     inputs_json: str | None = None,
     strict_graph: bool = False,
@@ -62,6 +63,31 @@ def runner_dry_run_plan(
 ) -> dict[str, Any]:
     """Plan or validate a run without committing side effects (aligned with `replayt run --dry-check` semantics)."""
 
+    # Wrap the actual implementation with a timeout
+    return await with_timeout(
+        _runner_dry_run_plan_impl,
+        "runner_dry_run_plan",
+    )(
+        target,
+        inputs_json,
+        strict_graph,
+        metadata_json,
+        experiment_json,
+        policy_hook_context_json,
+        ctx,
+    )
+
+
+async def _runner_dry_run_plan_impl(
+    target: str,
+    inputs_json: str | None,
+    strict_graph: bool,
+    metadata_json: str | None,
+    experiment_json: str | None,
+    policy_hook_context_json: str | None,
+    ctx: Context | None,
+) -> dict[str, Any]:
+    """Implementation of runner_dry_run_plan (wrapped with timeout)."""
     tool = "runner_dry_run_plan"
     surface = "replayt run --dry-check / validate_workflow_graph + validation_report"
     try:
