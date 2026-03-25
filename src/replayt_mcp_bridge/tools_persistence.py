@@ -22,17 +22,17 @@ from replayt_mcp_bridge.persistence_support import (
     _resolve_persistence_paths,
     _effective_run_event_field_allowlist,
 )
+from replayt_mcp_bridge.server import _correlation_id_for_invocation, _tool_error, with_timeout
 from replayt_mcp_bridge.tools_common import (
     _active_tool_correlation_id,
     _log_replayt_tool_boundaries,
-    _tool_error,
     logger,
 )
 
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def persistence_list_run_events(
+async def persistence_list_run_events(
     run_id: str,
     store_hint: str | None = None,
     event_fields: list[str] | None = None,
@@ -40,6 +40,25 @@ def persistence_list_run_events(
 ) -> dict[str, Any]:
     """List persisted events for a run_id (aligned with EventStore.load_events and `replayt runs` tooling)."""
 
+    # Wrap the actual implementation with a timeout
+    return await with_timeout(
+        _persistence_list_run_events_impl,
+        "persistence_list_run_events",
+    )(
+        run_id,
+        store_hint,
+        event_fields,
+        ctx,
+    )
+
+
+async def _persistence_list_run_events_impl(
+    run_id: str,
+    store_hint: str | None,
+    event_fields: list[str] | None,
+    ctx: Context | None,
+) -> dict[str, Any]:
+    """Implementation of persistence_list_run_events (wrapped with timeout)."""
     tool = "persistence_list_run_events"
     surface = "EventStore.load_events (JSONL directory or SQLite file)"
     try:
