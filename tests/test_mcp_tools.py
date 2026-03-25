@@ -96,3 +96,34 @@ def test_tool_timeout_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["replayt_surface"] == "bridge_timeout"
     assert result["tool"] == "test_tool"
     assert "correlation_id" in result
+
+
+def test_replayt_backed_tool_timeout_enforced(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Verify that a replayt-backed tool exceeding the timeout returns a structured error."""
+    import asyncio
+    from unittest.mock import patch
+
+    from replayt_mcp_bridge.server import with_timeout
+
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0.1")
+
+    # Mock a slow replayt-backed tool (workflow_contract_snapshot) that sleeps longer than the timeout
+    async def slow_workflow_contract_snapshot(target: str):
+        await asyncio.sleep(1.0)
+        return {"status": "ok"}
+
+    # Patch the actual tool function with our slow mock
+    with patch(
+        "replayt_mcp_bridge.tools_workflow.workflow_contract_snapshot",
+        slow_workflow_contract_snapshot,
+    ):
+        # Wrap the slow tool with the real timeout wrapper
+        wrapped = with_timeout(slow_workflow_contract_snapshot, "workflow_contract_snapshot")
+        # Run it and expect a timeout error
+        result = asyncio.run(wrapped("dummy_target"))
+        assert result["status"] == "error"
+        assert result["replayt_surface"] == "bridge_timeout"
+        assert result["tool"] == "workflow_contract_snapshot"
+        assert "correlation_id" in result
