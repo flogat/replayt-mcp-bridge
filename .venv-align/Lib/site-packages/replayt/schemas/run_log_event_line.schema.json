@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/replayt/replayt/schemas/run_log_event_line.schema.json",
+  "title": "replayt JSONL event line",
+  "description": "One append-only line in a run log (.jsonl). See docs/RUN_LOG_SCHEMA.md for payload shapes per type.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["ts", "run_id", "seq", "type", "payload"],
+  "properties": {
+    "ts": { "type": "string", "description": "ISO 8601 UTC timestamp" },
+    "run_id": { "type": "string" },
+    "seq": { "type": "integer", "minimum": 0 },
+    "type": { "type": "string", "description": "Event kind, e.g. run_started, state_entered, llm_request" },
+    "payload": { "type": "object", "description": "Event-specific payload (see RUN_LOG_SCHEMA.md)" }
+  }
+}
