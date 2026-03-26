@@ -33,7 +33,7 @@ ruff format src tests
 
 ## CI
 
-GitHub Actions runs those steps on push and pull requests (see [.github/workflows/ci.yml](.github/workflows/ci.yml)) on **CPython 3.11, 3.12, and 3.13**; a separate **`replayt-floor`** job pins the minimum **replayt** release on 3.11. If you do not use GitHub, reproduce the same steps in your automation or run them locally before merge—ideally on the same minor you deploy.
+GitHub Actions runs those steps on push and pull requests (see [.github/workflows/ci.yml](.github/workflows/ci.yml)) on **CPython 3.11, 3.12, and 3.13**; a separate **`replayt-floor`** job pins the minimum **replayt** release on 3.11. A **`supply-chain`** job runs **`pip-audit`** with the same flags as CI (see [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md)). If you do not use GitHub, reproduce the same steps in your automation or run them locally before merge—ideally on the same minor you deploy.
 
 ## MCP host snippets (`docs/MCP_HOST_CONFIG.md`)
 
