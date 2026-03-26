@@ -1,5 +1,9 @@
+# Never commit generic documentation placeholder trees (AI agents sometimes create these literally)
+path/
+
 # Local / tooling (not for publication)
 .orchestrator/
+.cursor/skills/
 
 # Python
 __pycache__/
@@ -13,4 +17,16 @@ build/
 .ruff_cache/
 htmlcov/
 .venv/
+.venv-ci/
+.venv-p3/
+# Orchestrator / local alignment venvs (must never be committed)
+.venv-align/
+.venv-align-check/
 venv/
+
+# Aider (AI coding assistant artifacts)
+.aider*
+
+# Mis-placed alignment output (safety net if an agent writes at git root)
+alignment_result.json
+.alignment_result.json
