@@ -7,13 +7,11 @@ on:
   push:
     branches:
       - master
-      - main
       # Mission Control backlog workflows push mc/backlog-* before CI poll
       - "mc/**"
   pull_request:
     branches:
       - master
-      - main
       - "mc/**"
   workflow_dispatch:
 
