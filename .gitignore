@@ -23,6 +23,8 @@ htmlcov/
 .venv-align/
 .venv-align-check/
 venv/
+.venv-*
+.*-venv/
 
 # Aider (AI coding assistant artifacts)
 .aider*
