@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Async tool handlers** — `_log_replayt_tool_boundaries` awaits coroutine tools; structured errors from workflow and persistence paths use `tools_common._tool_error` (correlation id from context).
 - **`python -m replayt_mcp_bridge health`** — Package import no longer pulls `server` / tool modules eagerly, so a broken **replayt** on `PYTHONPATH` surfaces as the documented stderr line instead of a traceback during `import replayt_mcp_bridge`.
 - **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`** — Read only in `observability.py` (same rule as other bridge env vars); `utils.with_timeout` calls the shared helper.
+- **Timeout structured errors** — `utils.with_timeout` uses the same correlation id as `tools_common._log_replayt_tool_boundaries` when both apply, so timeout payloads match `replayt_mcp_bridge.tool.begin` / `.end` logs; bare `with_timeout` tests without the decorator still get a fresh UUID.
 
 ### Added
 
