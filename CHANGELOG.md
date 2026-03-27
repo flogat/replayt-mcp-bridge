@@ -7,8 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **MCP stdio server** — `run_stdio()` uses the shared FastMCP app from `mcp_instance.py` (the object `tools_*` register on), so clients see the full tool list over stdio again.
+- **Async tool handlers** — `_log_replayt_tool_boundaries` awaits coroutine tools; structured errors from workflow and persistence paths use `tools_common._tool_error` (correlation id from context).
+- **`python -m replayt_mcp_bridge health`** — Package import no longer pulls `server` / tool modules eagerly, so a broken **replayt** on `PYTHONPATH` surfaces as the documented stderr line instead of a traceback during `import replayt_mcp_bridge`.
+- **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`** — Read only in `observability.py` (same rule as other bridge env vars); `utils.with_timeout` calls the shared helper.
+
 ### Added
 
+- **Declared replayt range** — Supported **replayt** versions remain **`>=0.4.25,<0.5`** per `pyproject.toml` (integrator contract unchanged this pass).
 - **Execution timeouts for replayt-backed handlers** — Added optional `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` environment variable to enforce per-tool timeouts. When a tool exceeds the timeout, the bridge returns a structured error (`status: "error"`, `replayt_surface: "bridge_timeout"`) and logs a `replayt_mcp_bridge.tool.timeout` event. Documented in `docs/MCP_TOOLS.md` and `docs/SECURITY.md`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
 - **Backlog complete: Split monolithic server module into a small package** — The MCP server implementation has been split into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with `server.py` as the stdio entry and test re-exports. No change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
 

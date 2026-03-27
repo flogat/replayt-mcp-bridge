@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import json
+import asyncio
 from pathlib import Path
 
 import pytest
+from replayt.persistence import SQLiteStore
 
-from replayt_mcp_bridge.persistence_support import _split_typed_store_hint
 from replayt_mcp_bridge.tools_health import replayt_echo, replayt_version_info
 from replayt_mcp_bridge.tools_persistence import persistence_list_run_events
 from replayt_mcp_bridge.tools_workflow import (
@@ -13,7 +13,7 @@ from replayt_mcp_bridge.tools_workflow import (
     workflow_contract_snapshot,
     workflow_graph_mermaid,
 )
-from replayt_mcp_bridge.tools_persistence import SQLiteStore
+from replayt_mcp_bridge.utils import with_timeout
 
 
 def test_replayt_echo() -> None:
@@ -30,25 +30,19 @@ def test_replayt_version_info() -> None:
 
 
 def test_workflow_contract_snapshot() -> None:
-    # Use a valid target string (e.g., a module path or a workflow file path)
-    # For this test, we'll use a dummy target that should fail gracefully
-    # or a known valid target if available in the test environment.
-    # Since we don't have a guaranteed valid target, we'll test the error path.
-    out = workflow_contract_snapshot("invalid_target_xyz")
+    out = asyncio.run(workflow_contract_snapshot("invalid_target_xyz"))
     assert out["status"] == "error"
     assert out["tool"] == "workflow_contract_snapshot"
 
 
 def test_workflow_graph_mermaid() -> None:
-    # Test error path with invalid target
-    out = workflow_graph_mermaid("invalid_target_xyz")
+    out = asyncio.run(workflow_graph_mermaid("invalid_target_xyz"))
     assert out["status"] == "error"
     assert out["tool"] == "workflow_graph_mermaid"
 
 
 def test_runner_dry_run_plan() -> None:
-    # Test error path with invalid target
-    out = runner_dry_run_plan("invalid_target_xyz")
+    out = asyncio.run(runner_dry_run_plan("invalid_target_xyz"))
     assert out["status"] == "error"
     assert out["tool"] == "runner_dry_run_plan"
 
@@ -71,16 +65,13 @@ def test_persistence_list_run_events_allowlist_sqlite_under_root(
         )
     finally:
         st.close()
-    out = persistence_list_run_events(run_id=run_id, store_hint=str(db))
+    out = asyncio.run(persistence_list_run_events(run_id=run_id, store_hint=str(db)))
     assert out["status"] == "ok"
     assert out["store"]["kind"] == "sqlite"
 
 
 def test_tool_timeout_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify that a tool exceeding the timeout returns a structured error."""
-    import asyncio
-    from replayt_mcp_bridge.server import with_timeout
-
     monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0.1")
 
     # Mock a slow handler that sleeps longer than the timeout
@@ -102,10 +93,7 @@ def test_replayt_backed_tool_timeout_enforced(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Verify that a replayt-backed tool exceeding the timeout returns a structured error."""
-    import asyncio
     from unittest.mock import patch
-
-    from replayt_mcp_bridge.server import with_timeout
 
     monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0.1")
 
@@ -120,7 +108,9 @@ def test_replayt_backed_tool_timeout_enforced(
         slow_workflow_contract_snapshot,
     ):
         # Wrap the slow tool with the real timeout wrapper
-        wrapped = with_timeout(slow_workflow_contract_snapshot, "workflow_contract_snapshot")
+        wrapped = with_timeout(
+            slow_workflow_contract_snapshot, "workflow_contract_snapshot"
+        )
         # Run it and expect a timeout error
         result = asyncio.run(wrapped("dummy_target"))
         assert result["status"] == "error"

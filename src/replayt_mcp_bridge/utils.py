@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import uuid
 from typing import Any, Awaitable, Callable, TypeVar
+
+from replayt_mcp_bridge.observability import get_tool_timeout_seconds
 
 T = TypeVar("T")
 
@@ -35,28 +36,6 @@ def _tool_error(
         "correlation_id": correlation_id,
         **extra,
     }
-
-
-def get_tool_timeout_seconds() -> float | None:
-    """Get the tool execution timeout from environment, in seconds."""
-    val = os.environ.get("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS")
-    if not val:
-        return None
-    try:
-        seconds = float(val)
-        if seconds <= 0:
-            logger.warning(
-                "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS must be positive, got %s; ignoring",
-                val,
-            )
-            return None
-        return seconds
-    except ValueError:
-        logger.warning(
-            "Invalid REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS value: %s; ignoring",
-            val,
-        )
-        return None
 
 
 def with_timeout(

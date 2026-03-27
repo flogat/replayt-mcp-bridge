@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextvars
 import functools
+import inspect
 import logging
 import uuid
 from typing import Any, Callable, TypeVar
@@ -52,17 +53,62 @@ def _log_replayt_tool_boundaries(fn: F) -> F:
     name = fn.__name__
     ctx_kw = find_context_parameter(fn)
 
-    @functools.wraps(fn)
-    def wrapped(*args: Any, **kwargs: Any) -> dict[str, Any]:
+    def _corr_from_kwargs(kwargs: dict[str, Any]) -> tuple[Any, dict[str, Any], Any]:
         ctx = kwargs.get(ctx_kw) if ctx_kw else None
         correlation_id = _correlation_id_for_invocation(ctx)
-        reset_token = _tool_invocation_correlation_id.set(correlation_id)
         corr: dict[str, Any] = {"correlation_id": correlation_id}
         if ctx is not None:
             try:
                 corr["mcp_request_id"] = ctx.request_id
             except ValueError:
                 pass
+        return ctx, corr, _tool_invocation_correlation_id.set(correlation_id)
+
+    if inspect.iscoroutinefunction(fn):
+
+        @functools.wraps(fn)
+        async def wrapped_async(*args: Any, **kwargs: Any) -> dict[str, Any]:
+            _ctx, corr, reset_token = _corr_from_kwargs(kwargs)
+            try:
+                emit_json_log(
+                    logger,
+                    logging.INFO,
+                    "replayt_mcp_bridge.tool.begin",
+                    tool=name,
+                    **corr,
+                )
+                try:
+                    out = await fn(*args, **kwargs)
+                except Exception:
+                    emit_json_log(
+                        logger,
+                        logging.ERROR,
+                        "replayt_mcp_bridge.tool.unhandled_exception",
+                        tool=name,
+                        **corr,
+                    )
+                    logger.exception(
+                        "replayt_mcp_bridge.tool.unhandled_exception_trace"
+                    )
+                    raise
+                status = out.get("status") if isinstance(out, dict) else None
+                emit_json_log(
+                    logger,
+                    logging.INFO,
+                    "replayt_mcp_bridge.tool.end",
+                    tool=name,
+                    status=status,
+                    **corr,
+                )
+                return out
+            finally:
+                _tool_invocation_correlation_id.reset(reset_token)
+
+        return wrapped_async  # type: ignore[return-value]
+
+    @functools.wraps(fn)
+    def wrapped_sync(*args: Any, **kwargs: Any) -> dict[str, Any]:
+        _ctx, corr, reset_token = _corr_from_kwargs(kwargs)
         try:
             emit_json_log(
                 logger, logging.INFO, "replayt_mcp_bridge.tool.begin", tool=name, **corr
@@ -92,7 +138,7 @@ def _log_replayt_tool_boundaries(fn: F) -> F:
         finally:
             _tool_invocation_correlation_id.reset(reset_token)
 
-    return wrapped  # type: ignore[return-value]
+    return wrapped_sync  # type: ignore[return-value]
 
 
 def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, Any]:

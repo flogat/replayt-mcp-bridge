@@ -73,6 +73,30 @@ def resolve_log_level_from_env() -> int:
     return getattr(logging, raw, DEFAULT_BRIDGE_LOG_LEVEL)
 
 
+def get_tool_timeout_seconds() -> float | None:
+    """Read ``REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`` for async tool wrappers. See docs/SECURITY.md."""
+
+    val = os.environ.get("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS")
+    if not val:
+        return None
+    log = logging.getLogger("replayt_mcp_bridge")
+    try:
+        seconds = float(val)
+        if seconds <= 0:
+            log.warning(
+                "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS must be positive, got %s; ignoring",
+                val,
+            )
+            return None
+        return seconds
+    except ValueError:
+        log.warning(
+            "Invalid REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS value: %s; ignoring",
+            val,
+        )
+        return None
+
+
 _RUN_EVENTS_REDACTION_TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
 
 
