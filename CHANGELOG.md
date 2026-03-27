@@ -13,14 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Backlog complete: Split monolithic server module into a small package** — The MCP server implementation has been split into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with `server.py` as the stdio entry and test re-exports. No change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)** and § **Security review (phase 6)**: workflow phase **6** security close-out for backlog **Split server module when tool count crosses maintainability threshold**—re-verifies single shared **`FastMCP`**, eager **`server.py`** **`tools_*`** imports, unchanged six-tool surface, **`tools_common`** boundary logging / **`_tool_error`** / correlation plumbing, **`observability.py`**-only **`REPLAYT_MCP_BRIDGE_*`** reads, and **no** new subprocess/shell dispatch versus the pre-split monolith; **Review notes** cross-link. **No** runtime code changes.
+- **Docs (workflow phase 2 — mission SSoT)** — [docs/MISSION.md](docs/MISSION.md) locks users/problem, consumed replayt capabilities, scope vs upstream, non-goals, success metrics, and a one-sentence **bridge** primary pattern with links to [docs/REPLAYT_ECOSYSTEM_IDEA.md](docs/REPLAYT_ECOSYSTEM_IDEA.md); adds a **Spec gate checklist** for doc reviews. [docs/REPLAYT_ECOSYSTEM_IDEA.md](docs/REPLAYT_ECOSYSTEM_IDEA.md) records the chosen pattern under **Your choice**.
 
-## [0.1.0]
+## [0.1.0] - 2026-03-23
 
 ### Added
-
-<<<<<<< HEAD
-- Initial release with MCP tool bridge functionality.
-=======
 - **Tests (workflow phase 3 — partial MCP tool exposure docs)** — [`tests/test_security_docs.py`](tests/test_security_docs.py) asserts **`## Host-side partial tool exposure`** content (fixed registration surface, host responsibility, path- / message-bearing disclosure risks, honest scope line) and the README deep link **`docs/SECURITY.md#host-side-partial-tool-exposure`**.
 
 - **Host hardening — partial MCP tool exposure** — [docs/SECURITY.md](docs/SECURITY.md#host-side-partial-tool-exposure) documents that the bridge registers **all** tools in-process (no subset registration switch), common **host-side filtering** patterns, and **residual risks** hosts cannot fully remove (wire-level enforcement vs UI hiding, **path- / `store_hint`-bearing** structured error `message` fields, unhandled exceptions, sensitive success payloads). README **Tool exposure** links to the new section alongside the capability-tier table.
@@ -94,11 +91,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)** close-out ties **`correlation_id`** on tool lifecycle JSON logs to mapped `_tool_error` payloads and [MCP_TOOLS.md](docs/MCP_TOOLS.md) (architecture review phase 5).
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)** adds an explicit security sign-off for **Return structured tool errors with correlation IDs for bounded failures**: mapped paths only, wrapper re-raise for unmapped exceptions, and **`correlation_id`** as a non-credential correlation handle (see **`test_mcp_tools.py`**).
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — § **Security review (phase 6)**: workflow phase **6** security close-out for backlog **CI smoke: subprocess MCP stdio handshake** (same scope as *Add an integration smoke test over the real stdio MCP session*)—explicit verification of **`tests/test_mcp_server_stdio.py`** (fixed list argv, repo-root `cwd`, `DEVNULL` stdin, no shell, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (fixed SDK spawn, empty `replayt_version_info` args, `asyncio.wait_for` timeout, no extra network on the assertion path); **Review notes** and subsections **CI stdio startup smoke** / **CI stdio session smoke** tie both modules to the phase **6** pass.
-
-## [0.1.0] - 2026-03-23
-
-### Added
-
-- Initial documented release of the MCP stdio bridge for replayt workflow steps (`replayt-mcp-bridge` / `python -m replayt_mcp_bridge`).
-- Declared **replayt** dependency range `>=0.4.25,<0.5` (see `pyproject.toml`); CI exercises the declared minimum on Python 3.11.
->>>>>>> master

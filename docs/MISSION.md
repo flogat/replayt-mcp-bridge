@@ -4,7 +4,7 @@ This repository is a **consumer** of [replayt](https://pypi.org/project/replayt/
 steps for hosts that speak the [Model Context Protocol (MCP)](https://modelcontextprotocol.io/). It is not a fork of
 replayt. Version pins, compatibility shims, and CI live **here**.
 
-**Primary pattern:** **Bridge** (framework bridge)—among core-gap, showcase, bridge, and combinator options in the ecosystem doc, this repo adapts replayt workflow steps for MCP hosts while replayt remains upstream for workflow semantics; see [Framework bridge](REPLAYT_ECOSYSTEM_IDEA.md#3-framework-bridge) and [Your choice](REPLAYT_ECOSYSTEM_IDEA.md#your-choice) in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
+**Primary pattern:** **Bridge** — this repository is the **framework bridge** (versus **core-gap**, **LLM showcase**, or **combinator**) that adapts replayt workflow steps for MCP hosts while replayt remains upstream for workflow semantics, as recorded under [Framework bridge](REPLAYT_ECOSYSTEM_IDEA.md#3-framework-bridge) and [Your choice](REPLAYT_ECOSYSTEM_IDEA.md#your-choice) in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
 
 ## Users and problem
 
@@ -41,6 +41,14 @@ imply guarantees replayt does not provide.
   boundary); CI runs them with clear logs and exit codes.
 - **Stability:** Supported replayt (and Python) versions are stated or pinned; breaking upstream changes are caught by
   CI and noted for consumers.
+
+## Spec gate checklist (MISSION.md)
+
+Maintainers use this list when closing backlog work on this document (single source of truth for scope):
+
+- No unfilled pattern-selection placeholder block in this file; ecosystem pattern options and the recorded choice live in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
+- The **Primary pattern** line names **bridge** and links **REPLAYT_ECOSYSTEM_IDEA.md** with anchors for the framework-bridge section and **Your choice**.
+- [README.md](../README.md) keeps **`docs/MISSION.md`** in the first ~30 lines so scope and non-goals are discoverable without scrolling.
 
 ## Security and trust boundaries
 
