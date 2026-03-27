@@ -22,6 +22,11 @@ not vendored forks.
 **Consumer-side (this repo only):** MCP server wiring, tool schemas, error mapping, pins against replayt releases,
 automated tests at the boundary, changelog notes when upstream behavior affects tools.
 
+**Concrete tool → replayt mapping (living inventory):** Which installed **replayt** entry points each MCP tool uses
+(workflow load/contract/dry-run paths, persistence reads, version helpers, etc.) is maintained in
+[MCP_TOOLS.md](MCP_TOOLS.md) under **Mapping: tool → replayt capability**. That mapping is the authoritative list for
+integrators; this mission section stays pattern-level so it does not drift when tools are added or renamed.
+
 ## Scope vs upstream
 
 | This package owns | Delegates upstream |
@@ -47,8 +52,14 @@ imply guarantees replayt does not provide.
 Maintainers use this list when closing backlog work on this document (single source of truth for scope):
 
 - No unfilled pattern-selection placeholder block in this file; ecosystem pattern options and the recorded choice live in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
-- The **Primary pattern** line names **bridge** and links **REPLAYT_ECOSYSTEM_IDEA.md** with anchors for the framework-bridge section and **Your choice**.
-- [README.md](../README.md) keeps **`docs/MISSION.md`** in the first ~30 lines so scope and non-goals are discoverable without scrolling.
+- The **Primary pattern** line is **one sentence**, names **bridge** (versus **core-gap**, **LLM showcase**, **combinator**), and links [Framework bridge](REPLAYT_ECOSYSTEM_IDEA.md#3-framework-bridge) and [Your choice](REPLAYT_ECOSYSTEM_IDEA.md#your-choice) in [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md).
+- [README.md](../README.md) keeps **`docs/MISSION.md`** in the first ~30 lines (first screenful) so scope and non-goals are discoverable without scrolling.
+- **No draft-prompts placeholder** — There is no “draft prompts” or other stub section left to fill; narrative sections above are the copy-of-record for this item.
+
+### Backlog traceability: “Lock mission, primary pattern, and non-goals in MISSION.md”
+
+The tracker item for this document is satisfied when the four bullets in **Spec gate checklist** above hold, including
+the **tool → replayt** inventory pointer to [MCP_TOOLS.md](MCP_TOOLS.md) under **What replayt provides**.
 
 ## Security and trust boundaries
 
