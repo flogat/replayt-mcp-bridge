@@ -1,5 +1,6 @@
 """Contract tests for docs/MISSION.md and README discoverability."""
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,8 +15,12 @@ def test_mission_file_exists() -> None:
 def test_mission_has_no_draft_placeholder_section() -> None:
     text = MISSION_PATH.read_text(encoding="utf-8")
     lower = text.lower()
-    assert "## draft" not in lower
-    assert "draft prompt" not in lower
+    # Forbid stub section headings only; spec gate prose may say there is no "draft prompts" block.
+    assert not re.search(
+        r"^#{1,6}\s+draft\b",
+        lower,
+        flags=re.MULTILINE,
+    ), "MISSION.md must not contain a draft-placeholder heading (e.g. ## Draft prompts)"
 
 
 def test_mission_states_bridge_primary_pattern_and_ecosystem_link() -> None:
