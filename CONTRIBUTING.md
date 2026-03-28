@@ -23,7 +23,18 @@ ruff format --check src tests
 pytest -q -m "not network"
 ```
 
-**Supply-chain (same as CI `supply-chain` job, Linux-oriented):** after `pip install -e ".[dev]"`, run **`pip-audit`** with the **exact** flags documented in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (currently `pip-audit --ignore-vuln CVE-2026-4539 --desc`). Any **new** `--ignore-vuln` must be recorded **there** and in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+**Supply-chain (same as CI `supply-chain` job, Linux-oriented):** after `pip install -e ".[dev]"`, run **`pip-audit`** with the **exact** flags documented in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (currently `pip-audit --ignore-vuln CVE-2026-4539 --desc`). Any **new** `--ignore-vuln` must be recorded **there** and in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). That step is **blocking** in CI (a failing audit fails the `supply-chain` job); there is no separate “warnings only” job—see [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) and [docs/MISSION.md § CI dependency vulnerability scanning](docs/MISSION.md#ci-dependency-vulnerability-scanning-supply-chain).
+
+**Copy-paste (local parity with `supply-chain`):**
+
+```bash
+pip install -e ".[dev]"
+pip-audit --ignore-vuln CVE-2026-4539 --desc
+```
+
+(When flags change, [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) is authoritative; contract tests keep the workflow aligned.)
+
+**Offline contributors / default pytest:** The commands in **Checks before you open a PR** above are **Ruff** + **`pytest -q -m "not network"`** + (when feasible) **`pip-audit`**. **`pytest` does not run `pip-audit`**—same as the Linux **`test`**, **`test-windows`**, and **`replayt-floor`** jobs. If you skip the audit locally (e.g. no network for advisory DB lookups), you can still run **Ruff** and **pytest** to match the default automated test bar; run **`pip-audit`** before merge when your environment allows—see [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md#local-reproduction).
 
 The default **`pytest -q -m "not network"`** run matches CI: it skips tests marked **`@pytest.mark.network`** (for example **`replayt_doctor`** with **`skip_connectivity: false`**). To include those, run **`pytest -q`** without the **`-m`** filter when your environment allows outbound HTTP. The default run still collects **`tests/test_mcp_server_stdio.py`** (bridge subprocess starts **without a Python traceback**, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (MCP SDK client over real stdio: **initialize**, **tools/list**, **`replayt_version_info`**). Failures there usually mean broken stdio wiring, tool registration, or a hung/broken child process—see [docs/MISSION.md](docs/MISSION.md#stdio-mcp-session-integration-smoke-test).
 

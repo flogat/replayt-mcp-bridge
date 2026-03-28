@@ -1,4 +1,4 @@
-"""Keep pyproject.toml, DESIGN_PRINCIPLES, README, CHANGELOG, CONTRIBUTING, CI, and DEPENDENCY_AUDIT in sync."""
+"""Keep pyproject.toml, DESIGN_PRINCIPLES, README, CHANGELOG, CONTRIBUTING, CI, SECURITY, and DEPENDENCY_AUDIT in sync."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 CONTRIBUTING_PATH = REPO_ROOT / "CONTRIBUTING.md"
 CI_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
 DEPENDENCY_AUDIT_PATH = REPO_ROOT / "docs" / "DEPENDENCY_AUDIT.md"
+SECURITY_PATH = REPO_ROOT / "docs" / "SECURITY.md"
 
 _EXPECTED_REPLAYT_SPEC = ">=0.4.25,<0.5"
 
@@ -60,6 +61,20 @@ def _ci_supply_chain_block(ci_text: str) -> str:
         ".github/workflows/ci.yml must define a supply-chain job"
     )
     return ci_text.split("supply-chain:", 1)[1]
+
+
+def _ci_job_body(ci_text: str, job: str, next_job: str | None) -> str:
+    """YAML slice from `  {job}:` through the line before `  {next_job}:` (jobs: indentation)."""
+    marker = f"  {job}:"
+    assert marker in ci_text, f".github/workflows/ci.yml must define job {job!r}"
+    tail = ci_text.split(marker, 1)[1]
+    if next_job is None:
+        return tail
+    nxt = f"  {next_job}:"
+    assert nxt in tail, (
+        f".github/workflows/ci.yml must define job {next_job!r} after {job!r}"
+    )
+    return tail.split(nxt, 1)[0]
 
 
 def test_pyproject_declares_replayt_in_supported_range() -> None:
@@ -246,3 +261,36 @@ def test_ci_supply_chain_installs_editable_dev_extras() -> None:
     assert 'pip install -e ".[dev]"' in block, (
         'supply-chain job must install the package with pip install -e ".[dev]" before pip-audit'
     )
+
+
+def test_contributing_includes_canonical_pip_audit_command() -> None:
+    canonical = _canonical_pip_audit_command_from_dependency_audit()
+    text = CONTRIBUTING_PATH.read_text(encoding="utf-8")
+    assert canonical in text, (
+        "CONTRIBUTING.md must include the exact pip-audit line from "
+        "docs/DEPENDENCY_AUDIT.md **Canonical command** "
+        f"(expected substring {canonical!r})"
+    )
+
+
+def test_security_dependency_scanning_links_blocking_policy() -> None:
+    text = SECURITY_PATH.read_text(encoding="utf-8")
+    sec = text.split("## Dependency vulnerability scanning (CI)", 1)[1]
+    assert "DEPENDENCY_AUDIT.md#blocking-ci-vs-advisory" in sec.split("##", 1)[0], (
+        "docs/SECURITY.md § Dependency vulnerability scanning must link "
+        "DEPENDENCY_AUDIT.md#blocking-ci-vs-advisory"
+    )
+
+
+def test_ci_test_jobs_do_not_invoke_pip_audit() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    for job, next_job in (
+        ("test", "test-windows"),
+        ("test-windows", "replayt-floor"),
+        ("replayt-floor", "supply-chain"),
+    ):
+        body = _ci_job_body(ci, job, next_job)
+        assert "pip-audit" not in body, (
+            f"CI job {job!r} must not invoke pip-audit "
+            "(keep the scanner in supply-chain only; default pytest jobs stay offline-friendly)"
+        )

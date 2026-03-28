@@ -40,6 +40,11 @@ So the scan is **not** “direct requirements only”; it is **the full resolved
 
 This is **signal**, not **certification**: it does not prove absence of bugs, malicious packages, or vulnerabilities outside the advisory databases pip-audit uses.
 
+### Blocking (CI) vs advisory
+
+- **Blocking:** In GitHub Actions, job **`supply-chain`** runs **`pip-audit`** with normal shell semantics: a **nonzero** exit **fails the job** (and therefore the workflow run for that matrix cell). This is the project’s **enforced** supply-chain gate—not a “warning” channel.
+- **Advisory-only automation:** This repository does **not** define a separate CI step that prints vulnerabilities but always exits **0**. If maintainers add one, document it here, in [CONTRIBUTING.md](../CONTRIBUTING.md), and in [MISSION.md](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain) in the **same** change-set so **blocking vs advisory** stays unambiguous.
+
 ## Local reproduction
 
 Use the same steps as CI:
@@ -50,6 +55,8 @@ pip-audit --ignore-vuln CVE-2026-4539 --desc
 ```
 
 [CONTRIBUTING.md](../CONTRIBUTING.md) lists this alongside Ruff and pytest so PR authors can fail fast before push.
+
+**Network:** **`pip-audit`** consults vulnerability metadata (typically requiring **outbound network** when caches are cold or the tool fetches updates). That is **independent** of **`pytest -q -m "not network"`**: the test suite does **not** invoke **`pip-audit`**, and CI keeps **`supply-chain`** in a **separate** job from **`test`** / **`test-windows`** / **`replayt-floor`** so the default **pytest** bar stays decoupled from the scanner—see [MISSION.md § CI dependency vulnerability scanning (supply-chain)](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain).
 
 ## Accepted risks and false positives
 
