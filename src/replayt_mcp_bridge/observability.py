@@ -136,6 +136,26 @@ def resolve_bridge_tool_timeout_seconds(tool_name: str) -> tuple[float | None, s
 
 _RUN_EVENTS_REDACTION_TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})
 
+DISABLE_DIAGNOSTIC_ECHO_TOOLS_ENV = "REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS"
+
+# v1 gated MCP tool names; extend only with doc + test updates (see MCP_TOOLS.md).
+GATED_DIAGNOSTIC_ECHO_TOOL_NAMES_V1: frozenset[str] = frozenset({"replayt_echo"})
+
+
+def diagnostic_echo_tools_disabled() -> bool:
+    """True when ``REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`` is a redaction-style truthy token."""
+
+    raw = os.environ.get(DISABLE_DIAGNOSTIC_ECHO_TOOLS_ENV)
+    if raw is None:
+        return False
+    return raw.strip().lower() in _RUN_EVENTS_REDACTION_TRUTHY
+
+
+def set_disable_diagnostic_echo_tools_for_cli() -> None:
+    """Set the env var so the stdio server omits gated diagnostic echo tools (CLI flag only; see SECURITY.md)."""
+
+    os.environ[DISABLE_DIAGNOSTIC_ECHO_TOOLS_ENV] = "1"
+
 
 def run_events_redaction_enabled() -> bool:
     """Return whether ``persistence_list_run_events`` should redact sensitive-shaped keys in returned events.

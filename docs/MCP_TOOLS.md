@@ -1,6 +1,6 @@
 # MCP tools (initial surface)
 
-This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process, while **`replayt_doctor`** invokes **`python -m replayt doctor`** in a subprocess with a fixed argv list (**no** shell)—see [Backlog spec: `replayt_doctor`](#backlog-spec-replayt_doctor-mcp-wrapper-for-replayt-doctor). Handlers live in `src/replayt_mcp_bridge/tools_*.py`, registered when `server.py` imports those modules. For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
+This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process, while **`replayt_doctor`** invokes **`python -m replayt doctor`** in a subprocess with a fixed argv list (**no** shell)—see [Backlog spec: `replayt_doctor`](#backlog-spec-replayt_doctor-mcp-wrapper-for-replayt-doctor). Handlers live in `src/replayt_mcp_bridge/tools_*.py`, registered when `server.py` imports those modules; **`replayt_echo`** is hidden from **`tools/list`** when the optional **[diagnostic echo gate](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration)** is on. For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Execution timeouts
 
@@ -67,7 +67,7 @@ For **Define and enforce per-tool execution timeouts for replayt-backed handlers
 
 | MCP tool | Replayt / CLI surface | Notes |
 | -------- | ---------------------- | ----- |
-| `replayt_echo` | _(bridge only)_ | Proves MCP wiring; echoes input. |
+| `replayt_echo` | _(bridge only)_ | Proves MCP wiring; echoes input. Omitted from **`tools/list`** when **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** is truthy or **`--no-diagnostic-echo-tools`** is used—see [Backlog spec: optional omission of diagnostic echo tools from registration](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration). |
 | `replayt_version_info` | `replayt.__version__` / `replayt.__version_tuple__` | Reads installed replayt via the same helpers as `replayt_mcp_bridge.installed_replayt_version`. |
 | `workflow_contract_snapshot` | `Workflow.contract()`, via `replayt.cli.targets.load_target` | Same **target** grammar as `replayt contract` / `replayt run` (e.g. `module.path:wf`, `workflow.py`). Returns `{ status, target, contract }` or `{ status: error, tool, replayt_surface, message }`. Subject to [Execution timeouts](#execution-timeouts). |
 | `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Returns `{ status, target, mermaid }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
@@ -345,6 +345,7 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | `replayt_doctor` | Bad or unresolvable **`target`** (when provided) | `typer.BadParameter` from `replayt.cli.targets.load_target` → `_tool_error` | `replayt doctor + replayt.cli.targets.load_target` |
 | `replayt_doctor` | **`OSError`** starting the subprocess | `_tool_error` | `replayt doctor (subprocess / parse)` |
 | `replayt_doctor` | Empty stdout, **non-JSON** stdout, or JSON missing an expected **`replayt.doctor_report`** schema id | `_tool_error` (stderr tail may be included in **`message`**, truncated) | `replayt doctor (subprocess / parse)` |
+| `replayt_echo` (gated inventory v1) | **`tools/call`** while **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** is truthy (or **`--no-diagnostic-echo-tools`** on the server entrypoint) | Bridge **`BridgeFastMCP.call_tool`** branch → `_tool_error` (does not run the echo handler or echo client arguments) | `bridge_diagnostic_tools_disabled` |
 
 **Outside `status: "error"`:** `runner_dry_run_plan` graph/input validation failures use **`status: "invalid"`** and a `replayt.validate_report.v1` object in **`report`** (replayt-owned semantics).
 
@@ -360,7 +361,7 @@ Handlers return plain dicts that the MCP SDK serializes as structured tool conte
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads, successful **`replayt_doctor`** JSON parse—including when **`doctor.healthy`** is **`false`**).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec)) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec), **`replayt_echo`** when the [diagnostic echo gate](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration) is on) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 
@@ -454,6 +455,56 @@ The [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) ta
 - [x] Add the **MCP tool capability tiers** row in [SECURITY.md](SECURITY.md) and extend **`tests/test_security_docs.py`** (`test_security_doc_defines_tool_capability_tiers` tool tuple).
 - [x] Add **`replayt_doctor`** to [Tools in scope](#tools-in-scope) for timeouts.
 
+## Backlog spec: optional omission of diagnostic echo tools from registration
+
+**Backlog title:** **Optional gated mode that omits diagnostic echo tools from registration**
+
+**User story:** As a **deployer**, I want an **opt-in** switch so **`replayt_echo`** (and any **explicitly listed** similar pure echo/diagnostic tools) are **not** registered, reducing trivial exfiltration and trace-retention risk where MCP hosts log tool traffic.
+
+**Context:** [SECURITY.md § MCP host and client logs](SECURITY.md#mcp-host-and-client-logs) and the **`replayt_echo`** tier row already warn that echo round-trips may be retained by hosts; this feature moves **enforcement to the bridge** when operators do not need wiring probes.
+
+**Non-goals:** This is **not** a general “minimal tool profile” or workflow-only mode—**`replayt_version_info`**, **`replayt_doctor`**, workflow introspection, and persistence tools stay registered unless covered by **separate** backlog. This is **not** a substitute for host-side **`tools/call`** enforcement (see [SECURITY.md § Host-side partial tool exposure](SECURITY.md#host-side-partial-tool-exposure)).
+
+### Configuration (normative)
+
+| Control | Semantics |
+| ------- | --------- |
+| **Default** | Gate **off** — same tool surface as today (all bridge-defined tools registered). |
+| **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** | Process environment. Gate **on** when the value is a case-insensitive truthy token: **`1`**, **`true`**, **`yes`**, **`on`**. Unset, empty, or any other value → gate **off**. |
+| **`--no-diagnostic-echo-tools`** | Documented global flag on **`python -m replayt_mcp_bridge`** / **`replayt-mcp-bridge`**: sets the same semantics for the child server process before **`server`** import; **MUST** be mutually exclusive with **`health`**. Documented beside the env var in [SECURITY.md](SECURITY.md). |
+
+**Read site:** Implemented in **`observability.py`** (`diagnostic_echo_tools_disabled`); the shared FastMCP app in **`mcp_instance.py`** subclasses **`BridgeFastMCP`** to filter **`tools/list`** and map gated **`tools/call`** names before handlers run.
+
+### Gated tool inventory (v1)
+
+| MCP tool name | Rationale |
+| ------------- | --------- |
+| **`replayt_echo`** | Pure client-text echo; no replayt dependency; highest signal-to-noise for “diagnostic only” removal. |
+
+**Extensibility:** Adding a name to this set **REQUIRES** an update to this table, the [SECURITY.md](SECURITY.md) gate subsection, and tests. Do **not** treat “similar” tools as gated without listing them here.
+
+### Behavioral requirements
+
+1. **`tools/list`** — When the gate is **on**, the MCP advertised tool list **MUST NOT** include any name from the [Gated tool inventory](#gated-tool-inventory-v1).
+2. **`tools/call`** — When the gate is **on** and the client requests a gated name, the bridge **MUST** return the standard structured error object from [Error response shape](#error-response-shape): **`status: "error"`**, **`tool`** equal to the requested name, **`replayt_surface: "bridge_diagnostic_tools_disabled"`**, a **stable English** **`message`** (e.g. that diagnostic echo tools are disabled by operator configuration—**no** echo of client arguments in the payload), and **`correlation_id`** per the same contract as other mapped errors. **MUST NOT** return **`status: "ok"`** with an **`echo`** field for gated names while the gate is on.
+3. **Observability** — Prefer the same **begin/end** structured stderr pattern as other tool calls when the implementation still routes gated names through a bridge-controlled entry (see [Error response shape — Lifecycle](#error-response-shape)); if a future SDK path cannot emit **`tool.end`**, document the gap under [ARCHITECTURE.md](ARCHITECTURE.md) in the same change-set.
+4. **Typo / unknown tool names** — Behavior for names that are **not** bridge-defined at all remains **SDK/host-defined**; this spec applies only to **known gated** names.
+
+### Pytest / CI bar (implementation phase)
+
+1. **Gate off (default)** — Assert **`replayt_echo`** appears in **`tools/list`** (or equivalent helper that mirrors registration), and an in-process or stdio **`tools/call`** returns the existing success shape (`status: "ok"`, echoed field).
+2. **Gate on** — With **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS=true`** (or **`1`**), assert **`replayt_echo`** is **absent** from **`tools/list`**, and **`tools/call`** for **`replayt_echo`** returns **`status: "error"`** with **`replayt_surface: "bridge_diagnostic_tools_disabled"`**, **`correlation_id`** present, and **no** success echo payload.
+3. **Default CI** — Both scenarios **MUST** run under **`pytest -q -m "not network"`** (no new network dependency). Prefer **subprocess** or **monkeypatched env** on the server module so registration is evaluated under each mode without flakiness.
+4. **Stdio smoke** — [Stdio MCP session integration smoke test](MISSION.md#stdio-mcp-session-integration-smoke-test) already prefers **`replayt_version_info`**; keep default CI smoke **passing** without **`replayt_echo`** when the gate is **off**. If a test file explicitly relied on **`replayt_echo`** for wiring-only checks, document that it **MUST** set gate **off** or switch the happy-path tool to **`replayt_version_info`**.
+
+### Builder checklist
+
+- [x] Parse **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** (and **`--no-diagnostic-echo-tools`**) before the stdio server imports **`replayt_mcp_bridge.server`** (CLI sets env in **`__main__.py`**; env-only uses **`observability.py`** at request time).
+- [x] Omit gated tools from **`tools/list`** when the gate is on; implement **`tools/call`** handling for gated names as specified (**`BridgeFastMCP`**).
+- [x] Add the mapped failure row to [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) and keep [Success and validation shapes](#success-and-validation-shapes-mcp-structured-content) wording consistent.
+- [x] Extend **`tests/test_security_docs.py`** / observability contract tests for the env string and helpers.
+- [x] Update [SECURITY.md](SECURITY.md) **Environment variables** table and gate subsection (shipped wording).
+
 ## Security
 
 **Selective exposure:** Operators choosing which tools to allow in a host config should start from the authoritative **[MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers)** table in [SECURITY.md](SECURITY.md) (one row per tool, with suggested defaults for local vs shared environments). The per-tool filesystem notes below stay for quick reference beside schemas.
@@ -462,7 +513,7 @@ Tools that load workflow definitions or read event stores follow the **same trus
 
 | Tool | Filesystem / code | Notes |
 | ---- | ----------------- | ----- |
-| `replayt_echo` | None | Reflected string only; harmless technically, but hosts should not treat echoed content as trusted if it is fed back into models or UIs. |
+| `replayt_echo` | None | Reflected string only; harmless technically, but hosts should not treat echoed content as trusted if it is fed back into models or UIs. Bridge omits **`tools/list`** entry and maps **`tools/call`** when **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** is truthy or **`--no-diagnostic-echo-tools`** is used ([backlog spec](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration)). |
 | `replayt_version_info` | None | Reads package metadata only. |
 | `workflow_contract_snapshot` | **Yes** (via `load_target`) | Can import modules and read workflow files the server user can access—equivalent to `replayt contract` target resolution. |
 | `workflow_graph_mermaid` | **Yes** (same as above) | Same target resolution as contract snapshot. |
@@ -470,7 +521,7 @@ Tools that load workflow definitions or read event stores follow the **same trus
 | `replayt_doctor` | **Optional** — **`target`** / **`inputs_file`** imply the same **`load_target`** / filesystem reads as **`replayt doctor`**; subprocess inherits the process environment | Default **`skip_connectivity: true`** avoids the OpenAI-compat HTTP probe; **`skip_connectivity: false`** enables replayt-owned outbound HTTP per upstream doctor docs. Returns structured **`doctor`** JSON (paths, env-var **names** in **`checks`**, provider hints)—treat like other diagnostics for logging and retention. |
 | `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns stored events **pass-through by default** (no top-level allowlist unless **`event_fields`**, **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`**, or redaction applies—see [Field allowlist semantics](#field-allowlist-semantics) and [SECURITY.md](SECURITY.md)). Integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** to limit **top-level** keys only; nested content under kept keys is unchanged. Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy values per [SECURITY.md](SECURITY.md)) so **`events`** are copied through **`redact_structure`** after any allowlist step. Explicit hints may be legacy paths or typed prefixes **`file:`** / **`jsonl-dir:`** / **`jsonl:`** / **`sqlite:`** (see [store_hint grammar](#store_hint-grammar)). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). **Volume limits** (event count + compact JSON UTF-8 size after **`load_events`**, env + optional tool params, structured **`bridge_run_events_volume`** errors) are documented in [Run event volume limits](#run-event-volume-limits-backlog-spec) and enforced in **`tools_persistence.py`**. |
 
-The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.
+The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke **every tool the server advertises** in **`tools/list`** with arbitrary arguments permitted by the schemas; when the [diagnostic echo gate](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration) is on, that list excludes **`replayt_echo`** (while **`tools/call`** for that name still returns the mapped structured error).
 
 **Operator guidance:** Required environment variables, “do not log” expectations, deployment patterns (local stdio vs shared host), and MCP host logging risks are documented in [docs/SECURITY.md](SECURITY.md).
 
