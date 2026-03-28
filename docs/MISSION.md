@@ -78,12 +78,149 @@ listeners, authentication, and network exposure to a threat model that matches w
 effects (filesystem, network, subprocesses), and align exposure with organizational access policy.
 
 **Secrets:** Do not embed API keys, tokens, or private paths in code or committed defaults; document required environment
-variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below).
+variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below). For **normative acceptance criteria** on spawning the bridge with a **minimal inherited environment** (high-assurance hosts), see [Minimal environment for high-assurance hosts (backlog spec)](#minimal-environment-for-high-assurance-hosts-backlog-spec) below; the operator copy-of-record for examples and variable lists is **[SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance)**.
 
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent.
 
-**Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** (legacy path or optional typed `file:` / `jsonl-dir:` / `jsonl:` / `sqlite:` prefix per [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **pass-through by default**; integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (see [SECURITY.md](SECURITY.md)) to keep **only listed top-level keys** on each object-shaped event (**before** any optional redaction step). Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy per [SECURITY.md](SECURITY.md)) so the bridge applies key-based redaction to **`events`** on the MCP result. Top-level filtering does **not** remove nested secrets under retained keys unless redaction applies; payloads may still contain sensitive data—integrators should combine controls, restrict tool access, and read [ARCHITECTURE.md § Optional top-level event field allowlist](ARCHITECTURE.md#architecture-review-optional-top-level-event-field-allowlist) for layering. Expected failures map to structured `{ status: error, tool, replayt_surface, message, correlation_id }` objects without Python tracebacks in the return value for the covered paths; the same **`correlation_id`** appears in matching stderr logs—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). The **`message`** string may embed **filesystem paths** and **replayt/Typer operational text** (not a traceback, but still a disclosure channel in transcripts)—see [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail). **Unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior when they fall **outside** the mapped inventory; stderr still records **`replayt_mcp_bridge.tool.unhandled_exception`** with the same **`correlation_id`** as **`tool.begin`** for operator triage—see [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions), [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk), and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping). For a line-by-line handler pass and residual risks, see [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** (legacy path or optional typed `file:` / `jsonl-dir:` / `jsonl:` / `sqlite:` prefix per [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so **explicit** `store_hint` values must resolve under listed absolute roots—see [SECURITY.md](SECURITY.md), [MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec), and [Optional store path allowlisting for persistence reads (backlog spec)](#optional-store-path-allowlisting-for-persistence-reads-backlog-spec). **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **pass-through by default**; integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (see [SECURITY.md](SECURITY.md)) to keep **only listed top-level keys** on each object-shaped event (**before** any optional redaction step). Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy per [SECURITY.md](SECURITY.md)) so the bridge applies key-based redaction to **`events`** on the MCP result. Top-level filtering does **not** remove nested secrets under retained keys unless redaction applies; payloads may still contain sensitive data—integrators should combine controls, restrict tool access, and read [ARCHITECTURE.md § Optional top-level event field allowlist](ARCHITECTURE.md#architecture-review-optional-top-level-event-field-allowlist) for layering. Expected failures map to structured `{ status: error, tool, replayt_surface, message, correlation_id }` objects without Python tracebacks in the return value for the covered paths; the same **`correlation_id`** appears in matching stderr logs—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). The **`message`** string may embed **filesystem paths** and **replayt/Typer operational text** (not a traceback, but still a disclosure channel in transcripts)—see [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail). **Unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior when they fall **outside** the mapped inventory; stderr still records **`replayt_mcp_bridge.tool.unhandled_exception`** with the same **`correlation_id`** as **`tool.begin`** for operator triage—see [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions), [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk), and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping). For a line-by-line handler pass and residual risks, see [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Minimal environment for high-assurance hosts (backlog spec)
+
+**Backlog title:** **Publish minimal-environment invocation guidance for high-assurance hosts**
+
+**User story:** As a **security reviewer**, I want a **short, actionable pattern** for spawning the bridge with a **stripped environment** so **inherited provider keys**, **hook commands**, and **accidental secrets** are less likely to be visible to replayt code paths than when launching from a fat desktop shell.
+
+**Intent:** **Documentation-only** in this backlog: add a dedicated subsection to **[SECURITY.md](SECURITY.md)** (not a new top-level doc) and link it from the README **Security, secrets, and MCP hosting** block. The section teaches **process environment** hygiene; it does **not** change bridge code, env parsing, or MCP contracts.
+
+**Placement (normative for Builder):**
+
+- Add a new **`##`-level heading** in `docs/SECURITY.md` (suggested slug-friendly title: **Minimal environment inheritance** or equivalent). Place it **after** [Environment variables](SECURITY.md#environment-variables) (or immediately after its credential / proxy subsections) so readers already understand **`REPLAYT_*`**, **`REPLAYT_MCP_BRIDGE_*`**, and provider keys before seeing spawn recipes.
+- In [README.md](../README.md) under **## Security, secrets, and MCP hosting**, add **one sentence** plus an anchor link to that new heading (same style as existing `docs/SECURITY.md#mcp-tool-capability-tiers` links). The link **must** use a path under `docs/SECURITY.md` with the correct fragment for the chosen heading.
+
+**Content requirements (normative):**
+
+1. **State the trust surface in one place** — The Python process **inherits the full OS environment** (already stated elsewhere in SECURITY); restate briefly that **replayt** may read **hook argv** from env (commands or argv strings), **policy-hook JSON** from env, **provider / LLM** variables, and **standard credential names** (see [Credentials and LLM / API access (replayt)](SECURITY.md#credentials-and-llm--api-access-replayt) and `LLM_CREDENTIAL_ENV_VARS` in upstream **`replayt.security`**). **Bridge-owned** knobs remain **`REPLAYT_MCP_BRIDGE_*`** as in [Environment variables](SECURITY.md#environment-variables).
+2. **Hook-related replayt variables (must be named explicitly)** — The shipped doc **must** call out at least these **upstream** env vars (names only; do not paste real hook commands or secrets in examples):
+   - **`REPLAYT_RUN_HOOK`**, **`REPLAYT_RESUME_HOOK`**, **`REPLAYT_EXPORT_HOOK`**, **`REPLAYT_SEAL_HOOK`**, **`REPLAYT_VERIFY_SEAL_HOOK`** (hook argv sources per replayt **`run_support` / `config_cmd`**).
+   - Matching **`*_TIMEOUT`** siblings where replayt documents them (**`REPLAYT_RUN_HOOK_TIMEOUT`**, **`REPLAYT_RESUME_HOOK_TIMEOUT`**, **`REPLAYT_EXPORT_HOOK_TIMEOUT`**, **`REPLAYT_SEAL_HOOK_TIMEOUT`**, **`REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT`**).
+   - **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`** and **`REPLAYT_POLICY_HOOK_NAME`** (policy-hook subprocess context).
+   - Cross-link or align with the existing short row for **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`** and the ellipsis row for **`REPLAYT_RUN_HOOK`**, **`REPLAYT_RESUME_HOOK`**, … in the [Variables that commonly affect this bridge](SECURITY.md#variables-that-commonly-affect-this-bridge) table—avoid contradicting that table; extend it if the new section introduces additional names not already listed.
+3. **Two operator profiles** — Provide a **compact table or bullet lists** contrasting:
+   - **Local dev / full-fat shell** — Typical case: inherited desktop env; may include **`OPENAI_API_KEY`**, **`REPLAYT_PROVIDER`**, **`REPLAYT_MODEL`**, hooks, **`REPLAYT_LOG_DIR`**, etc.; acceptable when the MCP parent and workstation match the threat model.
+   - **Read-only introspection / high-assurance spawn** — Goal: run **`replayt_version_info`**, **`workflow_contract_snapshot`**, **`workflow_graph_mermaid`**, **`runner_dry_run_plan`**, and similar paths **without** LLM credentials and **without** hook commands in env. List categories of variables the operator **should unset or omit** (provider keys, hook argv, policy-hook JSON, optional proxy vars if egress must be denied) vs **minimal variables often still required** for a working **`python`** / **`PATH`** / **`HOME`** (or Windows equivalents) and any **explicit** `REPLAYT_MCP_BRIDGE_*` or **`REPLAYT_LOG_DIR`** the operator chooses to set. Call out that **exact minimal sets are OS- and install-dependent**—examples are illustrative.
+4. **POSIX example** — At least one **copy-paste-oriented** example using a **clean slate** pattern (e.g. `env -i` **or** `sudo -E` / systemd `Environment=` with an explicit allowlist—pick one primary pattern and explain it). Show passing **`PATH`** (and **`HOME`** if needed) so `python` resolves; show invoking **`python -m replayt_mcp_bridge`** or **`replayt-mcp-bridge`**. Use **placeholder** values only (`/usr/bin`, `/opt/venv/bin/python`, etc.).
+5. **Windows example** — At least one example for **cmd.exe** or **PowerShell** that achieves the **same intent** (replace inherited env with a small allowlist or clear sensitive names). Note **WSL** vs native Windows differences in one sentence if examples are POSIX-centric.
+6. **Honest limits (“does not fix”)** — A dedicated short subsection **must** state that stripping the environment **does not**:
+   - Remove **filesystem** access to secrets (**`.env`**, **`.replaytrc.toml`**, **`pyproject.toml`** `[tool.replayt]`, workflow files, JSONL/SQLite stores)—replayt and the bridge still read config from disk per project layout.
+   - Prevent **import-time** or **tool** side effects from a malicious **`target`** or readable workflow (same as [Security and trust boundaries](#security-and-trust-boundaries)).
+   - Replace **host-side tool policy**, **MCP client logging** controls, or **network** egress policy; combine with [Host-side partial tool exposure](SECURITY.md#host-side-partial-tool-exposure) and [MCP host and client logs](SECURITY.md#mcp-host-and-client-logs).
+   - Guarantee absence of secrets in **memory** if other processes share the address space or debuggers attach—scope is **inherited env of the child process**, not full OS isolation.
+
+**Original backlog acceptance criteria (traceability):**
+
+1. New subsection in **`docs/SECURITY.md`** linked from the README security callout.
+2. Explicitly calls out **hook-related replayt env vars** and **provider keys** as inherited trust surface.
+3. **No false claims** — states what stripping does **not** fix (e.g. filesystem access to **`.env`** files).
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** contains the new section with **POSIX** and **Windows** examples, the **two profiles**, **hook** and **credential** callouts, and the **does not fix** list above.
+2. **`README.md`** includes an anchor link to the new section from **## Security, secrets, and MCP hosting** (first ~45 lines remain consistent with [`tests/test_security_docs.py`](../tests/test_security_docs.py) expectations for SECURITY discoverability unless the test window is intentionally updated in the same change-set).
+3. **Wording** stays consistent with [Environment variables](SECURITY.md#environment-variables) (full inheritance, replayt + bridge vars).
+4. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit).
+
+**Implementation status:** **Shipped** — [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance), README link, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_security_docs.py`](../tests/test_security_docs.py) (workflow phase **3** Builder).
+
+### Backlog traceability: “Publish minimal-environment invocation guidance for high-assurance hosts”
+
+**Close the tracker when:** the four bullets under **Acceptance criteria (refined, for implementation and review)** above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
+
+## Replayt hook env inheritance in MCP deployments (backlog spec)
+
+**Backlog title:** **Document and test replayt hook env inheritance in MCP deployments**
+
+**User story:** As an **operator**, I want the bridge docs to spell out how **`REPLAYT_RUN_HOOK`** and related hook variables behave when tools trigger replayt paths that may execute subprocesses, so I can reason about command injection and lateral movement risks.
+
+**Context:** [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance) and the [variables table](SECURITY.md#variables-that-commonly-affect-this-bridge) already list upstream hook names for **spawn hygiene**. This backlog makes the **tool inventory** ([MCP_TOOLS.md](MCP_TOOLS.md)) explicitly tie **which MCP tools** can reach **hook-adjacent or subprocess** replayt surfaces to that security copy—so integrators do not have to infer it from code.
+
+**Intent:** **Documentation-first** (extend **[MCP_TOOLS.md](MCP_TOOLS.md)** and, where helpful, short cross-refs in **[ARCHITECTURE.md](ARCHITECTURE.md)** / **[SECURITY.md](SECURITY.md)** if a gap appears during Builder review). **Optional** pytest contract that **`docs/SECURITY.md`** still contains a **curated** list of hook-related variable names (same spirit as [`tests/test_security_docs.py`](../tests/test_security_docs.py)).
+
+**Normative statements (operator copy-of-record after Builder ships):**
+
+1. **No sandbox** — The bridge **does not** sandbox replayt. The server process runs as **one OS user**; **hook commands**, policy-hook subprocesses, and **`replayt doctor`**’s child process run with **that user’s privileges** and see the **same inherited environment** as the bridge (unless the operator strips env before launch—see [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance)).
+2. **Subprocess vs in-process** — **`replayt_doctor`** launches **`python -m replayt doctor`** in a **subprocess**; the child **inherits the full process environment** by default (see [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) matrix row). **`runner_dry_run_plan`** calls replayt **in-process** but forwards optional **`policy_hook_context_json`** (and related dry-check knobs) into **`validation_report`**; upstream may run **policy-hook**-related work when those features are used—see [ARCHITECTURE.md § Architecture review: runner dry-check parity](ARCHITECTURE.md#architecture-review-runner-dry-check-parity) (**Policy hook and JSON blobs**).
+3. **Other tools** — **`workflow_contract_snapshot`**, **`workflow_graph_mermaid`**, **`persistence_list_run_events`**, **`replayt_version_info`**, and **`replayt_echo`** do not add a **second** OS subprocess for replayt in the bridge implementation; they still execute **in-process** with **full env inheritance**, and replayt may **read** hook-related env vars during normal library use. Operators must not assume hooks are inert solely because a tool name sounds “read-only.”
+
+**Placement (normative for Builder):**
+
+- Add a dedicated subsection under **[MCP_TOOLS.md](MCP_TOOLS.md)** (after **Mapping: tool → replayt capability**, before **Input shapes**) titled along the lines **Hook env inheritance and MCP deployments** with the **no-sandbox** sentence, a **classification table** (subprocess vs in-process hook-adjacent vs other), and **markdown links** to **`docs/SECURITY.md`** and **`docs/ARCHITECTURE.md`** using stable fragments.
+- Extend the **Notes** column (or equivalent prose) for **`replayt_doctor`** and **`runner_dry_run_plan`** in the mapping table so each row explicitly points readers to that subsection and to [SECURITY.md](SECURITY.md) hook / minimal-env guidance.
+
+**Original backlog acceptance criteria (traceability):**
+
+- ARCHITECTURE or SECURITY links from MCP_TOOLS for tools that can reach hook-executing replayt surfaces.
+- Clear statement: bridge does not sandbox replayt; hooks run with process privileges.
+- If a contract test is added, it fails on accidental doc drift for listed variables.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/MCP_TOOLS.md`** — Mapping **Notes** (or adjacent bullets) for **`replayt_doctor`** and **`runner_dry_run_plan`** include explicit links to **`docs/SECURITY.md`** (at minimum [Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance) and/or [Variables that commonly affect this bridge](SECURITY.md#variables-that-commonly-affect-this-bridge)) and to **`docs/ARCHITECTURE.md`** on subprocess env inheritance and dry-check / policy-hook forwarding (e.g. [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) and [Architecture review: runner dry-check parity](ARCHITECTURE.md#architecture-review-runner-dry-check-parity)); fragments **must** resolve in GitHub-style rendering.
+2. **Standalone operator sentence** — The same file contains a **clear** statement that the bridge **does not sandbox replayt** and that hooks / replayt subprocesses run with **the MCP server process’s OS privileges** and inherited env (modulo operator spawn hygiene).
+3. **Optional contract test** — If implemented, extend or add a test alongside [`tests/test_security_docs.py`](../tests/test_security_docs.py) so CI fails when any **curated** hook-related name (the five **`REPLAYT_*_HOOK`**, five **`REPLAYT_*_HOOK_TIMEOUT`**, **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`**, **`REPLAYT_POLICY_HOOK_NAME`**) disappears from **`docs/SECURITY.md`**. **Recommended:** assert the full timeout sibling set, not only **`REPLAYT_RUN_HOOK_TIMEOUT`**, so docs cannot drop **`REPLAYT_RESUME_HOOK_TIMEOUT`**, etc., silently.
+
+**Changelog:** Add an **Unreleased** note in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit).
+
+**Implementation status:** **Shipped** — [MCP_TOOLS.md § Hook env inheritance and MCP deployments (backlog spec)](MCP_TOOLS.md#hook-env-inheritance-and-mcp-deployments-backlog-spec), mapping **Notes** for **`runner_dry_run_plan`** / **`replayt_doctor`**, [`tests/test_security_docs.py`](../tests/test_security_docs.py) (full five **`REPLAYT_*_HOOK_TIMEOUT`** names in **`docs/SECURITY.md`**), [CHANGELOG.md](../CHANGELOG.md) **Unreleased**; workflow phase **3** Builder.
+
+### Backlog traceability: “Document and test replayt hook env inheritance in MCP deployments”
+
+**Close the tracker when:** the three **Acceptance criteria (refined, for implementation and review)** bullets above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
+
+## Optional store path allowlisting for persistence reads (backlog spec)
+
+**Backlog title:** **Support optional store path allowlisting for persistence reads**
+
+**User story:** As a **security-conscious deployer**, I want to restrict **`persistence_list_run_events`** to an operator-defined set of filesystem roots so a compromised or over-curious MCP client cannot probe arbitrary readable paths via **`store_hint`**.
+
+**Context:** Architecture security follow-up for multi-tenant or shared-host setups; complements host tool policy and other **`REPLAYT_MCP_BRIDGE_*`** persistence knobs ([SECURITY.md § MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers)).
+
+**Intent:** **Mixed** — bridge-owned **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** enforcement at the **`persistence_list_run_events`** boundary, operator documentation in **[SECURITY.md](SECURITY.md)**, integrator contract in **[MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec)**, layering notes in [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist), and **pytest** that proves both **allowed** and **denied** explicit hints using **temporary directories** (no reliance on host-global paths).
+
+**Design notes (normative):**
+
+1. **Default (unset / whitespace-only env)** — Behavior matches the **trusted-operator** model before this feature: explicit **`store_hint`** values are **not** restricted by the bridge beyond existing shape and resolution validation.
+2. **When configured** — **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** is a comma-separated list of **absolute** path entries (trimmed segments; **`~`** expansion allowed per root). Each root is resolved with **`Path.expanduser()`** and **`Path.resolve(strict=False)`** consistent with **`store_hint`** resolution. After **at least one** valid absolute root parses, every **explicit** **`store_hint`** on **`persistence_list_run_events`** must resolve to a filesystem path **equal to or under** one of those roots (**`Path.is_relative_to`**). **Omitted** **`store_hint`** (replayt default log directory via **`resolve_log_dir`**) is **not** checked against the list, so operators are not locked out when the default log tree sits outside listed roots.
+3. **Misconfiguration** — If the variable is **non-empty** but **no** usable absolute roots parse, explicit **`store_hint`** is **rejected** (fail-closed for hints).
+4. **Errors and leaks** — Rejections use the **existing structured tool error** shape (`status: "error"`, **`tool`**, **`replayt_surface`**, **`message`**, **`correlation_id`**) per [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). **`message`** for allowlist denials **MUST NOT** embed the client-supplied hint string or resolved filesystem path. Structured stderr uses **`replayt_mcp_bridge.store_hint.rejected`** with **`reason`** **`outside_allowlist`** or **`allowlist_unusable`** and **MUST NOT** log the client hint or resolved path (see [SECURITY.md § Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`](SECURITY.md#examples-replayt_mcp_bridge_store_hint_roots)). **Residual:** successful responses may still expose **`store.path`** for **allowed** calls (existing persistence contract)—that is not a “partial leak” on denial paths.
+
+**Placement (normative for Builder / doc drift):**
+
+- **Operator copy-of-record:** [SECURITY.md § Environment variables](SECURITY.md#environment-variables) row for **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`**, examples under [Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`](SECURITY.md#examples-replayt_mcp_bridge_store_hint_roots), and the persistence tier row in [MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers).
+- **Integrator contract:** [MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec) (cross-links SECURITY + error shape).
+- **Layering / review:** [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist).
+
+**Original backlog acceptance criteria (traceability):**
+
+- Documented environment variable or config mechanism with examples in **`docs/SECURITY.md`**.
+- Clear error when a hint resolves outside allowed roots (no partial leaks).
+- Pytest covers allowed vs denied paths using temporary directories.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** — Documents **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (syntax, semantics, omission of default **`store_hint`**, rejection logging policy, POSIX + Windows examples). **Contract:** [`tests/test_security_docs.py`](../tests/test_security_docs.py) continues to assert discoverability of the variable name where that test applies.
+2. **Structured errors** — Denials and unusable-root configuration return the structured error object with **generic** **`message`** text (no client hint or resolved path in **`message`**); stderr **`replayt_mcp_bridge.store_hint.rejected`** matches the SECURITY contract (reason codes; no path fields).
+3. **Pytest (required)** — At least **two** handler-level tests in **`tests/test_mcp_tools.py`** (or equivalent replayt-boundary module) using **`tmp_path`** / **`TemporaryDirectory`**:
+   - **Allowed:** explicit **`store_hint`** resolving **under** a configured root succeeds (existing SQLite-under-root coverage may satisfy this; JSONL-dir under root is an acceptable alternative or addition).
+   - **Denied:** explicit **`store_hint`** resolving **outside** all configured roots returns **`status: "error"`** and a **generic** **`message`** that does **not** contain a **distinctive probe substring** chosen for the test (e.g. a unique directory name under **`tmp_path`** only used for the denied hint).
+4. **Recommended further coverage (nice-to-have for Tester):** comma-separated **multiple** roots (hint under second root); **`allowlist_unusable`** when env is non-empty but no absolute roots parse; omitted **`store_hint`** still resolves when **`resolve_log_dir`** is monkeypatched to a path **outside** listed roots (documents bypass semantics).
+5. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when operator-visible behavior or docs for this backlog ship in a releasable change-set (typically Builder); spec-only MISSION/MCP_TOOLS/ARCHITECTURE edits in phase **2** do not require a changelog entry by themselves.
+
+**Implementation status:** **Shipped** — Enforcement, **SECURITY.md**, and integrator docs match the refined criteria. [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) covers an **allowed** explicit **`store_hint`** under a configured root (**`test_persistence_list_run_events_allowlist_sqlite_under_root`**), **denied** explicit hint outside roots with probe-safe **`message`** and stderr **`replayt_mcp_bridge.store_hint.rejected`** (**`test_persistence_list_run_events_allowlist_rejects_outside_root`**), comma-separated **second root** acceptance (**`test_persistence_list_run_events_allowlist_accepts_second_comma_separated_root`**), **`allowlist_unusable`** (**`test_persistence_list_run_events_allowlist_unusable_env_rejects_explicit_hint`**), and omitted **`store_hint`** allowlist bypass with monkeypatched **`resolve_log_dir`** (**`test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist`**). [CHANGELOG.md](../CHANGELOG.md) **Unreleased** records workflow phase **3** test coverage. See [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist) **Contract tests**.
+
+### Backlog traceability: “Support optional store path allowlisting for persistence reads”
+
+**Close the tracker when:** bullets **1–3** under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree (bullet **4** is recommended depth; bullet **5** when shipping user-facing changes).
 
 ## LLM / demos
 
@@ -402,21 +539,44 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 
 ## Windows CI runner (install and pytest smoke)
 
-**User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
+**Backlog title:** **Run CI on Windows in addition to Ubuntu**
 
-**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
+**User story:** As a **contributor on Windows**, I want **CI** to exercise the **same install + test path** on **`windows-latest`** so **README** guidance on **venv** and **console scripts** stays honest.
 
-**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise.
+**Context:** [README.md](../README.md) documents Windows-specific **`pip`** / **`Scripts\`** pitfalls; the **Linux** job matrix does not substitute for native Windows path and entry-point behavior.
+
+**Intent:** Keep **one** lean job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence (same **`src`** / **`tests`** argv) and **`actions/setup-python`** **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, **`replayt-mcp-bridge`** / **`python -m`** entry points, and encoding issues common on Windows MCP hosts.
+
+**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise. **pip-audit** / **`supply-chain`** duplication on Windows is **out of scope** for this item (see [CI dependency vulnerability scanning (supply-chain)](#ci-dependency-vulnerability-scanning-supply-chain)).
+
+**Pytest on Windows (normative for Builder / Tester):**
+
+- The Windows job runs the **same** **`pytest -q -m "not network"`** collection as the default Linux **`test`** rows—**no** separate Windows-only “smoke subset” unless this section and **README** / **CONTRIBUTING** are updated together with maintainer rationale.
+- **No Windows-only skips** without **documentation**: if a test **must** be skipped on Windows, use **`@pytest.mark.skipif(sys.platform == "win32", reason="…")`** (or equivalent) with a **`reason`** that states **why** native Windows is unsupported for that case **and** add a **short** note under this section (or link a **tracking issue**). Prefer **fixing** the test or product path so the suite stays green on **`windows-latest`**.
+- **Allowed patterns today:** **Module-level** **`pytest.skip`** when **optional** MCP stdio client imports fail applies on **all** OSes, not Windows-specific. Tests that assert **console script** names may branch on **`sys.platform == "win32"`** for **`.exe`** (parity with packaging), which is **not** a skip.
 
 **Acceptance criteria (refined, for implementation and review):**
 
-1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (for example **`test-windows`**) on **`windows-latest`** with a single pinned minor (**3.12**).
-2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
-3. **`actions/setup-python`** enables **pip** caching with **`cache-dependency-path`** (or equivalent) tied to dependency metadata such as **`pyproject.toml`**.
-4. **README** and **CONTRIBUTING** state how the **Linux** matrix and the **Windows** job differ (runner label, Python minor, and that floor / supply-chain jobs are not duplicated on Windows).
-5. **Contract tests** (for example in **`tests/test_version_contract_docs.py`**) keep workflow labels, pinned minor, steps, and cache fields aligned with prose docs.
-6. If **Ruff** or **pytest** cannot run on Windows for a technical reason, record the **documented** exception and the substitute checks in this section and in contributor-facing docs.
+1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (**`test-windows`**) on **`windows-latest`** with **`python-version: "3.12"`** (single minor).
+2. That job runs, in order: **`pip install -e ".[dev]"`**, **`ruff check src tests`**, **`ruff format --check src tests`**, **`pytest -q -m "not network"`**—the **same** **run** lines as the Linux **`test`** job (aside from **`replayt-floor`**’s extra reinstall step, which the Windows job does **not** duplicate).
+3. **`actions/setup-python`** sets **`cache: pip`** and **`cache-dependency-path: pyproject.toml`** (or documented equivalent).
+4. **[README.md](../README.md)** and **[CONTRIBUTING.md](../CONTRIBUTING.md)** state how the **Linux** matrix and **`test-windows`** differ (**runner**, **Python** minor, and that **`replayt-floor`** / **`supply-chain`** are not duplicated on Windows), with a link to this section.
+5. **Regression guard** — [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) **`test_ci_includes_windows_test_job`** (and related CI prose checks) stay aligned with **`test-windows`** (**`runs-on`**, pinned minor, step commands, pip cache fields). When the workflow changes, update **contract tests** in the **same** change-set.
+6. If **Ruff** or **pytest** cannot run on Windows for a **technical** reason, record the **documented** exception and substitute checks **here** and in contributor-facing docs **before** merging a job that would otherwise be red.
 7. **`replayt-floor`** and **`supply-chain`** are **not** required on the Windows job by default.
+
+**Implementation status (shipped):** **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** job **`test-windows`**; contributor copy in **README** / **CONTRIBUTING**; **`test_ci_includes_windows_test_job`** in **`tests/test_version_contract_docs.py`**.
+
+### Backlog traceability: “Run CI on Windows in addition to Ubuntu”
+
+**Original acceptance criteria:**
+
+- Workflow adds **`windows-latest`** coverage (**job** or **matrix include**) with **`pip install -e ".[dev]"`**, **Ruff**, **pytest**.
+- Document any **Windows-only** test skips with justification, or **eliminate** the need for skips.
+
+**Map to this section:** **`test-windows`** + **Pytest on Windows** policy above; **README** / **CONTRIBUTING** / **MISSION** (this heading).
+
+**Close the tracker when:** **(1–7)** under **Acceptance criteria (refined)** hold, the **two** **original** bullets remain satisfied, and **default branch CI** stays green (operational bar—see [CI and contributor automation](#ci-and-contributor-automation)).
 
 ## Python 3.13+ CI matrix (supported CPython line)
 
@@ -443,6 +603,58 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 1. **Recorded findings** — Pass/fail summary against replayt **0.5.x** (exact version, wheel/sdist if relevant, date).
 2. **Change list** — Required code or documentation edits with **rough effort** and suggested order.
 3. **If widening the range** — Update **`pyproject.toml`**, **README** compatibility table, **`replayt-floor`** pin and job label in **CI**, **`test_version_contract_docs.py`** (`_EXPECTED_REPLAYT_SPEC`), prose in **DESIGN_PRINCIPLES** / **MCP_TOOLS** / **ARCHITECTURE** that quotes the range, optional **reference doc** refresh, and **CHANGELOG** migration text. Work may be **split across follow-up PRs**.
+
+## Replayt minor-line upgrade playbook (backlog spec)
+
+**Backlog title:** **Publish a replayt minor-line upgrade playbook before 0.5**
+
+**User story:** As a **maintainer**, I want a **short, ordered checklist** for changing the declared **`replayt`** range in **`pyproject.toml`** so **compatibility prose**, **CI floor pins**, **tool mapping docs**, **changelog**, and **contract tests** stay aligned when the next pre-1.0 minor line (for example **0.5.x**) is ready.
+
+**Intent:** **Documentation-first** in the satellite repo: surface an explicit procedure maintainers can follow for any **minor-line** (or breaking) range change, not only **0.5.x**. Optional **make target** or **script** is acceptable only if it matches existing repo conventions (for example **`scripts/run_ci_checks.py`**-style helpers); do not introduce new automation requirements in this backlog.
+
+**Placement (normative for Builder):**
+
+- Add a **maintainer-facing** subsection that contains the **ordered checklist** below. **Primary home:** either **`docs/MISSION.md`** (this section, promoted to operator copy-of-record after ship) **or** **[CONTRIBUTING.md](../CONTRIBUTING.md)** — pick **one** file for the full checklist prose so there is a single source of truth. The other location may hold a **one-line pointer** only.
+- **[README.md](../README.md)** — Under **## Compatibility with replayt**, add **at least one sentence** plus a **markdown link** to the checklist heading (repository-relative path, stable fragment).
+- **Wording** — Use neutral maintainer / integrator vocabulary only; **do not** name internal automation products or orchestration runbooks in committed markdown.
+
+**Ordered checklist (must appear verbatim as a numbered or tick-friendly list in the shipped doc):**
+
+Maintainers **must** walk these in order when changing the declared **`replayt`** dependency range (including raising the upper bound past **0.5** once the spike allows it):
+
+1. **Dependency specification** — Update the **`replayt`** line under **`[project].dependencies`** in **`pyproject.toml`** (keep PEP 440 shape and policy aligned with [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) § **replayt version contract**).
+2. **Compatibility table** — Refresh [README.md](../README.md) **## Compatibility with replayt**: repeat the **exact** dependency line from **`pyproject.toml`** and update the **Supported replayt (declared)** / **CI-tested replayt** table row for the bridge version when needed.
+3. **Changelog** — Add or extend an **[CHANGELOG.md](../CHANGELOG.md)** **Unreleased** bullet (or release section) describing the range change and any integrator-facing migration notes.
+4. **CI floor pin job** — Update [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) **`replayt-floor`**: the **`pip install --force-reinstall "replayt==…"`** pin **must** match the **new lower bound** parsed from **`pyproject.toml`**, and the job **`name:`** (or equivalent visible label) should remain accurate for operators reading workflow logs.
+5. **MCP_TOOLS mapping review** — Re-read [MCP_TOOLS.md](MCP_TOOLS.md) **Mapping: tool → replayt capability** (and any adjacent prose that quotes the supported range). Update rows or notes if upstream entry points, tool behavior, or version callouts change with the new replayt line.
+6. **Contract and schema tests** — Update [tests/test_version_contract_docs.py](../tests/test_version_contract_docs.py) **`_EXPECTED_REPLAYT_SPEC`** (and any related expectations if the spec string shape changes). Run **`pytest -q -m "not network"`** (and the same **Ruff** steps as CI). If replayt API shifts affect MCP tools, update or extend **handler / schema** tests (for example **`tests/test_mcp_tools.py`**) as needed so registered tool contracts stay truthful.
+
+**Strongly related (cross-check, not a substitute for the six steps):**
+
+- **0.5.x spike** — Before widening past **`<0.5`**, follow [REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md) and record outcomes there.
+- **Prose that quotes the range** — Sync [docs/DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), and any other docs that embed the literal range string (contract tests already enforce several of these).
+- **Reference doc snapshots** — If project policy keeps [docs/reference-documentation/](reference-documentation/) in lockstep with the supported floor, run **`scripts/refresh_replayt_reference_docs.py`** when the floor or range policy changes.
+- **Contributor Releases blurb** — [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases** already lists **`pyproject.toml`**, **README**, **`replayt-floor`**, and **CHANGELOG**; keep that paragraph aligned with the checklist (no duplicate prose requirement unless the checklist lives outside **CONTRIBUTING**).
+
+**Original backlog acceptance criteria (traceability):**
+
+1. New section in **CONTRIBUTING** or **`docs/MISSION.md`**, linked from **README**.
+2. Checklist **explicitly** names: **dependency specification**, **compatibility table**, **changelog**, **CI floor pin job**, **MCP_TOOLS mapping review**, and **contract/schema tests** (the six bullets above use those names).
+3. **No** internal orchestration-product vocabulary in committed markdown for this deliverable.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **Single source of truth** — One of **`docs/MISSION.md`** or **`CONTRIBUTING.md`** contains the **full** ordered checklist (all six items, same intent as above); the other may only **link** to it.
+2. **README** — **## Compatibility with replayt** includes a **repository-relative** link to that checklist heading.
+3. **Vocabulary** — Checklist and links use **maintainer/integrator** language only (same bar as item **3** under **Original backlog acceptance criteria**).
+4. **Green tests** — After edits, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** pass; **`_EXPECTED_REPLAYT_SPEC`** matches **`pyproject.toml`** whenever the range changes.
+5. **Changelog** — When the user-facing playbook ships, add an **Unreleased** bullet in **[CHANGELOG.md](../CHANGELOG.md)** (Builder commit).
+
+**Implementation status:** **Shipped** — [README.md](../README.md) **## Compatibility with replayt**, [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases**, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py).
+
+### Backlog traceability: “Publish a replayt minor-line upgrade playbook before 0.5”
+
+**Close the tracker when:** the five bullets under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied.
 
 ## Audience
 

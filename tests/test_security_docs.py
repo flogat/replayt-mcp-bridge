@@ -102,11 +102,40 @@ def test_readme_links_security_under_clear_heading() -> None:
     assert "docs/SECURITY.md" in text
     assert "docs/SECURITY.md#mcp-tool-capability-tiers" in text
     assert "docs/SECURITY.md#host-side-partial-tool-exposure" in text
+    assert "docs/SECURITY.md#minimal-environment-inheritance" in text
     lines = text.splitlines()
     # Keep the link near the top of the README; raise the window when new
     # sections (compatibility tables, Python matrix copy) push the block down.
     head = "\n".join(lines[:45])
     assert "docs/SECURITY.md" in head
+    assert "docs/SECURITY.md#minimal-environment-inheritance" in head
+
+
+def test_security_doc_covers_minimal_environment_inheritance() -> None:
+    """Backlog: high-assurance spawn guidance (hooks, credentials, honest limits)."""
+    text = SECURITY_PATH.read_text(encoding="utf-8")
+    assert "## Minimal environment inheritance" in text
+    for name in (
+        "REPLAYT_RUN_HOOK",
+        "REPLAYT_RESUME_HOOK",
+        "REPLAYT_EXPORT_HOOK",
+        "REPLAYT_SEAL_HOOK",
+        "REPLAYT_VERIFY_SEAL_HOOK",
+        "REPLAYT_RUN_HOOK_TIMEOUT",
+        "REPLAYT_RESUME_HOOK_TIMEOUT",
+        "REPLAYT_EXPORT_HOOK_TIMEOUT",
+        "REPLAYT_SEAL_HOOK_TIMEOUT",
+        "REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT",
+        "REPLAYT_POLICY_HOOK_CONTEXT_JSON",
+        "REPLAYT_POLICY_HOOK_NAME",
+    ):
+        assert name in text
+    assert "env -i" in text
+    assert "PowerShell" in text or "powershell" in text.lower()
+    assert ".env" in text
+    lower = text.lower()
+    assert "filesystem" in lower
+    assert "does not fix" in lower or "does **not**" in text
 
 
 def test_design_principles_points_at_security_doc() -> None:

@@ -85,7 +85,9 @@ Aside from the **`REPLAYT_MCP_BRIDGE_…`** variables implemented in **`observab
 | `REPLAYT_INPUTS_FILE` | Used by replayt CLI paths that read inputs from env; relevant if you extend tooling or share the same process environment with CLI wrappers. |
 | `REPLAYT_FORBID_LOG_MODE_FULL` | Policy flag in replayt to reject full (unredacted) log modes on run-like entrypoints. |
 | `REPLAYT_POLICY_HOOK_CONTEXT_JSON` | JSON context forwarded to trusted policy-hook subprocesses in replayt (not written to JSONL by replayt’s contract). |
-| `REPLAYT_RUN_HOOK`, `REPLAYT_RESUME_HOOK`, … | Hook commands resolved from env in replayt when runs/resume/export paths execute (see replayt’s `run_support` / config docs). |
+| `REPLAYT_POLICY_HOOK_NAME` | Policy-hook subprocess name / selector when replayt resolves policy-hook context (see replayt `run_support` / `config_cmd`). |
+| `REPLAYT_RUN_HOOK`, `REPLAYT_RESUME_HOOK`, `REPLAYT_EXPORT_HOOK`, `REPLAYT_SEAL_HOOK`, `REPLAYT_VERIFY_SEAL_HOOK` | Hook argv sources for run, resume, export, seal, and verify-seal paths in replayt (commands or argv strings read from env per `run_support` / `config_cmd`). |
+| `REPLAYT_RUN_HOOK_TIMEOUT`, `REPLAYT_RESUME_HOOK_TIMEOUT`, `REPLAYT_EXPORT_HOOK_TIMEOUT`, `REPLAYT_SEAL_HOOK_TIMEOUT`, `REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT` | Optional timeout seconds for the matching hook above (same upstream sources). |
 | `REPLAYT_JSONL_POSIX_MODE` | Optional portability toggle for JSONL persistence in replayt. |
 
 ### Tool execution timeouts (availability and abuse)
@@ -125,6 +127,64 @@ Replayt also maintains an **audited list** of other provider API key names (pres
 ### Proxy and TLS trust (egress)
 
 If replayt or dependencies perform HTTPS calls, standard proxy and trust variables may apply, for example `HTTP_PROXY`, `HTTPS_PROXY`, `NO_PROXY`, `ALL_PROXY`, `SSL_CERT_FILE`, `REQUESTS_CA_BUNDLE`, and similar. Treat their **values** as sensitive where they embed credentials.
+
+## Minimal environment inheritance
+
+The Python process **inherits the full OS environment** (see [Environment variables](#environment-variables)). **Replayt** may read **hook argv** from env (command strings), **policy-hook JSON** from env, **provider / LLM** selection and API keys, and **standard credential names**—see [Credentials and LLM / API access (replayt)](#credentials-and-llm--api-access-replayt) and `LLM_CREDENTIAL_ENV_VARS` in upstream **`replayt.security`**. **Bridge-owned** knobs remain **`REPLAYT_MCP_BRIDGE_*`** as in the [variables table](#variables-that-commonly-affect-this-bridge) above.
+
+**Hook-related replayt variables (upstream names only):** `REPLAYT_RUN_HOOK`, `REPLAYT_RESUME_HOOK`, `REPLAYT_EXPORT_HOOK`, `REPLAYT_SEAL_HOOK`, `REPLAYT_VERIFY_SEAL_HOOK`; matching `REPLAYT_*_HOOK_TIMEOUT` siblings (`REPLAYT_RUN_HOOK_TIMEOUT`, `REPLAYT_RESUME_HOOK_TIMEOUT`, `REPLAYT_EXPORT_HOOK_TIMEOUT`, `REPLAYT_SEAL_HOOK_TIMEOUT`, `REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT`); `REPLAYT_POLICY_HOOK_CONTEXT_JSON` and `REPLAYT_POLICY_HOOK_NAME`. Do not paste real hook commands or secret values into host configs or tickets.
+
+### Operator profiles
+
+| Profile | Typical environment | Intent |
+| ------- | ------------------- | ------ |
+| **Local dev / full-fat shell** | Inherited desktop or IDE env; may include `OPENAI_API_KEY`, `REPLAYT_PROVIDER`, `REPLAYT_MODEL`, hook argv, `REPLAYT_LOG_DIR`, proxy vars, and any `REPLAYT_MCP_BRIDGE_*` you set | Acceptable when the MCP parent and workstation match your threat model |
+| **Read-only introspection / high-assurance spawn** | Small allowlist: enough for `python` to start, optional explicit `REPLAYT_MCP_BRIDGE_*` or `REPLAYT_LOG_DIR` if you need them; **no** LLM API keys, **no** hook argv, **no** policy-hook JSON, and often **no** proxy vars if egress must be denied | Use for tools such as `replayt_version_info`, `workflow_contract_snapshot`, `workflow_graph_mermaid`, and `runner_dry_run_plan` when you want replayt code paths to see fewer credentials and fewer hook commands in **env** |
+
+Exact minimal variable sets are **OS- and install-dependent**; the examples below are illustrative.
+
+### POSIX example (clean slate)
+
+`env -i` starts the child with an empty environment. Pass at least `PATH` (and often `HOME`) so the interpreter resolves; add only what you need.
+
+```bash
+env -i \
+  PATH=/usr/bin:/opt/venv/bin \
+  HOME=/home/operator \
+  /opt/venv/bin/python -m replayt_mcp_bridge
+```
+
+Equivalent with the console script after install:
+
+```bash
+env -i PATH=/usr/bin:/opt/venv/bin HOME=/home/operator /opt/venv/bin/replayt-mcp-bridge
+```
+
+For long-running service units, **`Environment=`** lines in **systemd** (or another supervisor) can list the same allowlist instead of `env -i`.
+
+### Windows example (small allowlist)
+
+**cmd.exe** — `set` then start in one line is awkward for a full wipe; **`set VAR=`** clears known sensitive names, or spawn via a wrapper that builds `Environment` explicitly. **PowerShell** can start a process with a fresh hashtable:
+
+```powershell
+$envClean = @{
+  Path = 'C:\Windows\System32;C:\Path\To\venv\Scripts'
+  USERPROFILE = $env:USERPROFILE
+}
+Start-Process -FilePath 'C:\Path\To\venv\Scripts\python.exe' `
+  -ArgumentList '-m','replayt_mcp_bridge' -NoNewWindow -Wait -Environment $envClean
+```
+
+If your PowerShell version lacks **`-Environment`**, set only required variables in the session after clearing sensitive names, or use **WSL** and the POSIX pattern above. Native Windows vs WSL differ by path and which binary runs; pick one layout and keep paths consistent with your install.
+
+### What a stripped environment does not fix
+
+Clearing or shrinking **inherited env** does **not**:
+
+- **Filesystem secrets** — Replayt and the bridge still read **`.env`**, **`.replaytrc.toml`**, **`pyproject.toml`** `[tool.replayt]`, workflow files, and JSONL/SQLite stores the process user can open.
+- **Trusted-input limits** — A malicious **`target`** or readable workflow can still trigger import-time or tool side effects; see [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries).
+- **Host policy and logging** — Stripping env does not replace [Host-side partial tool exposure](#host-side-partial-tool-exposure), [MCP host and client logs](#mcp-host-and-client-logs), or network egress controls.
+- **Memory isolation** — Other processes, debuggers, or shared-memory attacks are out of scope; the guidance addresses **the child process’s inherited environment**, not full OS isolation.
 
 ## MCP host and client logs
 

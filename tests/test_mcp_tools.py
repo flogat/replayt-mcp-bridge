@@ -16,6 +16,7 @@ from replayt_mcp_bridge.tools_health import (
     replayt_echo,
     replayt_version_info,
 )
+import replayt_mcp_bridge.persistence_support as persistence_support_mod
 from replayt_mcp_bridge.tools_persistence import persistence_list_run_events
 from replayt_mcp_bridge.observability import (
     parse_default_run_events_max_count,
@@ -279,6 +280,145 @@ def test_persistence_list_run_events_allowlist_sqlite_under_root(
     out = asyncio.run(persistence_list_run_events(run_id=run_id, store_hint=str(db)))
     assert out["status"] == "ok"
     assert out["store"]["kind"] == "sqlite"
+
+
+def test_persistence_list_run_events_allowlist_rejects_outside_root(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Explicit store_hint outside configured roots: structured error, generic message, stderr reason only."""
+
+    allowed = tmp_path / "allowlisted_only"
+    allowed.mkdir()
+    probe_dir = tmp_path / "unique_probe_token_823f0837_denied"
+    probe_dir.mkdir()
+    db = probe_dir / "outside.sqlite"
+    run_id = "allow-deny-outside"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allowed.resolve()))
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+
+    out = asyncio.run(persistence_list_run_events(run_id=run_id, store_hint=str(db)))
+    assert out["status"] == "error"
+    assert out["tool"] == "persistence_list_run_events"
+    assert "traceback" not in out
+    msg = out["message"]
+    assert isinstance(msg, str)
+    assert "unique_probe_token_823f0837_denied" not in msg
+    assert str(probe_dir) not in msg
+    assert str(db) not in msg
+
+    rejected = [
+        p
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.store_hint.rejected"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0].get("reason") == "outside_allowlist"
+    assert "unique_probe_token_823f0837_denied" not in json.dumps(rejected[0])
+    assert str(probe_dir) not in json.dumps(rejected[0])
+
+
+def test_persistence_list_run_events_allowlist_accepts_second_comma_separated_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root_a = tmp_path / "first_root"
+    root_b = tmp_path / "second_root"
+    root_a.mkdir()
+    root_b.mkdir()
+    monkeypatch.setenv(
+        "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS",
+        f"{root_a.resolve()},{root_b.resolve()}",
+    )
+    db = root_b / "under_second.sqlite"
+    run_id = "sql-second-root"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+    out = asyncio.run(persistence_list_run_events(run_id=run_id, store_hint=str(db)))
+    assert out["status"] == "ok"
+    assert out["store"]["kind"] == "sqlite"
+
+
+def test_persistence_list_run_events_allowlist_unusable_env_rejects_explicit_hint(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Non-empty env with no parseable absolute roots fails closed for explicit store_hint."""
+
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", ", , ,")
+    db = tmp_path / "any.sqlite"
+    run_id = "unusable-allow"
+    st = SQLiteStore(db, read_only=False)
+    try:
+        st.append_event(
+            run_id,
+            ts="2020-01-01T00:00:00Z",
+            typ="unit_test_marker",
+            payload={},
+        )
+    finally:
+        st.close()
+
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    out = asyncio.run(persistence_list_run_events(run_id=run_id, store_hint=str(db)))
+    assert out["status"] == "error"
+    assert out["tool"] == "persistence_list_run_events"
+    assert "no valid absolute roots were parsed" in out["message"]
+    assert str(db) not in out["message"]
+
+    rejected = [
+        p
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.store_hint.rejected"
+    ]
+    assert len(rejected) == 1
+    assert rejected[0].get("reason") == "allowlist_unusable"
+
+
+def test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Omitted store_hint uses resolve_log_dir only; allowlist does not apply."""
+
+    allowed_only = tmp_path / "listed_root_only"
+    allowed_only.mkdir()
+    outside = tmp_path / "default_log_outside_listed_roots"
+    log_dir = outside / "logs"
+    log_dir.mkdir(parents=True)
+
+    monkeypatch.setenv(
+        "REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS", str(allowed_only.resolve())
+    )
+
+    def _fake_resolve(_cli_log_dir: Path, log_subdir: str | None = None) -> Path:
+        return log_dir.resolve()
+
+    monkeypatch.setattr(persistence_support_mod, "resolve_log_dir", _fake_resolve)
+    monkeypatch.setattr(JSONLStore, "load_events", lambda self, _rid: [])
+
+    out = asyncio.run(persistence_list_run_events(run_id="bypass-run"))
+    assert out["status"] == "ok"
+    assert out["store"]["kind"] == "jsonl"
 
 
 def test_tool_timeout_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
