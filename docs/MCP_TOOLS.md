@@ -198,6 +198,8 @@ Target loading, persistence validation, and store resolution failures return a J
 | **Stderr logs** | Every structured JSON log line emitted by the bridge for that **same invocation** (at minimum `replayt_mcp_bridge.tool.begin`, `replayt_mcp_bridge.tool.end`, `replayt_mcp_bridge.tool.unhandled_exception` when applicable, and bridge events such as `replayt_mcp_bridge.store_hint.rejected` that occur inside a tool handler) **MUST** include the **same** **`correlation_id`** value. |
 | **Value** | If FastMCP exposes a non-empty `Context.request_id` for the call, **`correlation_id` MUST** reuse that string. Otherwise the bridge **MUST** generate a new UUID (version 4) once per tool entry and reuse it until the handler returns or raises. |
 
+**Lifecycle (begin / end / error):** For every tool invocation, structured stderr **MUST** emit **`replayt_mcp_bridge.tool.begin`** before handler body work and, when the handler returns a dict (any `status`, including **`error`** from mapped paths), **`replayt_mcp_bridge.tool.end`** with the same **`correlation_id`** and the result **`status`**. If the handler raises an exception that is **not** mapped to a dict return, the wrapper **MUST** emit **`replayt_mcp_bridge.tool.unhandled_exception`** (same **`correlation_id`** as **`begin`**) and **MUST NOT** emit **`tool.end`** for that invocation—then re-raise. Mapped **`bridge_timeout`** and other mapped **`_tool_error`** returns are normal returns, so **`tool.end`** applies. This matches [`tools_common._log_replayt_tool_boundaries`](../src/replayt_mcp_bridge/tools_common.py).
+
 **Implementation status:** Handlers return **`correlation_id`** on every mapped `{ "status": "error", … }` result. Structured stderr lines for the same invocation (`replayt_mcp_bridge.tool.begin` / `.end`, `.unhandled_exception` when applicable, and `replayt_mcp_bridge.store_hint.rejected`) include the **same** value. Optional **`mcp_request_id`** is still logged when FastMCP provides it (often identical to **`correlation_id`**).
 
 ### Acceptance criteria (refined, workflow phase 2)
@@ -205,8 +207,32 @@ Target loading, persistence validation, and store resolution failures return a J
 Backlog **Return correlation ids on structured tool errors** — integrator-facing bar (see also [ARCHITECTURE.md § Architecture review: structured tool errors and correlation IDs](ARCHITECTURE.md#architecture-review-structured-tool-errors-and-correlation-ids)):
 
 1. **Documented field** — This section (payload example, specification table, and mapped inventory) plus the architecture review cross-link define **`correlation_id`** for mapped `{ "status": "error", … }` results and stderr JSON. **Out of scope:** changing FastMCP transport-level errors.
-2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see **`test_mapped_tool_error_correlation_id_matches_structured_logs`** in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py), using logging capture on `replayt_mcp_bridge.server`).
-3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest spot check **`test_mapped_tool_error_correlation_id_unique_per_failing_invocation_spot_check`** asserts **distinct** ids and **`uuid.UUID(…).version == 4`** for both.
+2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see **`test_persistence_list_run_events_log_lock_error_correlates_logs`** and related cases in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py); logging capture on `replayt_mcp_bridge.server`).
+3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest should assert **distinct** ids and **`uuid.UUID(…).version == 4`** where the suite covers synthesized ids (same module as (2)).
+
+### Backlog spec: narrower unhandled-error mapping (replayt and SDK)
+
+**Backlog title:** **Add correlation IDs and narrower unhandled-error mapping** — extends the earlier **Return correlation ids on structured tool errors** work by (a) locking the **lifecycle logging** contract above and (b) moving a **small, named** set of replayt (and, if justified, SDK) failures from the **unhandled** path into **`{ "status": "error", … }`** without broad `except Exception` handlers that hide bugs.
+
+**Non-goals:** Do **not** map all `ReplaytError` subclasses blindly. Do **not** return structured errors for **programming mistakes** (`TypeError`, `AssertionError`, etc.) or for **unknown** exception types. Do **not** change FastMCP / MCP **transport** or JSON-RPC framing errors. Do **not** remove **`replayt_mcp_bridge.tool.unhandled_exception`** logging for exceptions that remain unmapped.
+
+**Refined acceptance criteria (close-out bar for implementation + docs):**
+
+1. **Correlation + lifecycle** — For every tool call, structured stderr includes **`replayt_mcp_bridge.tool.begin`** and (on normal completion, including mapped operational failure dicts) **`replayt_mcp_bridge.tool.end`**, each carrying the invocation’s **`correlation_id`**; unmapped raises emit **`replayt_mcp_bridge.tool.unhandled_exception`** with the **same** id, then propagate—per the **Lifecycle** paragraph and specification table above.
+2. **At least one new mapped replayt family** — Extend [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) with **at least one** additional row for a **`replayt`** exception type (or a documented tuple of types) that is **not** already covered (`typer.BadParameter`, `ValueError` on `run_id`, `OSError`, `asyncio.TimeoutError` → `bridge_timeout`, etc.). Prefer types that are **operator-meaningful** on the current tool surface. **`replayt.LogLockError`** (JSONL store lock contention in [`replayt.persistence.jsonl`](https://pypi.org/project/replayt/)) is the **recommended first** mapping target for `persistence_list_run_events` / JSONL reads—Builder confirms the exact call stack and message shape against **replayt 0.4.25**.
+3. **Tests** — Pytest proves the new row: structured tool result (`status: "error"`, **`correlation_id`**, no traceback in the returned dict) and **the same** **`correlation_id`** on captured **`tool.begin`** / **`tool.end`** lines for that scenario (pattern matches existing correlation tests in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py)). Keep or extend coverage for **unmapped** propagation (shared id on **`begin`** + **`unhandled_exception`**, no silent swallow).
+4. **Disclosure** — [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions) and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping) stay aligned with the **exception stance table** above and the **mapped inventory** when this backlog closes.
+
+**Replayt 0.4.x public exception surface (reference):** `replayt.ReplaytError` (base), `ApprovalPending`, `ContextSchemaError`, `LogLockError`, `RunFailed` — see upstream `replayt.exceptions`. The bridge **MCP tools are read-only introspection / persistence reads**; not every type is reachable. Builder **MUST** add a table row only where a tool **actually** invokes replayt code that can raise the type.
+
+| Type | Typical replayt role | Mapping stance for this bridge (spec) |
+| ---- | -------------------- | ------------------------------------- |
+| `LogLockError` | JSONL log file lock failure | **Map** when raised on the `persistence_list_run_events` JSONL path; use a stable `replayt_surface` label (e.g. event store / JSONL lock) and `str(exc)` or a short sanitized message—**no** traceback in the tool dict. |
+| `ContextSchemaError` | Step context violations (runner) | **Evaluate** per tool: map only if `workflow_contract_snapshot`, `workflow_graph_mermaid`, or `runner_dry_run_plan` can raise it on supported replayt versions; otherwise leave **unmapped** until a real path exists. |
+| `RunFailed`, `ApprovalPending` | Run execution / human approval | **Out of scope** for current tools unless code review shows a reachable path from an MCP handler. |
+| `ReplaytError` (base) | Catch-all semantic base | **Do not** map the base class alone; use **specific** subclasses in the inventory. |
+
+**Propagated (not bridge `status: "error"`):** Any exception **not** listed in [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) follows [Unmapped exceptions (explicit)](#unmapped-exceptions-explicit). **MCP Python SDK / FastMCP** errors outside tool handler bodies (transport, protocol) are **out of scope** for this bridge’s structured error object.
 
 ### Mapped failure paths (exception / branch inventory)
 
@@ -225,6 +251,7 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | `persistence_list_run_events` | Explicit **store_hint** rejected by **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** | branch → `_tool_error` (+ optional `replayt_mcp_bridge.store_hint.rejected` log) | same |
 | `persistence_list_run_events` | SQLite path does not exist or is not a file | branch → `_tool_error` | same |
 | `persistence_list_run_events` | Store open / read failure | `OSError` from `_open_read_store` / `load_events` → `_tool_error` | same |
+| `persistence_list_run_events` | JSONL log file lock failure (contention / platform lock error) | `LogLockError` from `replayt.persistence.jsonl` during `load_events` on the JSONL store → `_tool_error` | `replayt.persistence.jsonl (JSONL log lock)` |
 
 **Outside `status: "error"`:** `runner_dry_run_plan` graph/input validation failures use **`status: "invalid"`** and a `replayt.validate_report.v1` object in **`report`** (replayt-owned semantics).
 
@@ -232,13 +259,15 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 
 Any **other** exception raised while executing a tool (for example an unexpected `RuntimeError` from replayt after `load_target` succeeds) is **not** converted to `{ "status": "error", … }`. The bridge logs `replayt_mcp_bridge.tool.unhandled_exception` (and a traceback via `logger.exception`), then **re-raises**; presentation to MCP clients depends on FastMCP / host behavior. **Tests** should keep at least one path where unmapped failures remain observable (e.g. handler tests that assert propagation or host-visible errors when the suite deliberately provokes them); do not widen `except Exception` without updating this table and adding focused tests.
 
+To **narrow** this set, add explicit rows to [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) and follow [Backlog spec: narrower unhandled-error mapping](#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk)—one **named** exception family at a time, with pytest and disclosure docs updated together.
+
 ## Success and validation shapes (MCP structured content)
 
 Handlers return plain dicts that the MCP SDK serializes as structured tool content:
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 
