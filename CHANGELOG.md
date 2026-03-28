@@ -17,6 +17,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Tests (workflow phase 3 — mission SSoT)** — [`tests/test_mission_docs.py`](tests/test_mission_docs.py) asserts the **Primary pattern** line carries **core-gap** / **LLM showcase** / **combinator**, both **REPLAYT_ECOSYSTEM_IDEA.md** anchor links, and **What replayt provides** points at **MCP_TOOLS.md** § **Mapping: tool → replayt capability** (MISSION.md spec gate).
+
 - **Declared replayt range** — Supported **replayt** versions remain **`>=0.4.25,<0.5`** per `pyproject.toml` (integrator contract unchanged this pass).
 - **Execution timeouts for replayt-backed handlers** — Added optional `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` environment variable to enforce per-tool timeouts. When a tool exceeds the timeout, the bridge returns a structured error (`status: "error"`, `replayt_surface: "bridge_timeout"`) and logs a `replayt_mcp_bridge.tool.timeout` event. Documented in `docs/MCP_TOOLS.md` and `docs/SECURITY.md`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
 - **Backlog complete: Split monolithic server module into a small package** — The MCP server implementation has been split into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with `server.py` as the stdio entry and test re-exports. No change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
