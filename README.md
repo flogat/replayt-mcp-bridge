@@ -94,12 +94,12 @@ After `pip install -e ".[dev]"` in your venv (Ruff is in the `dev` extra; pytest
 ```bash
 ruff check src tests
 ruff format --check src tests
-pytest -q
+pytest -q -m "not network"
 ```
 
 **Dependency audit:** Linux CI also runs **`pip-audit`** after the same editable install; copy the exact command from [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) or [CONTRIBUTING.md](CONTRIBUTING.md).
 
-CI runs the same **Ruff + pytest** steps on **Linux** (matrix **3.11–3.13**) and on **Windows** (**`windows-latest`**, **3.12** only); see [.github/workflows/ci.yml](.github/workflows/ci.yml), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
+CI runs the same **Ruff** and **`pytest -m 'not network'`** steps on **Linux** (matrix **3.11–3.13**) and on **Windows** (**`windows-latest`**, **3.12** only); see [.github/workflows/ci.yml](.github/workflows/ci.yml), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
 
 ## Optional agent workflows
 

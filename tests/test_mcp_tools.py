@@ -10,7 +10,12 @@ from replayt import LogLockError
 from replayt.persistence import SQLiteStore
 from replayt.persistence.jsonl import JSONLStore
 
-from replayt_mcp_bridge.tools_health import replayt_echo, replayt_version_info
+import replayt_mcp_bridge.tools_health as tools_health_mod
+from replayt_mcp_bridge.tools_health import (
+    replayt_doctor,
+    replayt_echo,
+    replayt_version_info,
+)
 from replayt_mcp_bridge.tools_persistence import persistence_list_run_events
 from replayt_mcp_bridge.observability import (
     parse_default_run_events_max_count,
@@ -348,6 +353,80 @@ def test_resolve_bridge_tool_timeout_global_zero_disables(
     lim, src = resolve_bridge_tool_timeout_seconds("runner_dry_run_plan")
     assert lim is None
     assert src == "global_env"
+
+
+def test_replayt_doctor_skip_connectivity_ok() -> None:
+    out = asyncio.run(replayt_doctor())
+    assert out["status"] == "ok"
+    assert out.get("tool") == "replayt_doctor"
+    doc = out["doctor"]
+    assert isinstance(doc, dict)
+    assert "doctor" in str(doc.get("schema", "")).lower()
+    assert "checks" in doc
+    assert isinstance(doc["checks"], list)
+    assert "replayt_exit_code" in out
+
+
+def test_replayt_doctor_bad_target_structured_error() -> None:
+    out = asyncio.run(replayt_doctor(target="invalid_target_xyz"))
+    assert out["status"] == "error"
+    assert out["tool"] == "replayt_doctor"
+    assert out["replayt_surface"] == "replayt doctor + replayt.cli.targets.load_target"
+    assert "correlation_id" in out
+    assert "traceback" not in out
+
+
+def test_replayt_doctor_subprocess_non_json_maps_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _bad_stdout(_argv: list[str]) -> tuple[int, bytes, bytes]:
+        return 0, b"not-json", b"typer failed"
+
+    monkeypatch.setattr(
+        tools_health_mod,
+        "_run_replayt_doctor_subprocess",
+        _bad_stdout,
+    )
+    out = asyncio.run(replayt_doctor())
+    assert out["status"] == "error"
+    assert out["tool"] == "replayt_doctor"
+    assert out["replayt_surface"] == "replayt doctor (subprocess / parse)"
+
+
+def test_replayt_doctor_timeout_on_slow_subprocess(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    async def _slow(_argv: list[str]) -> tuple[int, bytes, bytes]:
+        await asyncio.sleep(1.0)
+        return 0, b"{}", b""
+
+    monkeypatch.setenv(
+        "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_REPLAYT_DOCTOR_SECONDS",
+        "0.15",
+    )
+    monkeypatch.setattr(
+        tools_health_mod,
+        "_run_replayt_doctor_subprocess",
+        _slow,
+    )
+    out = asyncio.run(replayt_doctor())
+    assert out["status"] == "error"
+    assert out["replayt_surface"] == "bridge_timeout"
+    assert out["tool"] == "replayt_doctor"
+    assert "correlation_id" in out
+
+
+@pytest.mark.network
+def test_replayt_doctor_connectivity_opt_in() -> None:
+    """Runs ``replayt doctor`` without ``--skip-connectivity`` (outbound HTTP when configured).
+
+    Excluded from default CI via ``pytest -m 'not network'``; run locally when you intend
+    to exercise provider connectivity.
+    """
+
+    out = asyncio.run(replayt_doctor(skip_connectivity=False))
+    assert out["status"] == "ok"
+    assert "doctor" in out
 
 
 def test_workflow_contract_snapshot_timeout_registered_tool_cooperative_delay(

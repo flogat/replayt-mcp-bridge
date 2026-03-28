@@ -37,6 +37,9 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = [
+    "network: may open outbound connections; excluded from default CI (pytest -m 'not network')",
+]
 
 # Local venv copies under the repo (orchestrator / CI experiments) must not be linted;
 # they pull in pywin32 and other third-party scripts that fail ruff check.
