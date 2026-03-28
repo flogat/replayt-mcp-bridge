@@ -125,6 +125,32 @@ def test_ci_matrix_lists_expected_python_versions() -> None:
         )
 
 
+def test_ci_includes_windows_test_job() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    assert "test-windows:" in ci, (
+        ".github/workflows/ci.yml must define a test-windows job for Windows CI coverage"
+    )
+    assert "runs-on: windows-latest" in ci, (
+        "Windows CI job must use runs-on: windows-latest (see docs/MISSION.md Windows CI runner)"
+    )
+    # Single Windows Python minor (3.12) — keep in sync with README / CONTRIBUTING.
+    win_block = ci.split("test-windows:", 1)[1]
+    if "replayt-floor:" in win_block:
+        win_block = win_block.split("replayt-floor:", 1)[0]
+    assert 'python-version: "3.12"' in win_block, (
+        'test-windows job must pin python-version: "3.12"'
+    )
+    for step in (
+        'pip install -e ".[dev]"',
+        "ruff check src tests",
+        "ruff format --check src tests",
+        "pytest -q",
+    ):
+        assert step in win_block, f"test-windows job must run {step!r}"
+    assert "cache: pip" in win_block
+    assert "cache-dependency-path: pyproject.toml" in win_block
+
+
 def test_pyproject_classifiers_list_ci_python_minors() -> None:
     data = tomllib.loads(PYPROJECT_PATH.read_text(encoding="utf-8"))
     classifiers: list[str] = list(data["project"].get("classifiers") or [])
