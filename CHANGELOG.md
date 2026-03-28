@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **`persistence_list_run_events` volume limits** — After a successful **`load_events`**, the bridge enforces independent caps on **event count** and **compact JSON UTF-8 size** (**before** top-level allowlist and redaction): built-in defaults **10_000** events and **32 MiB**; process env **`REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT`** / **`REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES`** (`0` or negative disables that axis; invalid values log a warning and fall back to the built-in default); optional per-call **`max_events`** / **`max_total_bytes`** (positive integers only—`≤ 0` returns a structured parameter error). Over-limit returns **`replayt_surface: "bridge_run_events_volume"`** and stderr **`replayt_mcp_bridge.run_events.volume_limit`**. Parsing lives in **`observability.py`**; enforcement in **`tools_persistence.py`**. Docs: **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#run-event-volume-limits-backlog-spec)**, **[docs/SECURITY.md](docs/SECURITY.md)**; tests: **`tests/test_mcp_tools.py`**, **`tests/test_security_docs.py`**. [Backlog workflow phase 3 — Define hard caps for `persistence_list_run_events` volume]
+
 - **Tests (workflow phase 3 — dependency audit CI/docs contract)** — [`tests/test_version_contract_docs.py`](tests/test_version_contract_docs.py) keeps **`docs/DEPENDENCY_AUDIT.md`** **Canonical command** and **Local reproduction** aligned with the **`.github/workflows/ci.yml`** **`supply-chain`** job (`pip-audit` invocation, `pip install -e ".[dev]"`, Python **3.11 / 3.12 / 3.13** matrix). [Backlog: Add CI dependency vulnerability scanning for direct runtime deps — workflow phase 3]
 
 ### Documentation

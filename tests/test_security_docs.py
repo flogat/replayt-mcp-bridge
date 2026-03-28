@@ -152,3 +152,12 @@ def test_observability_defines_run_event_fields_env_var() -> None:
     text = obs.read_text(encoding="utf-8")
     assert "REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS" in text
     assert "parse_default_run_event_field_allowlist" in text
+
+
+def test_observability_defines_run_events_volume_env_vars() -> None:
+    obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
+    text = obs.read_text(encoding="utf-8")
+    assert "REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT" in text
+    assert "REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES" in text
+    assert "parse_default_run_events_max_count" in text
+    assert "parse_default_run_events_max_total_bytes" in text

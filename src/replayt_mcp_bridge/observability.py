@@ -150,6 +150,71 @@ def run_events_redaction_enabled() -> bool:
     return raw.strip().lower() in _RUN_EVENTS_REDACTION_TRUTHY
 
 
+_DEFAULT_RUN_EVENTS_MAX_COUNT = 10_000
+_DEFAULT_RUN_EVENTS_MAX_TOTAL_BYTES = 33_554_432  # 32 MiB
+
+_RUN_EVENTS_MAX_COUNT_ENV = "REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT"
+_RUN_EVENTS_MAX_TOTAL_BYTES_ENV = "REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES"
+
+
+def parse_default_run_events_max_count() -> int | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT`` for ``persistence_list_run_events``.
+
+    Returns ``None`` when the count cap is disabled (env **0** or negative). When unset, empty, or invalid, returns the
+    built-in default **10_000**. When set to a positive integer, returns that limit.
+    """
+
+    log = logging.getLogger("replayt_mcp_bridge")
+    raw = os.environ.get(_RUN_EVENTS_MAX_COUNT_ENV)
+    if raw is None:
+        return _DEFAULT_RUN_EVENTS_MAX_COUNT
+    stripped = raw.strip()
+    if not stripped:
+        return _DEFAULT_RUN_EVENTS_MAX_COUNT
+    try:
+        v = int(stripped, 10)
+    except ValueError:
+        log.warning(
+            "Invalid %s value: %r; using built-in default %s",
+            _RUN_EVENTS_MAX_COUNT_ENV,
+            raw,
+            _DEFAULT_RUN_EVENTS_MAX_COUNT,
+        )
+        return _DEFAULT_RUN_EVENTS_MAX_COUNT
+    if v <= 0:
+        return None
+    return v
+
+
+def parse_default_run_events_max_total_bytes() -> int | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES`` for ``persistence_list_run_events``.
+
+    Returns ``None`` when the encoded-size cap is disabled (env **0** or negative). When unset, empty, or invalid,
+    returns the built-in default **32 MiB** (``33_554_432``). When set to a positive integer, returns that limit.
+    """
+
+    log = logging.getLogger("replayt_mcp_bridge")
+    raw = os.environ.get(_RUN_EVENTS_MAX_TOTAL_BYTES_ENV)
+    if raw is None:
+        return _DEFAULT_RUN_EVENTS_MAX_TOTAL_BYTES
+    stripped = raw.strip()
+    if not stripped:
+        return _DEFAULT_RUN_EVENTS_MAX_TOTAL_BYTES
+    try:
+        v = int(stripped, 10)
+    except ValueError:
+        log.warning(
+            "Invalid %s value: %r; using built-in default %s",
+            _RUN_EVENTS_MAX_TOTAL_BYTES_ENV,
+            raw,
+            _DEFAULT_RUN_EVENTS_MAX_TOTAL_BYTES,
+        )
+        return _DEFAULT_RUN_EVENTS_MAX_TOTAL_BYTES
+    if v <= 0:
+        return None
+    return v
+
+
 def parse_default_run_event_field_allowlist() -> list[str] | None:
     """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`` for ``persistence_list_run_events``.
 
