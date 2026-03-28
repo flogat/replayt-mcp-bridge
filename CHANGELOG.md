@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Minimal environment inheritance (SECURITY)** — [docs/SECURITY.md](docs/SECURITY.md) adds **Minimal environment inheritance** (inherited trust surface, upstream hook and timeout env names, policy-hook vars, local dev vs high-assurance profiles, POSIX `env -i` and Windows PowerShell examples, and what stripping env does **not** fix). [README.md](README.md) **Security, secrets, and MCP hosting** links the same anchor. [docs/MISSION.md](docs/MISSION.md) points the **Secrets** bullet and backlog spec at the shipped section. Tests: [`tests/test_security_docs.py`](tests/test_security_docs.py). [Backlog workflow phase 3 — Publish minimal-environment invocation guidance for high-assurance hosts]
+
 - **GitHub issue templates (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **GitHub issue templates (integration vs bridge-defect reports)** (intent, template split, minimum fields, version and secrets guidance, doc links, acceptance criteria **(1–3)**, backlog traceability). [CONTRIBUTING.md](CONTRIBUTING.md) adds **GitHub issues** (template choice + SECURITY pointer). [docs/SECURITY.md](docs/SECURITY.md) § **MCP host and client logs** points reporters at the same MISSION section. [Backlog: Add GitHub issue templates for integration vs bridge-defect reports — workflow phase 2]
 
 ### Added
