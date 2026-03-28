@@ -111,7 +111,7 @@ match your team’s tooling.
 | `CHANGELOG.md` | Release history (Keep a Changelog) |
 | `CONTRIBUTING.md` | How to run checks locally and what CI enforces |
 | `.github/workflows/ci.yml` | Automated Ruff + pytest workflow |
-| `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (core-gap / showcase / bridge / combinator prompts) |
+| `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (pattern options and recorded **Your choice**) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |
 | `docs/MCP_HOST_CONFIG.md` | MCP host JSON / stdio launch examples (Claude Desktop, Cursor, Zed) |

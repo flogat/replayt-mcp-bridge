@@ -1,5 +1,6 @@
 """Contract tests for docs/MISSION.md and README discoverability."""
 
+import re
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -14,8 +15,12 @@ def test_mission_file_exists() -> None:
 def test_mission_has_no_draft_placeholder_section() -> None:
     text = MISSION_PATH.read_text(encoding="utf-8")
     lower = text.lower()
-    assert "## draft" not in lower
-    assert "draft prompt" not in lower
+    # Forbid stub section headings only; spec gate prose may say there is no "draft prompts" block.
+    assert not re.search(
+        r"^#{1,6}\s+draft\b",
+        lower,
+        flags=re.MULTILINE,
+    ), "MISSION.md must not contain a draft-placeholder heading (e.g. ## Draft prompts)"
 
 
 def test_mission_states_bridge_primary_pattern_and_ecosystem_link() -> None:
@@ -23,6 +28,27 @@ def test_mission_states_bridge_primary_pattern_and_ecosystem_link() -> None:
     assert "**Primary pattern:**" in text
     assert "bridge" in text.lower()
     assert "REPLAYT_ECOSYSTEM_IDEA.md" in text
+
+
+def test_mission_primary_pattern_line_matches_spec_gate() -> None:
+    """One line after **Primary pattern:** names alternatives and both ecosystem anchors (MISSION spec gate)."""
+    text = MISSION_PATH.read_text(encoding="utf-8")
+    start = text.index("**Primary pattern:**")
+    line_end = text.index("\n", start)
+    line = text[start:line_end]
+    assert "core-gap" in line
+    assert "LLM showcase" in line
+    assert "combinator" in line
+    assert "(REPLAYT_ECOSYSTEM_IDEA.md#3-framework-bridge)" in line
+    assert "(REPLAYT_ECOSYSTEM_IDEA.md#your-choice)" in line
+    assert line.rstrip().endswith(".")
+
+
+def test_mission_what_replayt_points_at_mcp_tools_mapping_title() -> None:
+    text = MISSION_PATH.read_text(encoding="utf-8")
+    assert "## What replayt provides" in text
+    assert "MCP_TOOLS.md" in text
+    assert "Mapping: tool → replayt capability" in text
 
 
 def test_mission_covers_users_scope_success_and_non_goals() -> None:

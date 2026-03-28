@@ -11,8 +11,8 @@ from replayt.cli.validation import validate_workflow_graph, validation_report
 from replayt.graph_export import workflow_to_mermaid
 
 from replayt_mcp_bridge.mcp_instance import mcp
-from replayt_mcp_bridge.utils import _correlation_id_for_invocation, _tool_error, with_timeout
-from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries
+from replayt_mcp_bridge.utils import with_timeout
+from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries, _tool_error
 
 
 @mcp.tool()
@@ -37,7 +37,9 @@ async def workflow_contract_snapshot(
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-async def workflow_graph_mermaid(target: str, ctx: Context | None = None) -> dict[str, Any]:
+async def workflow_graph_mermaid(
+    target: str, ctx: Context | None = None
+) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
     tool = "workflow_graph_mermaid"
