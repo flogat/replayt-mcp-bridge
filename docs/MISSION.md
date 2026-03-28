@@ -78,7 +78,7 @@ listeners, authentication, and network exposure to a threat model that matches w
 effects (filesystem, network, subprocesses), and align exposure with organizational access policy.
 
 **Secrets:** Do not embed API keys, tokens, or private paths in code or committed defaults; document required environment
-variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below). For **normative acceptance criteria** on spawning the bridge with a **minimal inherited environment** (high-assurance hosts), see [Minimal environment for high-assurance hosts (backlog spec)](#minimal-environment-for-high-assurance-hosts-backlog-spec) below; the shipped operator copy-of-record for examples and variable lists will live in **[SECURITY.md](SECURITY.md)** once implemented.
+variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below). For **normative acceptance criteria** on spawning the bridge with a **minimal inherited environment** (high-assurance hosts), see [Minimal environment for high-assurance hosts (backlog spec)](#minimal-environment-for-high-assurance-hosts-backlog-spec) below; the operator copy-of-record for examples and variable lists is **[SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance)**.
 
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent.
@@ -128,9 +128,9 @@ dynamic code execution, or paths outside documented intent.
 1. **`docs/SECURITY.md`** contains the new section with **POSIX** and **Windows** examples, the **two profiles**, **hook** and **credential** callouts, and the **does not fix** list above.
 2. **`README.md`** includes an anchor link to the new section from **## Security, secrets, and MCP hosting** (first ~45 lines remain consistent with [`tests/test_security_docs.py`](../tests/test_security_docs.py) expectations for SECURITY discoverability unless the test window is intentionally updated in the same change-set).
 3. **Wording** stays consistent with [Environment variables](SECURITY.md#environment-variables) (full inheritance, replayt + bridge vars).
-4. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit); this spec-only phase does not require a changelog entry.
+4. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit).
 
-**Implementation status:** **Not shipped** — spec recorded here for phase **3** (Builder).
+**Implementation status:** **Shipped** — [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance), README link, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_security_docs.py`](../tests/test_security_docs.py) (workflow phase **3** Builder).
 
 ### Backlog traceability: “Publish minimal-environment invocation guidance for high-assurance hosts”
 
