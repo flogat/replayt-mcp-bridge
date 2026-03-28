@@ -90,9 +90,9 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Source of truth:** [.github/workflows/ci.yml](../.github/workflows/ci.yml) installs with `pip install -e ".[dev]"`, then runs **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** as **separate steps** so the first failure is obvious. Pip cache uses `actions/setup-python` with `cache-dependency-path: pyproject.toml`. The workflow sets **`permissions: contents: read`** so the default `GITHUB_TOKEN` cannot write repository contents. The matrix covers Python **3.11**, **3.12**, and **3.13**; the **`replayt-floor`** job reinstalls **`replayt==0.4.25`** after the editable install to guard the declared lower bound in `pyproject.toml`.
 
-**Documentation mirror:** [README.md](../README.md) (“Local checks”) and [CONTRIBUTING.md](../CONTRIBUTING.md) list the same Ruff and pytest invocations so contributors can reproduce CI without a shared script—duplication is intentional so each doc stands alone.
+**Contributor documentation:** [CONTRIBUTING.md](../CONTRIBUTING.md) names **`python scripts/run_ci_checks.py`** as the one-shot check whose argv matches the Linux **`test`** job (and the **`test-windows`** / **`replayt-floor`** Ruff + pytest steps). [README.md](../README.md) **Local checks** links there and still lists the three commands for copy-paste. Normative scope, explicit non-scope, and drift rules are in [MISSION.md](MISSION.md#single-local-check-entrypoint-contributor-ci-parity). [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) **`test_run_ci_checks_script_matches_ci_test_job_steps`** keeps **`CI_CHECK_STEPS`** aligned with **`.github/workflows/ci.yml`**; [`tests/test_run_ci_checks.py`](../tests/test_run_ci_checks.py) covers fail-fast exit codes and **`cwd`**.
 
-**Backlog alignment:** The “pytest + ruff CI + CONTRIBUTING expectations” item is structurally satisfied: workflow on PR/push (plus `mc/**` pushes), README and CONTRIBUTING document local commands and `pip install -e ".[dev]"` for Ruff, and [MISSION.md](MISSION.md#ci-and-contributor-automation) records the refined acceptance criteria. **Default branch green** remains an operational outcome after merge.
+**Backlog alignment:** Workflow on PR/push (plus `mc/**` pushes), README and CONTRIBUTING document **`pip install -e ".[dev]"`** and the Ruff/pytest bar, [`scripts/run_ci_checks.py`](../scripts/run_ci_checks.py) matches the **`test`** / **`test-windows`** / **`replayt-floor`** lint + test argv, and [MISSION.md](MISSION.md#ci-and-contributor-automation) records the refined acceptance criteria. **Default branch green** remains an operational outcome after merge.
 
 ### Architecture review: Python CI matrix (3.11–3.13)
 
@@ -453,7 +453,9 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 | `CHANGELOG.md` | Keep a Changelog history; release notes for integrators |
 | `pyproject.toml` | Bridge version and declared `replayt` dependency range (SSoT) |
 | `.github/workflows/ci.yml` | Ruff + pytest workflow and replayt floor job |
+| `scripts/run_ci_checks.py` | Optional local runner: same Ruff + pytest argv as **`test`** jobs (fail-fast) |
 | `CONTRIBUTING.md` | Local check commands aligned with CI; Releases paragraph |
+| `tests/test_run_ci_checks.py` | Unit tests for **`run_ci_checks`** (fail-fast, **`cwd`**, exit codes) |
 | `tests/test_version_contract_docs.py` | Contract tests: docs + CI aligned with `pyproject.toml` |
 | `docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md` | Maintainer spike log and rerun steps for replayt `0.5.x` before widening `<0.5` |
 | `tests/test_replayt_0_5_spike_docs.py` | Contract tests: spike doc sections, touchpoints, links, pyproject echo |
