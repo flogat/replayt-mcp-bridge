@@ -15,7 +15,15 @@ pip install -e ".[dev]"
 
 ## Checks before you open a PR
 
-Run the same commands CI uses, in order (any failure should block the PR):
+**Preferred (one command, same argv as CI):** from the repository root, with your venv active and **`pip install -e ".[dev]"`** already done:
+
+```bash
+python scripts/run_ci_checks.py
+```
+
+The script runs **`ruff check src tests`**, then **`ruff format --check src tests`**, then **`pytest -q -m "not network"`** — the same three subprocesses as the Linux **`test`** job and the **`test-windows`** / **`replayt-floor`** lint + test steps in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). It **stops on the first failing step** and exits with that command’s return code (**1** when no code is available). Normative parity and scope (no default **`pip-audit`**) are in [docs/MISSION.md § Single local check entrypoint](docs/MISSION.md#single-local-check-entrypoint-contributor-ci-parity).
+
+**Manual (equivalent):** run the same commands CI uses, in order (any failure should block the PR):
 
 ```bash
 ruff check src tests

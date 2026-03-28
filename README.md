@@ -99,6 +99,8 @@ ruff format --check src tests
 pytest -q -m "not network"
 ```
 
+**One-command wrapper:** from the repo root, **`python scripts/run_ci_checks.py`** after **`pip install -e ".[dev]"`** (see [CONTRIBUTING.md § Checks before you open a PR](CONTRIBUTING.md#checks-before-you-open-a-pr)). Parity rules and scope are in [docs/MISSION.md § Single local check entrypoint](docs/MISSION.md#single-local-check-entrypoint-contributor-ci-parity).
+
 **Dependency audit:** Linux CI runs **`pip-audit`** in a separate **`supply-chain`** job after the same **`pip install -e ".[dev]"`**. A failed audit **fails that job** (blocking); it is **not** bundled with the default **pytest** step. Copy the exact command from [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) or [CONTRIBUTING.md](CONTRIBUTING.md).
 
 **Workflow action pins:** [`.github/dependabot.yml`](.github/dependabot.yml) configures **Dependabot** for **`uses:`** references (weekly, grouped PRs). That path is separate from **`pip-audit`**; see [CONTRIBUTING.md § GitHub Actions pin updates](CONTRIBUTING.md#github-actions-pin-updates-dependabot) and [docs/MISSION.md § Dependabot](docs/MISSION.md#dependabot-or-equivalent-for-github-actions-pins).
@@ -129,4 +131,5 @@ match your team’s tooling.
 | `docs/SECURITY.md` | Env vars, logging rules, deployment trust boundary, replayt credentials |
 | `docs/reference-documentation/` | Optional markdown snapshot for contributors (when present) |
 | `src/replayt_mcp_bridge/` | Python package (import `replayt_mcp_bridge`) |
+| `scripts/run_ci_checks.py` | Local **Ruff** + **pytest** bar (same argv as CI **`test`** jobs) |
 | `pyproject.toml` | Package metadata |

@@ -213,6 +213,63 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
 6. **Default branch health** — After the workflow merges, **CI on the default branch stays green** (operational bar for closing the backlog item).
 
+**Single local entrypoint:** Prefer **`python scripts/run_ci_checks.py`** after **`pip install -e ".[dev]"`** for **argv parity** with the default test jobs—see [Single local check entrypoint (contributor CI parity)](#single-local-check-entrypoint-contributor-ci-parity).
+
+## Single local check entrypoint (contributor CI parity)
+
+**Backlog title:** **Provide a single local check entrypoint for contributors**
+
+**User story:** As a **new contributor**, I want **one command** that runs the **same** **Ruff** and **pytest** sequence as the **default CI test jobs** so I do not have to copy three shell lines from the README.
+
+**Intent:** A **thin wrapper** may coexist with **copy-paste** documentation in [README.md](../README.md) and [CONTRIBUTING.md](../CONTRIBUTING.md). Normative parity is **subprocess argument vectors** and **ordering** for lint + default pytest, aligned with **`.github/workflows/ci.yml`**.
+
+**Canonical invocation (implemented):** From the **repository root**, with **`pip install -e ".[dev]"`** already applied to the **active** interpreter / venv:
+
+```bash
+python scripts/run_ci_checks.py
+```
+
+**Normative step list (must match the Linux `test` job’s Ruff + pytest run lines):**
+
+1. **`ruff check src tests`**
+2. **`ruff format --check src tests`**
+3. **`pytest -q -m "not network"`**
+
+Those are the same three **run** steps used in the **`test`**, **`test-windows`**, and **`replayt-floor`** jobs for lint and tests (Windows uses the same argv; **`replayt-floor`** adds a prior **`pip install --force-reinstall "replayt==0.4.25"`** step that the wrapper does **not** duplicate).
+
+**Explicit non-scope (normative):** The default local entrypoint does **not** run **`pip-audit`** (the **`supply-chain`** job), does **not** reinstall a floor **replayt** pin, and does **not** substitute for a full **GitHub Actions** matrix (multiple Python minors). Contributors follow [CONTRIBUTING.md](../CONTRIBUTING.md) and [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) for **supply-chain** reproduction.
+
+**Tooling versions:** **Ruff** must come from the environment produced by **`pip install -e ".[dev]"`** so it resolves per **`[project.optional-dependencies] dev`** in **`pyproject.toml`** (same as CI install steps). **pytest** is declared under **`[project].dependencies`**; the wrapper invokes the **`pytest`** on **`PATH`** from that environment.
+
+**Behavior (normative):**
+
+- **Fail-fast** — After each step, if the subprocess returns **nonzero**, the wrapper **exits immediately** with that return code (or **1** when no code is available—implementations should document the choice; today [`scripts/run_ci_checks.py`](../scripts/run_ci_checks.py) returns **`1`** only when **`returncode` is `None`**).
+- **Working directory** — **Repository root**, so relative paths **`src`** and **`tests`** match CI.
+- **Portability** — The documented command uses **`python …`** only (no POSIX-only shell features required for the **default** path), so it is **feasible on Windows and Unix** with the same venv story as [CONTRIBUTING.md](../CONTRIBUTING.md).
+
+**Automation / regression guard:** [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) **`test_run_ci_checks_script_matches_ci_test_job_steps`** asserts that **`scripts/run_ci_checks.py`** **`CI_CHECK_STEPS`** stays aligned with the **Linux `test`** job’s **`ruff` / `pytest`** **run** lines in **`.github/workflows/ci.yml`**. When CI changes those steps, update **the script and the test** in the **same** change-set.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **CONTRIBUTING is copy-of-record** — [CONTRIBUTING.md](../CONTRIBUTING.md) names **`python scripts/run_ci_checks.py`** as the **preferred** one-shot check (after **`pip install -e ".[dev]"`**) and states that it matches the **Ruff** + **pytest** subprocesses in the **`test`**, **`test-windows`**, and **`replayt-floor`** jobs.
+2. **README cross-link** — [README.md](../README.md) **Local checks** (or equivalent) points contributors at that command and optionally at this section (recommended for discoverability).
+3. **Argv parity** — The wrapper runs the **same** **`ruff`** and **`pytest`** argument lists—in **order**—as the Linux **`test`** job steps above (**`src`**, **`tests`**, marker **`not network`**).
+4. **First failure wins** — First failing step yields a **nonzero** process exit; all steps passing yields **0**.
+5. **Windows + Unix** — The documented invocation works on **Windows** and **Unix** where **`python`** is the same interpreter used for **`pip install -e ".[dev]"`** (see [Windows CI runner (install and pytest smoke)](#windows-ci-runner-install-and-pytest-smoke) for CI signal on **`windows-latest`**).
+6. **Drift detection** — A **contract test** (today **`test_run_ci_checks_script_matches_ci_test_job_steps`**) fails if **`CI_CHECK_STEPS`** and **`.github/workflows/ci.yml`** diverge.
+
+**Implementation status (shipped):** [`scripts/run_ci_checks.py`](../scripts/run_ci_checks.py); contributor docs in [CONTRIBUTING.md](../CONTRIBUTING.md) and [README.md](../README.md); this section is the **normative** scope and parity definition for the backlog item.
+
+### Backlog traceability: “Provide a single local check entrypoint for contributors”
+
+**Original acceptance criteria:**
+
+- Documented command in **CONTRIBUTING.md** (README optional cross-link).
+- Wrapper exits **nonzero** on first failing step; works on **Windows** and **Unix** where feasible.
+- Must invoke the **same** **Ruff** and **pytest** arguments **CI** uses; version pins follow **`pyproject.toml`** **dev** extra (and base deps for **pytest**).
+
+**Close the tracker when:** **(1–6)** above hold **and** the **original** bullets remain true after any CI or script change (update **script + contract test + docs** together when **`ci.yml`** steps change).
+
 ## CI dependency vulnerability scanning (supply-chain)
 
 **Backlog title:** **Add CI dependency vulnerability scanning for direct runtime deps**
