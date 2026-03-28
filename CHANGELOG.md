@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Dependabot for GitHub Actions pins (workflow phase 3)** — [`.github/dependabot.yml`](.github/dependabot.yml) enables **Dependabot v2** for **`github-actions`** (`directory: "/"`, **weekly** schedule, **`github-actions`** update **group**). [CONTRIBUTING.md](CONTRIBUTING.md) adds **GitHub Actions pin updates (Dependabot)** (merge bar, **PyPI** vs **`uses:`** pointers to [docs/MISSION.md](docs/MISSION.md) and [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md)). [docs/MISSION.md](docs/MISSION.md) § Dependabot records **shipped** status. Contract tests in [`tests/test_version_contract_docs.py`](tests/test_version_contract_docs.py). [Backlog: Add Dependabot (or equivalent) for GitHub Actions pins — workflow phase 3]
+
 ### Documentation
 
 - **Dependabot / GitHub Actions pins (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **Dependabot (or equivalent) for GitHub Actions pins** (intent, non-goals, default **`.github/dependabot.yml`** shape, documented-behavior bar, acceptance criteria **(1–5)**, and backlog traceability). [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) clarifies that **`pip-audit`** does not cover **`uses:`** pins. [docs/SECURITY.md](docs/SECURITY.md) points maintainers at the same MISSION section for **Actions** supply-chain automation. [Backlog: Add Dependabot (or equivalent) for GitHub Actions pins — workflow phase 2]

@@ -1,0 +1,14 @@
+# Dependabot v2 — GitHub Actions `uses:` pins only (.github/workflows/*.yml; see directory "/" below).
+# Cadence: weekly. Group `github-actions` bundles eligible action bumps into one PR when possible
+# (branch/PR titles use the group identifier per Dependabot defaults).
+# PyPI / pip dependencies are covered by pip-audit in CI, not this file — see docs/MISSION.md and docs/DEPENDENCY_AUDIT.md.
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns:
+          - "*"

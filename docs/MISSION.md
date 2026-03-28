@@ -291,7 +291,7 @@ YAML **leading comments** satisfy this bar; a short **`.github/DEPENDABOT.md`** 
 4. **CONTRIBUTING maintainer note** — [CONTRIBUTING.md](../CONTRIBUTING.md) gains **at least one** short subsection or paragraph that tells maintainers **how Action pin updates arrive** (Dependabot PRs or equivalent), that **green CI** is the **merge bar** unless a change is **intentionally** held, and **where** to read the **full** policy (**this section** + the **`.github/`** config). It should **cross-link** **[pip-audit](#ci-dependency-vulnerability-scanning-supply-chain)** / **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** so **PyPI** vs **Actions** automation is not conflated.
 5. **Operational bar** — After merge, **Dependabot (or equivalent)** is observed to open **at least one** valid PR or **would** open PRs when pins drift (maintainers may **simulate** by temporarily pinning an **older** patch in a throwaway branch if needed); **no** requirement to merge a bot PR in the **same** change-set as the config **unless** the team chooses to.
 
-**Implementation status:** **Not shipped** — specification only in this phase; phase **3** (Builder) adds the **config**, **CONTRIBUTING** text, and verifies **org** settings.
+**Implementation status (shipped):** **`.github/dependabot.yml`** is committed (**`github-actions`**, **`directory: "/"`**, **weekly** schedule, **grouped** updates under **`github-actions`**). Maintainer process lives in **[CONTRIBUTING.md](../CONTRIBUTING.md)**. **Org/repo** must still allow Dependabot version updates (or maintainers use a documented equivalent such as Renovate).
 
 ### Backlog traceability: “Add Dependabot (or equivalent) for GitHub Actions pins”
 
