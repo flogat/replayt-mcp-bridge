@@ -276,6 +276,21 @@ Target loading, persistence validation, and store resolution failures return a J
 }
 ```
 
+### Backlog spec: structured error `message` — path and detail disclosure
+
+**Backlog title:** **Tighten operator guidance on path and detail leakage in structured errors.**
+
+**Integrator SSoT:** [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail) — what may appear in **`message`**, typical leak scenarios, explicit **non-goal** (no zero-leakage promise across all replayt surfaces), and operational mitigations.
+
+**Shipped today (behavioral summary):** Mapped failures return **verbatim** `message` strings from replayt/Typer, bridge validation, `OSError` text, mapped replayt exceptions, or (for `replayt_doctor`) truncated subprocess stderr—see the SECURITY table. **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** affects **`persistence_list_run_events`** **`events`** on success paths only; it **does not** sanitize structured error **`message`** today.
+
+**Refined acceptance criteria (close-out bar):**
+
+1. **Documentation** — SECURITY section above is the normative disclosure doc; this subsection stays cross-linked from [Error response shape](#error-response-shape). **Spec phase 2** lands the prose; no production change required to satisfy (1) alone.
+2. **Optional code (backward compatible)** — If maintainers add opt-in truncation/redaction for **`message`**: introduce a documented **`REPLAYT_MCP_BRIDGE_*`** env (or equivalent opt-in), **default off**, and describe which **`replayt_surface`** / inventory rows participate.
+3. **Tests (required when (2) ships)** — Pytest proves **off vs on** with a **controlled** mapped failure (stable fixture); assert redacted/truncated vs raw path or substring without depending on volatile upstream wording except where isolated.
+4. **CHANGELOG** — Note user-visible behavior when (2) ships.
+
 ### Specification: `correlation_id` (bounded structured errors backlog)
 
 **Goal:** MCP client authors can quote a single identifier when reporting issues; operators find the same value in **structured stderr logs** for that tool invocation—without putting tracebacks in the tool result.

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **Structured error `message` disclosure (spec, workflow phase 2)** — [docs/SECURITY.md](docs/SECURITY.md#structured-error-messages-paths-and-operational-detail) adds **Structured error messages: paths and operational detail** (sources table, leak scenarios, explicit non-goal of zero leakage, optional future opt-in **`REPLAYT_MCP_BRIDGE_*`** redaction/truncation spec for implementers). [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#error-response-shape) adds **Backlog spec: structured error `message` — path and detail disclosure** (SSoT pointer, acceptance criteria). [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-review-phase-6) **Information disclosure** cross-links the SECURITY section. [docs/MISSION.md](docs/MISSION.md#security-and-trust-boundaries) **Bridge tools** notes the same disclosure. [README.md](README.md#security-secrets-and-mcp-hosting) **Tool exposure** links the same anchor. [Backlog workflow phase 2 — Tighten operator guidance on path and detail leakage in structured errors]
+
 - **GitHub issue templates (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **GitHub issue templates (integration vs bridge-defect reports)** (intent, template split, minimum fields, version and secrets guidance, doc links, acceptance criteria **(1–3)**, backlog traceability). [CONTRIBUTING.md](CONTRIBUTING.md) adds **GitHub issues** (template choice + SECURITY pointer). [docs/SECURITY.md](docs/SECURITY.md) § **MCP host and client logs** points reporters at the same MISSION section. [Backlog: Add GitHub issue templates for integration vs bridge-defect reports — workflow phase 2]
 
 ### Added

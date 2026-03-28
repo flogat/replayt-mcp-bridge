@@ -1,6 +1,6 @@
 # Security: secrets, environment, and trust boundaries
 
-This document is for **operators and security reviewers** hosting the MCP bridge. It complements [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries) and [ARCHITECTURE.md § Security review](ARCHITECTURE.md#security-review-phase-6).
+This document is for **operators and security reviewers** hosting the MCP bridge. It complements [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries) and [ARCHITECTURE.md § Security review](ARCHITECTURE.md#security-review-phase-6). For **what may appear inside structured tool-error `message` strings** (paths, replayt/Typer wording, and transcript risks), read [Structured error messages: paths and operational detail](#structured-error-messages-paths-and-operational-detail).
 
 For how **deployment and transport**, **MCP clients**, **secrets**, **inputs**, and **bridge tools** fit together, keep this table aligned with the mission’s trust-boundary narrative—especially **small tool surface**, **side effects** (filesystem, network, subprocesses), and treating **`target`** / persistence inputs as **operator-trusted** where the mission calls that out.
 
@@ -54,7 +54,7 @@ Use this table when deciding **which tools to register or block** in a given MCP
 **Residual risks — not fully fixable by “turning off” tools in the host UI:**
 
 - **Enforcement vs presentation** — If the host only hides tools from prompts but still accepts `tools/call` for every registered name, a custom or compromised client could invoke “disabled” tools. Strong guarantees require the host (or an MCP gateway) to **reject disallowed calls on the wire**; this package does not ship that layer.
-- **Path- and input-bearing `message` fields** — Structured `{ status: error, … }` results carry a **`message` string** built from replayt/Typer errors, bridge validation text, or `str(exc)` for some `OSError` paths. Examples in the current code include messages that embed **resolved filesystem paths** (e.g. missing SQLite file) or the **literal `store_hint`** for certain shape mistakes—useful for operators, but a **disclosure channel** if copied into logs or shown to untrusted clients. **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** denials are intentionally **generic** (no client path in the tool result or structured rejection log line); that behavior is **not** universal across all error branches—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape).
+- **Path- and input-bearing `message` fields** — Structured `{ status: error, … }` results carry a **`message` string** built from replayt/Typer errors, bridge validation text, or `str(exc)` for some `OSError` paths. Examples in the current code include messages that embed **resolved filesystem paths** (e.g. missing SQLite file) or the **literal `store_hint`** for certain shape mistakes—useful for operators, but a **disclosure channel** if copied into logs or shown to untrusted clients. **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** denials are intentionally **generic** (no client path in the tool result or structured rejection log line); that behavior is **not** universal across all error branches—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape) and the normative disclosure section [Structured error messages: paths and operational detail](#structured-error-messages-paths-and-operational-detail).
 - **Unhandled exceptions** — Mapped failures avoid Python tracebacks **in the returned object** for covered paths; **unhandled** exceptions may still surface per FastMCP / SDK / host behavior and can leak different detail than structured errors. See [Structured tool errors vs unhandled exceptions](#structured-tool-errors-vs-unhandled-exceptions) and the **replayt** mapping stance in [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk).
 - **Successful payloads** — Contract snapshots, Mermaid text, dry-check reports, and especially **persistence events** may contain secrets or PII under keys the bridge does not treat as sensitive. Combine host tool policy with [MCP host and client logs](#mcp-host-and-client-logs) discipline and the optional allowlist / redaction env vars above. **`persistence_list_run_events` volume limits** ([MCP_TOOLS.md § Run event volume limits](MCP_TOOLS.md#run-event-volume-limits-backlog-spec)) bound **returned** list size and encoded **`events`** size after **`load_events`**; they do **not** remove the need for allowlists, redaction, or host policy on trusted-operator stores.
 
@@ -138,13 +138,55 @@ This package emits **one JSON object per line** on stderr for the `replayt_mcp_b
 
 ## Structured tool errors vs unhandled exceptions
 
-**Mapped operational failures** (inventory in [MCP_TOOLS.md § Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory), extended per [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk)) return a structured dict with **`status: "error"`**, **`message`**, and **`correlation_id`**. The **`message`** is visible to **every** attached MCP client (same disclosure model as Typer / `ValueError` / `OSError` paths and, on the JSONL store read path, mapped **`replayt.LogLockError`** lock-contention text)—it may contain paths or replayt wording; it is **not** a traceback inside that dict.
+**Mapped operational failures** (inventory in [MCP_TOOLS.md § Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory), extended per [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk)) return a structured dict with **`status: "error"`**, **`message`**, and **`correlation_id`**. The **`message`** is visible to **every** attached MCP client (same disclosure model as Typer / `ValueError` / `OSError` paths and, on the JSONL store read path, mapped **`replayt.LogLockError`** lock-contention text)—it may contain paths or replayt wording; it is **not** a traceback inside that dict. For a fuller inventory of sources and leak scenarios, see [Structured error messages: paths and operational detail](#structured-error-messages-paths-and-operational-detail).
 
 **Correlation alignment:** For those calls, bridge stderr emits **`replayt_mcp_bridge.tool.begin`** and **`replayt_mcp_bridge.tool.end`** with the **same** **`correlation_id`** as the tool result, so operators can join client reports to server logs without relying on host-only traces.
 
 **Unhandled tool exceptions** (anything **not** in the mapped inventory) still produce **`replayt_mcp_bridge.tool.unhandled_exception`** on stderr with the invocation’s **`correlation_id`**, followed by `logger.exception` (traceback on stderr). The handler **does not** emit **`tool.end`** for that invocation. The **wire-visible** error shape depends on the **MCP host / FastMCP** stack and may differ from structured `{ "status": "error", … }`—integrators should not assume parity until a failure is added to the mapped table.
 
 **SDK / transport:** JSON-RPC or transport errors outside the bridge’s tool return path are **out of scope** for the mapped error object; treat them as host/SDK concerns.
+
+## Structured error messages: paths and operational detail
+
+**Audience:** Integrators who **export MCP transcripts**, run **automated clients**, or attach **semi-trusted** hosts to the same server process as operators.
+
+### What may appear in `message`
+
+On **mapped** operational failures, tools return a single string field **`message`** inside `{ "status": "error", "tool", "replayt_surface", "message", "correlation_id" }` (see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape)). For those paths the dict **does not** carry a Python traceback; **`message`** is still **free-form operational text** and may include:
+
+| Source | Typical content in `message` |
+| ------ | ---------------------------- |
+| **Replayt / Typer** | Target resolution failures (`load_target` → `typer.BadParameter`): often the **target string** and/or **filesystem paths** as replayt formats them for CLI-style errors. |
+| **Bridge validation** | Persistence **`store_hint`** shape mistakes, invalid **`run_id`**, volume-limit parameters, diagnostic gate text—sometimes the **literal hint** or a bridge-owned English sentence. |
+| **`OSError` / I/O** | Store open/read failures: **`str(exc)`** frequently embeds **resolved paths** (missing SQLite file, permission denied, etc.). |
+| **`replayt.LogLockError`** (mapped JSONL path) | Upstream lock / store wording from replayt. |
+| **`replayt_doctor` subprocess path** | Empty stdout, non-JSON stdout, or missing schema id: **`message`** may include a **truncated stderr tail** from the child process (see [MCP_TOOLS.md § Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory)). |
+| **Bridge timeout** | Stable **`bridge_timeout`** labeling; generally **does not** echo tool arguments (see [MCP_TOOLS.md § Execution timeouts](MCP_TOOLS.md#execution-timeouts)). |
+
+**Not the same as event redaction:** **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (and related knobs) apply to **`events`** on **successful** `persistence_list_run_events` results. They **do not** today rewrite **`message`** on structured **`status: "error"`** responses.
+
+### Typical leak scenarios
+
+1. **Shared transcripts or tickets** — Pasting full tool results exposes **`message`** text that may encode **home directories**, **repo layouts**, **CI workspace roots**, or **operator-chosen target paths**.
+2. **Multi-client stdio sessions** — Every attached MCP client receives the **same** structured payload; **`message`** is not scoped per principal.
+3. **Contrast: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** — Mapped **denials** use **generic** `message` strings and structured logs **without** the client hint (see [Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`](#examples-replayt_mcp_bridge_store_hint_roots)). That **privacy-preserving** pattern is **intentional** for that branch only; **do not** assume all errors hide paths.
+4. **Unhandled exceptions** — Outside the mapped inventory, **client-visible** error shapes and detail follow **FastMCP / host** behavior; stderr may still contain **`logger.exception`** tracebacks for operator triage.
+
+### Explicit non-goal: zero leakage
+
+The bridge **does not** promise **zero** disclosure of filesystem paths or operational strings across **all** replayt surfaces, **future** tools, **upstream** wording changes, or **unmapped** exception paths. Documentation here is meant to set **predictable expectations** for integrators, not to imply a blanket sanitization guarantee.
+
+### Optional future hardening (spec — implement in a later phase)
+
+An **opt-in** **`REPLAYT_MCP_BRIDGE_*`** control (exact name and semantics **TBD** at implementation time) **may** apply **truncation or redaction** to **`message`** for **named** mapped error classes (for example path segments only, or a stable template per `replayt_surface`), with **default unset → current verbatim behavior** so automated clients stay backward compatible.
+
+If shipped, maintainers **must**:
+
+- Document the variable beside other bridge knobs in this file and in [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape) (and extend the [environment variables](#environment-variables) table).
+- Add **pytest** that compares **off vs on** using a **controlled fixture** on a **stable** mapped branch (prefer bridge-owned validation text or a path fragment under **`tmp_path`**, not volatile upstream prose), proving **redacted/truncated** substrings when on and **raw** fragments when off.
+- Record user-visible behavior under [CHANGELOG.md](../CHANGELOG.md) **Unreleased**.
+
+Until that control exists, rely on **host policy**, **transcript filtering**, and **correlation_id** + **operator-only stderr** for full triage.
 
 ## What must never be logged
 
