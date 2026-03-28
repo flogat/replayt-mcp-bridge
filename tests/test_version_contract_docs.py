@@ -1,4 +1,4 @@
-"""Keep pyproject.toml, DESIGN_PRINCIPLES, README, CHANGELOG, CONTRIBUTING, and CI in sync."""
+"""Keep pyproject.toml, DESIGN_PRINCIPLES, README, CHANGELOG, CONTRIBUTING, CI, and DEPENDENCY_AUDIT in sync."""
 
 from __future__ import annotations
 
