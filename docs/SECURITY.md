@@ -6,10 +6,10 @@ For how **deployment and transport**, **MCP clients**, **secrets**, **inputs**, 
 
 ## Dependency vulnerability scanning (CI)
 
-**Maintainers:** GitHub Actions runs **[pip-audit](https://pypi.org/project/pip-audit/)** on **Linux** after **`pip install -e ".[dev]"`** to flag **published advisories** in the **installed** dependency graph (runtime + dev tools used in CI). That is **supply-chain signal**, not a **compliance** or **exhaustive security** guarantee.
+**Maintainers:** GitHub Actions runs **[pip-audit](https://pypi.org/project/pip-audit/)** on **Linux** after **`pip install -e ".[dev]"`** to flag **published advisories** in the **installed** dependency graph (runtime + dev tools used in CI). That is **supply-chain signal**, not a **compliance** or **exhaustive security** guarantee. The **`supply-chain`** job is **blocking** (failed audit fails CI); there is no separate advisory-only step—see [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md#blocking-ci-vs-advisory).
 
-- **Policy, exact command, and accepted-risk table:** [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)
-- **Scope, non-goals, and acceptance bar:** [MISSION.md § CI dependency vulnerability scanning (supply-chain)](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain)
+- **Policy, exact command, accepted-risk table, and blocking semantics:** [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)
+- **Scope, non-goals, acceptance bar, and pytest vs audit separation:** [MISSION.md § CI dependency vulnerability scanning (supply-chain)](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain)
 
 ## MCP tool capability tiers
 

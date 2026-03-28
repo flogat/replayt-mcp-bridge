@@ -231,14 +231,27 @@ pip-audit --ignore-vuln CVE-2026-4539 --desc
 
 **Severity / gating policy:** **pip-audit** does **not** expose a **`--severity-high`** (or similar) gate in the versions we use. The **effective policy** is: **any** reported vulnerability **fails** the job **unless** it is **documented** as an accepted risk in **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** **and** the same **`--ignore-vuln`** IDs appear in **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** so reviewers see **one** audited list. Prefer **upstream fixes** (dependency bumps) over ignores; when upstream has **no** fix, record **CVE/advisory id**, **short rationale**, **revisit trigger**, and a **ticket or issue URL** in **DEPENDENCY_AUDIT.md** (see that file’s template).
 
+**Blocking vs advisory (normative):** The **`supply-chain`** workflow step is **blocking**: a **nonzero** **`pip-audit`** exit fails that job and therefore fails CI for the change. There is **no** separate **advisory-only** (warn-but-green) automation in this repository; introducing one would be an explicit maintainer backlog so policy stays documented.
+
+**Default pytest path vs audit:** Linux **`test`**, **`test-windows`**, and **`replayt-floor`** run **`pytest -q -m "not network"`** only—they do **not** invoke **`pip-audit`**. The vulnerability scan lives in the dedicated **`supply-chain`** job. Contributors matching the **default** local bar (**Ruff** + that **pytest** command) are aligned with those test jobs without running the audit; **[CONTRIBUTING.md](../CONTRIBUTING.md)** and **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** state when to run **`pip-audit`** and how it differs from **pytest** (including **network** expectations for advisory lookups).
+
 **Acceptance criteria (refined, for implementation and review):**
 
 1. **Workflow coverage** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) defines a **`supply-chain`** job that runs on **pull requests** and **pushes** to the default branch (and **`mc/**`** per existing **`on:`** conventions), on **`ubuntu-latest`**, with the **documented** **`pip-audit`** invocation after **`pip install -e ".[dev]"`** (same flags as [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)).
 2. **Python matrix alignment** — Unless a backlog explicitly narrows scope, **`supply-chain`** uses the **same CPython minors** as the Linux **`test`** job (**3.11, 3.12, 3.13**) so resolution differences across supported interpreters are visible.
 3. **Policy documentation** — [CONTRIBUTING.md](../CONTRIBUTING.md) and **[SECURITY.md](SECURITY.md)** point maintainers at **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** for **tool choice**, **severity / fail semantics**, **accepted-risk / false-positive** process, and **local reproduction**.
 4. **No lockfile mandate** — Closing this backlog does **not** require committing **`requirements.txt`**, **`uv.lock`**, **`poetry.lock`**, or similar unless a **separate** maintainer decision lands in the **same** change-set and is documented in **DEPENDENCY_AUDIT.md** and **CONTRIBUTING.md**.
+5. **CONTRIBUTING local reproduction** — [CONTRIBUTING.md](../CONTRIBUTING.md) documents how to reproduce the **`supply-chain`** check locally: **`pip install -e ".[dev]"`** then the **exact** **`pip-audit`** line from **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** (kept in sync with the workflow; guarded by **`tests/test_version_contract_docs.py`**).
+6. **Blocking vs advisory documented** — **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** and the **`supply-chain`** step comment in **`.github/workflows/ci.yml`** make the **blocking** semantics explicit (no silent downgrade to “warnings only” without a doc + workflow change).
+7. **Offline-friendly default pytest** — The documented **default** **`pytest -q -m "not network"`** path is **not** wired to **`pip-audit`** (no pytest plugin, no shared step with **`test`** that runs the scanner). **`pip-audit`** remains **CI-only** in the sense of **job separation**; local runs are optional for contributors who cannot reach advisory sources.
 
 **Implementation status (shipped):** **`pip-audit`** is listed under **`[project.optional-dependencies] dev`** in **`pyproject.toml`**; CI job **`supply-chain`** and **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** are the copy-of-record for flags and ignores. **Windows** jobs intentionally omit this audit—see **[Windows CI runner (install and pytest smoke)](MISSION.md#windows-ci-runner-install-and-pytest-smoke)**.
+
+### Backlog traceability: “Add automated dependency vulnerability scanning to CI”
+
+**Original backlog title:** *Add automated dependency vulnerability scanning to CI* (fail or warn on known vulnerable dependencies; prefer **pip-audit** / Dependency Review / equivalent with allowlist discipline).
+
+**Map to this section:** **pip-audit**, job **`supply-chain`**, and **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)**. Close the tracker when **(1–7)** above hold **and** the original backlog bullets hold: **workflow step** reproducible from **[CONTRIBUTING.md](../CONTRIBUTING.md)** with the **exact** command; **blocking vs advisory** policy explicit in docs and the workflow comment; **default pytest** path stays **decoupled** from **`pip-audit`** so offline contributors can match the test jobs without running the scanner.
 
 ## Windows CI runner (install and pytest smoke)
 
