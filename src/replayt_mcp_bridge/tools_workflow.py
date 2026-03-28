@@ -25,6 +25,17 @@ async def workflow_contract_snapshot(
     Maps to replayt.workflow.Workflow.contract() after resolving the target the same way as the replayt CLI.
     """
 
+    return await with_timeout(
+        _workflow_contract_snapshot_impl, "workflow_contract_snapshot"
+    )(
+        target,
+        ctx,
+    )
+
+
+async def _workflow_contract_snapshot_impl(
+    target: str, ctx: Context | None
+) -> dict[str, Any]:
     tool = "workflow_contract_snapshot"
     surface = "Workflow.contract + replayt.cli.targets.load_target"
     try:
@@ -42,6 +53,15 @@ async def workflow_graph_mermaid(
 ) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
+    return await with_timeout(_workflow_graph_mermaid_impl, "workflow_graph_mermaid")(
+        target,
+        ctx,
+    )
+
+
+async def _workflow_graph_mermaid_impl(
+    target: str, ctx: Context | None
+) -> dict[str, Any]:
     tool = "workflow_graph_mermaid"
     surface = "replayt.graph_export.workflow_to_mermaid"
     try:

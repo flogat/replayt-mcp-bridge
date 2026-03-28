@@ -7,12 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Per-tool handler timeouts (spec)** — [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) restores the full tool catalog (replacing a stub checkpoint), adds a normative **Execution timeouts** section (per-tool env `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS`, global fallback, built-in **300** s default, disable semantics, `bridge_timeout` shape, pytest bar), and extends [docs/SECURITY.md](docs/SECURITY.md) with timeout env table rows and an **availability / abuse** note. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
+
+### Changed
+
+- **Per-tool execution timeouts (runtime)** — `observability.resolve_bridge_tool_timeout_seconds` enforces documented precedence (per-tool `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS` → `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` → built-in **300** s; **`≤ 0`** at the winning step disables the bridge limit). All **required** workflow and persistence tools use `utils.with_timeout`. Timeout tool results add `timeout_seconds` and `timeout_source` (`per_tool_env` / `global_env` / `default`); stderr emits structured JSON for `replayt_mcp_bridge.tool.timeout`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
+
 ### Fixed
 
 - **MCP stdio server** — `run_stdio()` uses the shared FastMCP app from `mcp_instance.py` (the object `tools_*` register on), so clients see the full tool list over stdio again.
 - **Async tool handlers** — `_log_replayt_tool_boundaries` awaits coroutine tools; structured errors from workflow and persistence paths use `tools_common._tool_error` (correlation id from context).
 - **`python -m replayt_mcp_bridge health`** — Package import no longer pulls `server` / tool modules eagerly, so a broken **replayt** on `PYTHONPATH` surfaces as the documented stderr line instead of a traceback during `import replayt_mcp_bridge`.
-- **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`** — Read only in `observability.py` (same rule as other bridge env vars); `utils.with_timeout` calls the shared helper.
+- **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_*`** — Per-tool and global timeout env vars are read only in `observability.py` via `resolve_bridge_tool_timeout_seconds`; `utils.with_timeout` resolves the limit per call.
 - **Timeout structured errors** — `utils.with_timeout` uses the same correlation id as `tools_common._log_replayt_tool_boundaries` when both apply, so timeout payloads match `replayt_mcp_bridge.tool.begin` / `.end` logs; bare `with_timeout` tests without the decorator still get a fresh UUID.
 
 ### Added
@@ -20,7 +28,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Tests (workflow phase 3 — mission SSoT)** — [`tests/test_mission_docs.py`](tests/test_mission_docs.py) asserts the **Primary pattern** line carries **core-gap** / **LLM showcase** / **combinator**, both **REPLAYT_ECOSYSTEM_IDEA.md** anchor links, and **What replayt provides** points at **MCP_TOOLS.md** § **Mapping: tool → replayt capability** (MISSION.md spec gate).
 
 - **Declared replayt range** — Supported **replayt** versions remain **`>=0.4.25,<0.5`** per `pyproject.toml` (integrator contract unchanged this pass).
-- **Execution timeouts for replayt-backed handlers** — Added optional `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` environment variable to enforce per-tool timeouts. When a tool exceeds the timeout, the bridge returns a structured error (`status: "error"`, `replayt_surface: "bridge_timeout"`) and logs a `replayt_mcp_bridge.tool.timeout` event. Documented in `docs/MCP_TOOLS.md` and `docs/SECURITY.md`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
 - **Backlog complete: Split monolithic server module into a small package** — The MCP server implementation has been split into domain modules (`mcp_instance.py`, `tools_common.py`, `tools_health.py`, `tools_workflow.py`, `persistence_support.py`, `tools_persistence.py`) with `server.py` as the stdio entry and test re-exports. No change to tool names, schemas, or behavior. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) documents the split threshold and import graph.
 
 - **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** — **Architecture review: MCP server module split (maintainability)** and § **Security review (phase 6)**: workflow phase **6** security close-out for backlog **Split server module when tool count crosses maintainability threshold**—re-verifies single shared **`FastMCP`**, eager **`server.py`** **`tools_*`** imports, unchanged six-tool surface, **`tools_common`** boundary logging / **`_tool_error`** / correlation plumbing, **`observability.py`**-only **`REPLAYT_MCP_BRIDGE_*`** reads, and **no** new subprocess/shell dispatch versus the pre-split monolith; **Review notes** cross-link. **No** runtime code changes.
