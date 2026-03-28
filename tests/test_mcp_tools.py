@@ -8,11 +8,13 @@ from replayt.persistence import SQLiteStore
 
 from replayt_mcp_bridge.tools_health import replayt_echo, replayt_version_info
 from replayt_mcp_bridge.tools_persistence import persistence_list_run_events
+from replayt_mcp_bridge.observability import resolve_bridge_tool_timeout_seconds
 from replayt_mcp_bridge.tools_workflow import (
     runner_dry_run_plan,
     workflow_contract_snapshot,
     workflow_graph_mermaid,
 )
+import replayt_mcp_bridge.tools_workflow as tools_workflow_mod
 from replayt_mcp_bridge.utils import with_timeout
 
 
@@ -87,33 +89,85 @@ def test_tool_timeout_enforced(monkeypatch: pytest.MonkeyPatch) -> None:
     assert result["replayt_surface"] == "bridge_timeout"
     assert result["tool"] == "test_tool"
     assert "correlation_id" in result
+    assert result["timeout_seconds"] == 0.1
+    assert result["timeout_source"] == "global_env"
+    assert "traceback" not in result
 
 
-def test_replayt_backed_tool_timeout_enforced(
+def test_resolve_bridge_tool_timeout_defaults_to_300(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Verify that a replayt-backed tool exceeding the timeout returns a structured error."""
-    from unittest.mock import patch
+    monkeypatch.delenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", raising=False)
+    monkeypatch.delenv(
+        "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_RUNNER_DRY_RUN_PLAN_SECONDS",
+        raising=False,
+    )
+    lim, src = resolve_bridge_tool_timeout_seconds("runner_dry_run_plan")
+    assert lim == 300.0
+    assert src == "default"
 
-    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0.1")
 
-    # Mock a slow replayt-backed tool (workflow_contract_snapshot) that sleeps longer than the timeout
-    async def slow_workflow_contract_snapshot(target: str):
+def test_resolve_bridge_tool_timeout_per_tool_overrides_global(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "99")
+    monkeypatch.setenv(
+        "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_RUNNER_DRY_RUN_PLAN_SECONDS",
+        "12",
+    )
+    lim, src = resolve_bridge_tool_timeout_seconds("runner_dry_run_plan")
+    assert lim == 12.0
+    assert src == "per_tool_env"
+
+
+def test_resolve_bridge_tool_timeout_invalid_global_falls_back_to_default(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "not-a-float")
+    monkeypatch.delenv(
+        "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_RUNNER_DRY_RUN_PLAN_SECONDS",
+        raising=False,
+    )
+    lim, src = resolve_bridge_tool_timeout_seconds("runner_dry_run_plan")
+    assert lim == 300.0
+    assert src == "default"
+
+
+def test_resolve_bridge_tool_timeout_global_zero_disables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(
+        "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_RUNNER_DRY_RUN_PLAN_SECONDS",
+        raising=False,
+    )
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0")
+    lim, src = resolve_bridge_tool_timeout_seconds("runner_dry_run_plan")
+    assert lim is None
+    assert src == "global_env"
+
+
+def test_workflow_contract_snapshot_timeout_registered_tool_cooperative_delay(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Registered tool: short limit + ``await asyncio.sleep`` before real impl (cooperative; sync sleep would starve the loop)."""
+    real_impl = tools_workflow_mod._workflow_contract_snapshot_impl
+
+    async def impl_with_cooperative_delay(target: str, ctx):
         await asyncio.sleep(1.0)
-        return {"status": "ok"}
+        return await real_impl(target, ctx)
 
-    # Patch the actual tool function with our slow mock
-    with patch(
-        "replayt_mcp_bridge.tools_workflow.workflow_contract_snapshot",
-        slow_workflow_contract_snapshot,
-    ):
-        # Wrap the slow tool with the real timeout wrapper
-        wrapped = with_timeout(
-            slow_workflow_contract_snapshot, "workflow_contract_snapshot"
-        )
-        # Run it and expect a timeout error
-        result = asyncio.run(wrapped("dummy_target"))
-        assert result["status"] == "error"
-        assert result["replayt_surface"] == "bridge_timeout"
-        assert result["tool"] == "workflow_contract_snapshot"
-        assert "correlation_id" in result
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS", "0.15")
+    monkeypatch.setattr(
+        tools_workflow_mod,
+        "_workflow_contract_snapshot_impl",
+        impl_with_cooperative_delay,
+    )
+
+    out = asyncio.run(workflow_contract_snapshot("invalid_target_xyz"))
+    assert out["status"] == "error"
+    assert out["replayt_surface"] == "bridge_timeout"
+    assert out["tool"] == "workflow_contract_snapshot"
+    assert "correlation_id" in out
+    assert out["timeout_source"] == "global_env"
+    assert out["timeout_seconds"] == 0.15
+    assert "traceback" not in out

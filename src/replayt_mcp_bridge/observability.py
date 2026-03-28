@@ -12,6 +12,11 @@ from typing import Any
 
 DEFAULT_BRIDGE_LOG_LEVEL = logging.INFO
 
+# Bridge wall-clock limit for replayt-backed MCP tools when no valid env override applies.
+DEFAULT_BRIDGE_TOOL_TIMEOUT_SECONDS = 300.0
+
+_GLOBAL_TOOL_TIMEOUT_ENV = "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS"
+
 # Substrings matched case-insensitively against dict keys (and list/tuple indices are not keyed — see redact_structure).
 _SENSITIVE_KEY_MARKERS: tuple[str, ...] = (
     "password",
@@ -73,28 +78,60 @@ def resolve_log_level_from_env() -> int:
     return getattr(logging, raw, DEFAULT_BRIDGE_LOG_LEVEL)
 
 
-def get_tool_timeout_seconds() -> float | None:
-    """Read ``REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`` for async tool wrappers. See docs/SECURITY.md."""
+def _per_tool_timeout_env_name(tool_name: str) -> str:
+    """Env key for ``REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS`` (``<TOOL>`` uppercased)."""
 
-    val = os.environ.get("REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS")
-    if not val:
-        return None
-    log = logging.getLogger("replayt_mcp_bridge")
-    try:
-        seconds = float(val)
-        if seconds <= 0:
-            log.warning(
-                "REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS must be positive, got %s; ignoring",
-                val,
-            )
-            return None
-        return seconds
-    except ValueError:
+    return f"REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_{tool_name.upper()}_SECONDS"
+
+
+def _parse_timeout_seconds(
+    log: logging.Logger, env_name: str, raw: str
+) -> float | None:
+    """Parse a timeout env value. Returns ``None`` if empty/invalid. Non-positive values are valid parses."""
+
+    stripped = raw.strip()
+    if not stripped:
         log.warning(
-            "Invalid REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS value: %s; ignoring",
-            val,
+            "Invalid %s value: empty; ignoring at this precedence step", env_name
         )
         return None
+    try:
+        return float(stripped)
+    except ValueError:
+        log.warning(
+            "Invalid %s value: %s; ignoring at this precedence step", env_name, raw
+        )
+        return None
+
+
+def resolve_bridge_tool_timeout_seconds(tool_name: str) -> tuple[float | None, str]:
+    """Resolve the effective bridge ``wait_for`` limit for ``tool_name``.
+
+    Precedence (see docs/MCP_TOOLS.md): per-tool env → global env → built-in **300** s.
+    Returns ``(None, source)`` when the winning value is ``≤ 0`` (bridge timeout disabled).
+    ``source`` is ``per_tool_env``, ``global_env``, or ``default`` when the limit is positive;
+    when disabled via a parsed env value, ``source`` is ``per_tool_env`` or ``global_env``.
+    """
+
+    log = logging.getLogger("replayt_mcp_bridge")
+    per_name = _per_tool_timeout_env_name(tool_name)
+    if per_name in os.environ:
+        parsed = _parse_timeout_seconds(log, per_name, os.environ[per_name])
+        if parsed is not None:
+            if parsed > 0:
+                return (parsed, "per_tool_env")
+            return (None, "per_tool_env")
+
+    if _GLOBAL_TOOL_TIMEOUT_ENV in os.environ:
+        parsed = _parse_timeout_seconds(
+            log, _GLOBAL_TOOL_TIMEOUT_ENV, os.environ[_GLOBAL_TOOL_TIMEOUT_ENV]
+        )
+        if parsed is not None:
+            if parsed > 0:
+                return (parsed, "global_env")
+            return (None, "global_env")
+
+    return (DEFAULT_BRIDGE_TOOL_TIMEOUT_SECONDS, "default")
 
 
 _RUN_EVENTS_REDACTION_TRUTHY: frozenset[str] = frozenset({"1", "true", "yes", "on"})

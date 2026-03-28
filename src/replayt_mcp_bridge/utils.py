@@ -7,13 +7,16 @@ import logging
 import uuid
 from typing import Any, Awaitable, Callable, TypeVar
 
-from replayt_mcp_bridge.observability import get_tool_timeout_seconds
+from replayt_mcp_bridge.observability import (
+    emit_json_log,
+    resolve_bridge_tool_timeout_seconds,
+)
 from replayt_mcp_bridge.tools_common import _tool_invocation_correlation_id
 
 T = TypeVar("T")
 
-# Shared logger instance for the bridge
-logger = logging.getLogger("replayt_mcp_bridge")
+# Match structured tool boundary logs (tools_common).
+logger = logging.getLogger("replayt_mcp_bridge.server")
 
 
 def _correlation_id_for_timeout_payload() -> str:
@@ -46,14 +49,10 @@ def _tool_error(
 def with_timeout(
     func: Callable[..., Awaitable[T]], tool_name: str
 ) -> Callable[..., Awaitable[T]]:
-    """
-    Wrap an async handler to enforce a timeout based on the environment variable.
-
-    Returns the original function if the env var is unset or invalid.
-    """
-    timeout_seconds = get_tool_timeout_seconds()
+    """Wrap an async handler with bridge ``asyncio.wait_for`` using ``resolve_bridge_tool_timeout_seconds``."""
 
     async def wrapper(*args: Any, **kwargs: Any) -> T:
+        timeout_seconds, timeout_source = resolve_bridge_tool_timeout_seconds(tool_name)
         if timeout_seconds is None:
             return await func(*args, **kwargs)
         try:
@@ -63,20 +62,22 @@ def with_timeout(
             )
         except asyncio.TimeoutError:
             cid = _correlation_id_for_timeout_payload()
-            logger.error(
-                "Tool execution timed out",
-                extra={
-                    "tool": tool_name,
-                    "correlation_id": cid,
-                    "timeout_seconds": timeout_seconds,
-                    "event": "replayt_mcp_bridge.tool.timeout",
-                },
+            emit_json_log(
+                logger,
+                logging.ERROR,
+                "replayt_mcp_bridge.tool.timeout",
+                tool=tool_name,
+                correlation_id=cid,
+                timeout_seconds=timeout_seconds,
+                timeout_source=timeout_source,
             )
             return _tool_error(
                 tool=tool_name,
                 replayt_surface="bridge_timeout",
                 message="Tool execution timed out",
                 correlation_id=cid,
+                timeout_seconds=timeout_seconds,
+                timeout_source=timeout_source,
             )
 
     return wrapper
