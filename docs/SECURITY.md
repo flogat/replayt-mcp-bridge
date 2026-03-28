@@ -4,6 +4,13 @@ This document is for **operators and security reviewers** hosting the MCP bridge
 
 For how **deployment and transport**, **MCP clients**, **secrets**, **inputs**, and **bridge tools** fit together, keep this table aligned with the mission’s trust-boundary narrative—especially **small tool surface**, **side effects** (filesystem, network, subprocesses), and treating **`target`** / persistence inputs as **operator-trusted** where the mission calls that out.
 
+## Dependency vulnerability scanning (CI)
+
+**Maintainers:** GitHub Actions runs **[pip-audit](https://pypi.org/project/pip-audit/)** on **Linux** after **`pip install -e ".[dev]"`** to flag **published advisories** in the **installed** dependency graph (runtime + dev tools used in CI). That is **supply-chain signal**, not a **compliance** or **exhaustive security** guarantee.
+
+- **Policy, exact command, and accepted-risk table:** [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)
+- **Scope, non-goals, and acceptance bar:** [MISSION.md § CI dependency vulnerability scanning (supply-chain)](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain)
+
 ## MCP tool capability tiers
 
 Use this table when deciding **which tools to register or block** in a given MCP host policy. The bridge does **not** ship compile-time registration flags today; exposure is entirely **host configuration**. For parameter-level semantics and replayt mapping, see [MCP_TOOLS.md](MCP_TOOLS.md).

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **CI dependency vulnerability scanning (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **CI dependency vulnerability scanning (supply-chain)** (intent, canonical **`pip-audit`** command, severity/gating policy, lockfile stance, acceptance criteria). [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) expands into the maintainer policy doc (what is scanned, tool choice, local reproduction, accepted-risk table template). [docs/SECURITY.md](docs/SECURITY.md) adds **Dependency vulnerability scanning (CI)** with pointers to those docs. [CONTRIBUTING.md](CONTRIBUTING.md) and [README.md](README.md) document the same **`pip-audit`** invocation for local parity. [Backlog: Add CI dependency vulnerability scanning for direct runtime deps — workflow phase 2]
+
 ### Changed
 
 - **CI — Windows runner** — [.github/workflows/ci.yml](.github/workflows/ci.yml) adds **`test-windows`** on **`windows-latest`** with **CPython 3.12**: **`pip install -e ".[dev]"`**, **`ruff check` / `ruff format --check`** on **`src`** and **`tests`**, **`pytest -q`**, and **`actions/setup-python`** **`cache: pip`** keyed on **`pyproject.toml`**. [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md) describe the Linux matrix vs the Windows job. [Backlog: Add a Windows runner to CI for install and pytest smoke — workflow phase 3]

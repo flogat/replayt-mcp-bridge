@@ -213,6 +213,33 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
 6. **Default branch health** — After the workflow merges, **CI on the default branch stays green** (operational bar for closing the backlog item).
 
+## CI dependency vulnerability scanning (supply-chain)
+
+**Backlog title:** **Add CI dependency vulnerability scanning for direct runtime deps**
+
+**User story:** As a **maintainer**, I want **CI** to surface **known vulnerabilities** in the **Python packages this bridge installs** (including **replayt**, **mcp**, and their transitive dependencies) so supply-chain issues are noticed **before merge**, without claiming **compliance certification** or **exhaustive** assurance.
+
+**Intent:** Complement manual pin reviews with a **lightweight, reproducible** audit step that uses the **same lock-free `pyproject.toml` resolution** CI already exercises: install the package, then run **[PyPA pip-audit](https://pypi.org/project/pip-audit/)** (or a **documented equivalent** only if maintainers replace the tool in the same change-set). The scan targets the **resolved environment** after **`pip install -e ".[dev]"`**—that includes **`[project].dependencies`** and **transitive** wheels, plus **dev** tools (**Ruff**, **pip-audit**, etc.), because that matches what contributors and **`supply-chain`** matrix jobs actually install.
+
+**Non-goals:** This is **not** a substitute for organizational **SBOM**, **penetration testing**, or **legal** “clean bill of health” language. **No committed full lockfile** is required unless the team **explicitly** adopts that model in the same change-set (this repo stays **range-based** in `pyproject.toml` by default).
+
+**Documented command (canonical for CI and local parity):** After `pip install -e ".[dev]"`:
+
+```bash
+pip-audit --ignore-vuln CVE-2026-4539 --desc
+```
+
+**Severity / gating policy:** **pip-audit** does **not** expose a **`--severity-high`** (or similar) gate in the versions we use. The **effective policy** is: **any** reported vulnerability **fails** the job **unless** it is **documented** as an accepted risk in **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** **and** the same **`--ignore-vuln`** IDs appear in **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** so reviewers see **one** audited list. Prefer **upstream fixes** (dependency bumps) over ignores; when upstream has **no** fix, record **CVE/advisory id**, **short rationale**, **revisit trigger**, and a **ticket or issue URL** in **DEPENDENCY_AUDIT.md** (see that file’s template).
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Workflow coverage** — [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) defines a **`supply-chain`** job that runs on **pull requests** and **pushes** to the default branch (and **`mc/**`** per existing **`on:`** conventions), on **`ubuntu-latest`**, with the **documented** **`pip-audit`** invocation after **`pip install -e ".[dev]"`** (same flags as [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)).
+2. **Python matrix alignment** — Unless a backlog explicitly narrows scope, **`supply-chain`** uses the **same CPython minors** as the Linux **`test`** job (**3.11, 3.12, 3.13**) so resolution differences across supported interpreters are visible.
+3. **Policy documentation** — [CONTRIBUTING.md](../CONTRIBUTING.md) and **[SECURITY.md](SECURITY.md)** point maintainers at **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** for **tool choice**, **severity / fail semantics**, **accepted-risk / false-positive** process, and **local reproduction**.
+4. **No lockfile mandate** — Closing this backlog does **not** require committing **`requirements.txt`**, **`uv.lock`**, **`poetry.lock`**, or similar unless a **separate** maintainer decision lands in the **same** change-set and is documented in **DEPENDENCY_AUDIT.md** and **CONTRIBUTING.md**.
+
+**Implementation status (shipped):** **`pip-audit`** is listed under **`[project.optional-dependencies] dev`** in **`pyproject.toml`**; CI job **`supply-chain`** and **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** are the copy-of-record for flags and ignores. **Windows** jobs intentionally omit this audit—see **[Windows CI runner (install and pytest smoke)](MISSION.md#windows-ci-runner-install-and-pytest-smoke)**.
+
 ## Windows CI runner (install and pytest smoke)
 
 **User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.

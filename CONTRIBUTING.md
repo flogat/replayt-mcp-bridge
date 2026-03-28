@@ -23,6 +23,8 @@ ruff format --check src tests
 pytest -q
 ```
 
+**Supply-chain (same as CI `supply-chain` job, Linux-oriented):** after `pip install -e ".[dev]"`, run **`pip-audit`** with the **exact** flags documented in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (currently `pip-audit --ignore-vuln CVE-2026-4539 --desc`). Any **new** `--ignore-vuln` must be recorded **there** and in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 The default **`pytest -q`** run collects **`tests/test_mcp_server_stdio.py`** (bridge subprocess starts **without a Python traceback**, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (MCP SDK client over real stdio: **initialize**, **tools/list**, **`replayt_version_info`**). Failures there usually mean broken stdio wiring, tool registration, or a hung/broken child process—see [docs/MISSION.md](docs/MISSION.md#stdio-mcp-session-integration-smoke-test).
 
 To apply Ruff’s formatter when `ruff format --check` fails:
