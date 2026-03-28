@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import importlib.util
 import re
+import shlex
 import tomllib
 from pathlib import Path
 
@@ -63,6 +65,27 @@ def _ci_supply_chain_block(ci_text: str) -> str:
         ".github/workflows/ci.yml must define a supply-chain job"
     )
     return ci_text.split("supply-chain:", 1)[1]
+
+
+def _ci_test_job_ruff_pytest_run_lines(ci_text: str) -> tuple[str, str, str]:
+    """The three ``run:`` lines after ``pip install`` in the Linux ``test`` job."""
+    body = _ci_job_body(ci_text, "test", "test-windows")
+    runs = re.findall(r"^\s+run:\s*(.+)$", body, re.MULTILINE)
+    assert len(runs) == 4, (
+        "CI test job must have four run: steps "
+        "(install + ruff check + ruff format + pytest)"
+    )
+    assert "pip install" in runs[0]
+    return (runs[1], runs[2], runs[3])
+
+
+def _load_run_ci_checks_module():
+    path = REPO_ROOT / "scripts" / "run_ci_checks.py"
+    spec = importlib.util.spec_from_file_location("run_ci_checks", path)
+    assert spec is not None and spec.loader is not None
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
 
 
 def _ci_job_body(ci_text: str, job: str, next_job: str | None) -> str:
@@ -169,6 +192,21 @@ def test_ci_pytest_excludes_network_marked_tests_by_default() -> None:
     assert ci.count(needle) == 3, (
         "Linux test, Windows test, and replayt-floor jobs must run the same "
         f"default pytest invocation ({needle!r})"
+    )
+
+
+def test_run_ci_checks_script_matches_ci_test_job_steps() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    r1, r2, r3 = _ci_test_job_ruff_pytest_run_lines(ci)
+    expected = (
+        shlex.split(r1.strip(), posix=True),
+        shlex.split(r2.strip(), posix=True),
+        shlex.split(r3.strip(), posix=True),
+    )
+    mod = _load_run_ci_checks_module()
+    assert mod.CI_CHECK_STEPS == expected, (
+        "scripts/run_ci_checks.py CI_CHECK_STEPS must match the ruff/pytest "
+        "run lines in .github/workflows/ci.yml test job"
     )
 
 
