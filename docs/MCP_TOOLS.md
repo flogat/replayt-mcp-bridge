@@ -418,12 +418,12 @@ On successful completion (doctor ran and produced parseable JSON):
 
 Use the standard object from [Error response shape](#error-response-shape) (`status: "error"`, `tool`, `replayt_surface`, `message`, `correlation_id`) for **mapped** operational failures, with **no Python traceback** in the returned dict for those paths.
 
-**Builder must extend** [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) when implementing, including at minimum:
+The [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) table lists the shipped rows for **`replayt_doctor`**. They include at minimum:
 
-| Trigger | Typical `replayt_surface` (suggested) |
-| ------- | ------------------------------------- |
-| Bad **`target`** (Typer / `load_target`) | `replayt doctor` + `replayt.cli.targets.load_target` (or concise variant) |
-| Subprocess failure, empty stdout, or **non-JSON** stdout when using subprocess mode | `replayt doctor` (subprocess / parse) |
+| Trigger | Typical `replayt_surface` |
+| ------- | ------------------------- |
+| Bad **`target`** (Typer / `load_target`) | `replayt doctor + replayt.cli.targets.load_target` |
+| Subprocess start failure, empty stdout, **non-JSON** stdout, or JSON missing the doctor schema id | `replayt doctor (subprocess / parse)` |
 | Bridge **`asyncio.wait_for` timeout** | `bridge_timeout` |
 
 **Unhandled** exceptions remain subject to [Unmapped exceptions (explicit)](#unmapped-exceptions-explicit).
@@ -438,9 +438,9 @@ Use the standard object from [Error response shape](#error-response-shape) (`sta
 - **Secrets:** The **`doctor`** object may reference **which** env vars exist or provider configuration (upstream **`checks`** entries). That is **not** a substitute for logging redaction: stderr remains subject to [SECURITY.md](SECURITY.md) rules (**no** full MCP argument payloads in structured logs). If the implementation logs auxiliary structured fields, run them through the same **`redact_structure`** path as other bridge logs.
 - **Network column:** For [SECURITY.md § MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers), **`replayt_doctor`** is **conditional**: **None** when **`skip_connectivity`** is **`true`** (default); **Outbound HTTP** (replayt-owned client to **`OPENAI_BASE_URL`**) when the client sets **`skip_connectivity: false`**.
 
-### Pytest / CI bar (implementation phase)
+### Pytest / CI bar
 
-1. **Default collection — no network:** Default CI runs **`pytest -m 'not network'`**; tests **MUST** pass with **`skip_connectivity` at default** (or **`true`**) so that job does not open outbound connections.
+1. **Default collection — no network:** Default CI runs **`pytest -q -m "not network"`**; tests **MUST** pass with **`skip_connectivity` at default** (or **`true`**) so that job does not open outbound connections.
 2. **Opt-in network:** Tests that set **`skip_connectivity: false`** carry **`@pytest.mark.network`** and are excluded unless pytest is invoked without that filter (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
 3. **Coverage (shipped):** [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) — happy path, bad **`target`**, non-JSON subprocess stdout, **`bridge_timeout`**, and an opt-in **`network`** test.
 

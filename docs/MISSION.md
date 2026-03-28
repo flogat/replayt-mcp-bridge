@@ -165,13 +165,13 @@ Architecture layering and traceability are recorded under [ARCHITECTURE.md § Ar
 
 **Recommended implementation shape (refined):**
 
-- Run inside the **default** CI pytest job (same install as other tests), with an explicit **per-test timeout** in the tens-of-seconds range so a broken server cannot hang the job.
+- Run inside the **default** CI test job (**`pytest -q -m "not network"`** on Linux **`test`**, **`test-windows`**, and **`replayt-floor`**—same install as other tests), with an explicit **per-test timeout** in the tens-of-seconds range so a broken server cannot hang the job.
 - Prefer the **official MCP Python SDK** **client** running **in the pytest process**: `ClientSession` with `stdio_client`, launching the bridge via `StdioServerParameters` using **`sys.executable`** and **`["-m", "replayt_mcp_bridge"]`** (or the installed console script) and **`cwd`** at the repository root—aligned with [MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md) and [ARCHITECTURE.md](ARCHITECTURE.md#process-and-transport). **Await handshake / session setup and the tool round-trip** instead of using fixed **`sleep()`** delays for readiness.
 - **Happy-path tool:** Prefer **`replayt_version_info`** (proves replayt import and structured success through the full stack). **`replayt_echo`** is an acceptable alternative when the goal is **MCP wiring only**; document the choice in the test module.
 
 **Acceptance criteria (refined, for implementation and review):**
 
-1. **Default CI** — The new test module is collected and run by the standard **`pytest`** step in `.github/workflows/ci.yml` (no extra job required unless maintainers later choose to split slow tests).
+1. **Default CI** — The new test module is collected and run by the standard **`pytest -q -m "not network"`** step in `.github/workflows/ci.yml` (no extra job required unless maintainers later choose to split slow tests). Tests marked **`network`** stay opt-in; see [CONTRIBUTING.md](../CONTRIBUTING.md).
 2. **Bounded runtime** — The test finishes within **CI-reasonable** wall time and uses **timeouts** (async, subprocess, or pytest) so failures fail **fast**.
 3. **Successful tool path** — After MCP session initialization succeeds, **one** `tools/call` (or SDK equivalent) returns a **structured** result consistent with [MCP_TOOLS.md](MCP_TOOLS.md) for the chosen tool (for example `status: "ok"` for `replayt_version_info`).
 4. **Clear failures** — Broken stdio, **registration** mistakes (tool missing from `tools/list`), or server startup errors produce **actionable** assertion failures or exceptions (no silent stall).
@@ -207,7 +207,7 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 **Acceptance criteria (refined, for implementation and review):**
 
 1. **Workflow committed and triggered** — A CI workflow lives under `.github/workflows/` and runs on **pull requests** and **pushes** to the default branch (and matches maintainer conventions for long-lived branches, e.g. `mc/**` on push).
-2. **Lint and tests in CI** — Jobs install the package with dev extras, then run **`ruff check`**, **`ruff format --check`**, and **`pytest`**, each as its own step so the first failure is obvious in logs (no need to run later steps if an earlier one fails).
+2. **Lint and tests in CI** — Jobs install the package with dev extras, then run **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`**, each as its own step so the first failure is obvious in logs (no need to run later steps if an earlier one fails).
 3. **Pip caching** — Use the supported GitHub Actions pattern for **pip cache** keyed on dependency metadata (e.g. `pyproject.toml`) so repeated runs stay fast without hiding install failures.
 4. **README documents local commands** — The README states how to run **pytest** and **Ruff** locally (copy-paste or equivalent), including the need for `pip install -e ".[dev]"` when Ruff is required.
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
@@ -244,14 +244,14 @@ pip-audit --ignore-vuln CVE-2026-4539 --desc
 
 **User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
 
-**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → pytest** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
+**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
 
 **Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise.
 
 **Acceptance criteria (refined, for implementation and review):**
 
 1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (for example **`test-windows`**) on **`windows-latest`** with a single pinned minor (**3.12**).
-2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
+2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
 3. **`actions/setup-python`** enables **pip** caching with **`cache-dependency-path`** (or equivalent) tied to dependency metadata such as **`pyproject.toml`**.
 4. **README** and **CONTRIBUTING** state how the **Linux** matrix and the **Windows** job differ (runner label, Python minor, and that floor / supply-chain jobs are not duplicated on Windows).
 5. **Contract tests** (for example in **`tests/test_version_contract_docs.py`**) keep workflow labels, pinned minor, steps, and cache fields aligned with prose docs.
@@ -268,7 +268,7 @@ pip-audit --ignore-vuln CVE-2026-4539 --desc
 
 1. **Matrix coverage** — [.github/workflows/ci.yml](../.github/workflows/ci.yml) **`test`** job includes **3.13** alongside **3.11** and **3.12** (or, if ecosystem wheels are still blocked, an **explicit deferral** in this section plus a **tracking issue** link—prefer adding **3.13** when unblocked).
 2. **Metadata alignment** — `[project].requires-python` in **`pyproject.toml`** remains accurate for all matrix minors; **`Programming Language :: Python :: 3.x`** classifiers match **CI-tested** versions; README states **which** Python versions CI runs.
-3. **Same quality bar** — On each matrix row, **`pip install -e ".[dev]"`**, then **`ruff check`**, **`ruff format --check`**, and **`pytest`** all succeed (including stdio MCP smoke modules collected by default **`pytest`**).
+3. **Same quality bar** — On each matrix row, **`pip install -e ".[dev]"`**, then **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** all succeed (including stdio MCP smoke modules collected by the default CI invocation).
 
 ## Replayt minor-line compatibility spike (0.5.x)
 

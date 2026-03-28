@@ -17,11 +17,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- **`pytest -m "not network"` + doctor spec (architecture review, workflow phase 5)** — [docs/MISSION.md](docs/MISSION.md) records the same **`pytest -q -m "not network"`** default as Linux **`test`**, **`test-windows`**, and **`replayt-floor`** in the CI / Windows / 3.13 matrix sections. [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) **`replayt_doctor`** backlog spec: structured-error subsection now points at the shipped mapped rows (no “builder” placeholder); Pytest / CI bar matches **`pytest -q -m "not network"`**. [Backlog workflow phase 5 — Add an optional MCP tool wrapping `replayt doctor` for safe connectivity checks]
+
 - **CI dependency vulnerability scanning (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **CI dependency vulnerability scanning (supply-chain)** (intent, canonical **`pip-audit`** command, severity/gating policy, lockfile stance, acceptance criteria). [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) expands into the maintainer policy doc (what is scanned, tool choice, local reproduction, accepted-risk table template). [docs/SECURITY.md](docs/SECURITY.md) adds **Dependency vulnerability scanning (CI)** with pointers to those docs. [CONTRIBUTING.md](CONTRIBUTING.md) and [README.md](README.md) document the same **`pip-audit`** invocation for local parity. [Backlog: Add CI dependency vulnerability scanning for direct runtime deps — workflow phase 2]
 
 ### Changed
 
-- **CI — Windows runner** — [.github/workflows/ci.yml](.github/workflows/ci.yml) adds **`test-windows`** on **`windows-latest`** with **CPython 3.12**: **`pip install -e ".[dev]"`**, **`ruff check` / `ruff format --check`** on **`src`** and **`tests`**, **`pytest -q`**, and **`actions/setup-python`** **`cache: pip`** keyed on **`pyproject.toml`**. [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md) describe the Linux matrix vs the Windows job. [Backlog: Add a Windows runner to CI for install and pytest smoke — workflow phase 3]
+- **CI — Windows runner** — [.github/workflows/ci.yml](.github/workflows/ci.yml) adds **`test-windows`** on **`windows-latest`** with **CPython 3.12**: **`pip install -e ".[dev]"`**, **`ruff check` / `ruff format --check`** on **`src`** and **`tests`**, **`pytest -q -m "not network"`**, and **`actions/setup-python`** **`cache: pip`** keyed on **`pyproject.toml`**. [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md) describe the Linux matrix vs the Windows job. [Backlog: Add a Windows runner to CI for install and pytest smoke — workflow phase 3]
 
 ### Documentation
 
