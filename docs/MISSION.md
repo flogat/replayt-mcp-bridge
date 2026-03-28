@@ -582,7 +582,7 @@ Maintainers **must** walk these in order when changing the declared **`replayt`*
 4. **Green tests** — After edits, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** pass; **`_EXPECTED_REPLAYT_SPEC`** matches **`pyproject.toml`** whenever the range changes.
 5. **Changelog** — When the user-facing playbook ships, add an **Unreleased** bullet in **[CHANGELOG.md](../CHANGELOG.md)** (Builder commit).
 
-**Implementation status:** **Pending** — normative spec only in this workflow phase; Builder promotes checklist copy to the chosen doc location and satisfies **Acceptance criteria (refined)** above.
+**Implementation status:** **Shipped** — [README.md](../README.md) **## Compatibility with replayt**, [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases**, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) (workflow phase **3** Builder).
 
 ### Backlog traceability: “Publish a replayt minor-line upgrade playbook before 0.5”
 
