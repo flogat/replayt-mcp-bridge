@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tests (workflow phase 3 — dependency audit CI/docs contract)** — [`tests/test_version_contract_docs.py`](tests/test_version_contract_docs.py) keeps **`docs/DEPENDENCY_AUDIT.md`** **Canonical command** and **Local reproduction** aligned with the **`.github/workflows/ci.yml`** **`supply-chain`** job (`pip-audit` invocation, `pip install -e ".[dev]"`, Python **3.11 / 3.12 / 3.13** matrix). [Backlog: Add CI dependency vulnerability scanning for direct runtime deps — workflow phase 3]
+
 ### Documentation
 
 - **CI dependency vulnerability scanning (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **CI dependency vulnerability scanning (supply-chain)** (intent, canonical **`pip-audit`** command, severity/gating policy, lockfile stance, acceptance criteria). [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) expands into the maintainer policy doc (what is scanned, tool choice, local reproduction, accepted-risk table template). [docs/SECURITY.md](docs/SECURITY.md) adds **Dependency vulnerability scanning (CI)** with pointers to those docs. [CONTRIBUTING.md](CONTRIBUTING.md) and [README.md](README.md) document the same **`pip-audit`** invocation for local parity. [Backlog: Add CI dependency vulnerability scanning for direct runtime deps — workflow phase 2]

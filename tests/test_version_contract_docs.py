@@ -13,6 +13,7 @@ README_PATH = REPO_ROOT / "README.md"
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 CONTRIBUTING_PATH = REPO_ROOT / "CONTRIBUTING.md"
 CI_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+DEPENDENCY_AUDIT_PATH = REPO_ROOT / "docs" / "DEPENDENCY_AUDIT.md"
 
 _EXPECTED_REPLAYT_SPEC = ">=0.4.25,<0.5"
 
@@ -39,6 +40,26 @@ def _replayt_floor_version(dep_line: str) -> str:
     m = re.search(r">=(\d+\.\d+\.\d+)", dep_line)
     assert m is not None, f"Could not parse replayt lower bound from {dep_line!r}"
     return m.group(1)
+
+
+def _canonical_pip_audit_command_from_dependency_audit() -> str:
+    text = DEPENDENCY_AUDIT_PATH.read_text(encoding="utf-8")
+    m = re.search(
+        r"\*\*Canonical command\*\*.*?\n```bash\n([^\n]+)\n```",
+        text,
+        flags=re.DOTALL,
+    )
+    assert m is not None, (
+        "docs/DEPENDENCY_AUDIT.md must document a **Canonical command** bash fence with pip-audit"
+    )
+    return m.group(1).strip()
+
+
+def _ci_supply_chain_block(ci_text: str) -> str:
+    assert "supply-chain:" in ci_text, (
+        ".github/workflows/ci.yml must define a supply-chain job"
+    )
+    return ci_text.split("supply-chain:", 1)[1]
 
 
 def test_pyproject_declares_replayt_in_supported_range() -> None:
@@ -169,3 +190,50 @@ def test_ci_reinstalls_replayt_floor_matching_pyproject_minimum() -> None:
         f".github/workflows/ci.yml must reinstall replayt=={floor} to match pyproject lower bound"
     )
     assert "replayt-floor:" in ci
+
+
+def test_dependency_audit_local_reproduction_uses_same_pip_audit_as_canonical() -> None:
+    canonical = _canonical_pip_audit_command_from_dependency_audit()
+    text = DEPENDENCY_AUDIT_PATH.read_text(encoding="utf-8")
+    assert canonical.startswith("pip-audit"), (
+        "Canonical command must be a pip-audit invocation"
+    )
+    local = text.split("## Local reproduction", 1)[1]
+    m = re.search(r"```bash\n(.*?)```", local, flags=re.DOTALL)
+    assert m is not None, (
+        "docs/DEPENDENCY_AUDIT.md Local reproduction must include a bash fence"
+    )
+    lines = [ln.strip() for ln in m.group(1).strip().splitlines() if ln.strip()]
+    audit_lines = [ln for ln in lines if ln.startswith("pip-audit")]
+    assert audit_lines == [canonical], (
+        "Local reproduction pip-audit line must match the **Canonical command** block "
+        f"(expected {canonical!r}, got {audit_lines!r})"
+    )
+
+
+def test_ci_supply_chain_pip_audit_matches_dependency_audit_canonical_command() -> None:
+    expected = _canonical_pip_audit_command_from_dependency_audit()
+    ci = CI_PATH.read_text(encoding="utf-8")
+    block = _ci_supply_chain_block(ci)
+    assert f"run: {expected}" in block, (
+        ".github/workflows/ci.yml supply-chain job must run the same command as "
+        f"docs/DEPENDENCY_AUDIT.md **Canonical command** (expected `run: {expected}`)"
+    )
+
+
+def test_ci_supply_chain_job_matrix_matches_test_job_python_versions() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    block = _ci_supply_chain_block(ci)
+    for ver in _EXPECTED_CI_PYTHON_VERSIONS:
+        assert f'"{ver}"' in block, (
+            ".github/workflows/ci.yml supply-chain matrix must include "
+            f"python-version {ver!r} (expected {_EXPECTED_CI_PYTHON_VERSIONS})"
+        )
+
+
+def test_ci_supply_chain_installs_editable_dev_extras() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    block = _ci_supply_chain_block(ci)
+    assert 'pip install -e ".[dev]"' in block, (
+        'supply-chain job must install the package with pip install -e ".[dev]" before pip-audit'
+    )
