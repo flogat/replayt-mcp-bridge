@@ -128,6 +128,8 @@ If replayt or dependencies perform HTTPS calls, standard proxy and trust variabl
 
 ## MCP host and client logs
 
+**GitHub issues:** Prefer the repository’s **issue forms** under `.github/ISSUE_TEMPLATE/` (see [MISSION.md](MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports)) and follow the **no secrets / redacted logs** guidance in this section when attaching diagnostics.
+
 This package emits **one JSON object per line** on stderr for the `replayt_mcp_bridge` logger: `replayt_mcp_bridge.server.start`, `replayt_mcp_bridge.tool.begin` / `.end`, and error events include **`tool`**, **`correlation_id`**, result **`status`** (on success paths), and **`mcp_request_id`** when FastMCP provides a request context—never raw MCP tool arguments. Operators can match client-reported **`correlation_id`** values from mapped tool errors (see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape)) to these stderr lines. Optional structured fields are passed through `redact_structure` in `observability.py` so common secret-like keys (e.g. `token`, `password`, `api_key`) are replaced with **`[REDACTED]`**. That does **not** limit what the **MCP host** records: many clients can trace or persist full JSON-RPC messages, including tool `arguments` and structured results. Misconfigured host logging is a common way **tokens, paths, and persistence payloads** leak into centralized telemetry.
 
 - Prefer **disabled or minimized** MCP/protocol debug logging in production and on shared workstations.
