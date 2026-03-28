@@ -11,6 +11,7 @@ from replayt import LogLockError
 from replayt.persistence.jsonl import validate_run_id as validate_run_id_for_store
 
 from replayt_mcp_bridge.mcp_instance import mcp
+from replayt_mcp_bridge.tools_bounds import EventFieldsOpt, RunIdStr, TierAStringOpt
 from replayt_mcp_bridge.observability import (
     emit_json_log,
     parse_default_run_events_max_count,
@@ -38,9 +39,9 @@ from replayt_mcp_bridge.tools_common import (
 @mcp.tool()
 @_log_replayt_tool_boundaries
 async def persistence_list_run_events(
-    run_id: str,
-    store_hint: str | None = None,
-    event_fields: list[str] | None = None,
+    run_id: RunIdStr,
+    store_hint: TierAStringOpt = None,
+    event_fields: EventFieldsOpt = None,
     max_events: int | None = None,
     max_total_bytes: int | None = None,
     ctx: Context | None = None,
@@ -68,9 +69,9 @@ def _run_events_compact_json_utf8_len(events: list[Any]) -> int:
 
 
 async def _persistence_list_run_events_impl(
-    run_id: str,
-    store_hint: str | None,
-    event_fields: list[str] | None,
+    run_id: RunIdStr,
+    store_hint: TierAStringOpt,
+    event_fields: EventFieldsOpt,
     max_events: int | None,
     max_total_bytes: int | None,
     ctx: Context | None,

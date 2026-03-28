@@ -11,6 +11,7 @@ from replayt.cli.validation import validate_workflow_graph, validation_report
 from replayt.graph_export import workflow_to_mermaid
 
 from replayt_mcp_bridge.mcp_instance import mcp
+from replayt_mcp_bridge.tools_bounds import JsonBlobStrOpt, TierAString
 from replayt_mcp_bridge.utils import with_timeout
 from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries, _tool_error
 
@@ -18,7 +19,7 @@ from replayt_mcp_bridge.tools_common import _log_replayt_tool_boundaries, _tool_
 @mcp.tool()
 @_log_replayt_tool_boundaries
 async def workflow_contract_snapshot(
-    target: str, ctx: Context | None = None
+    target: TierAString, ctx: Context | None = None
 ) -> dict[str, Any]:
     """Return a JSON-serializable workflow contract snapshot for a replayt target (MODULE:VAR or workflow file).
 
@@ -34,7 +35,7 @@ async def workflow_contract_snapshot(
 
 
 async def _workflow_contract_snapshot_impl(
-    target: str, ctx: Context | None
+    target: TierAString, ctx: Context | None
 ) -> dict[str, Any]:
     tool = "workflow_contract_snapshot"
     surface = "Workflow.contract + replayt.cli.targets.load_target"
@@ -49,7 +50,7 @@ async def _workflow_contract_snapshot_impl(
 @mcp.tool()
 @_log_replayt_tool_boundaries
 async def workflow_graph_mermaid(
-    target: str, ctx: Context | None = None
+    target: TierAString, ctx: Context | None = None
 ) -> dict[str, Any]:
     """Return Mermaid text for a workflow graph (same intent as `replayt graph`)."""
 
@@ -60,7 +61,7 @@ async def workflow_graph_mermaid(
 
 
 async def _workflow_graph_mermaid_impl(
-    target: str, ctx: Context | None
+    target: TierAString, ctx: Context | None
 ) -> dict[str, Any]:
     tool = "workflow_graph_mermaid"
     surface = "replayt.graph_export.workflow_to_mermaid"
@@ -75,12 +76,12 @@ async def _workflow_graph_mermaid_impl(
 @mcp.tool()
 @_log_replayt_tool_boundaries
 async def runner_dry_run_plan(
-    target: str,
-    inputs_json: str | None = None,
+    target: TierAString,
+    inputs_json: JsonBlobStrOpt = None,
     strict_graph: bool = False,
-    metadata_json: str | None = None,
-    experiment_json: str | None = None,
-    policy_hook_context_json: str | None = None,
+    metadata_json: JsonBlobStrOpt = None,
+    experiment_json: JsonBlobStrOpt = None,
+    policy_hook_context_json: JsonBlobStrOpt = None,
     ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Plan or validate a run without committing side effects (aligned with `replayt run --dry-check` semantics)."""
@@ -101,12 +102,12 @@ async def runner_dry_run_plan(
 
 
 async def _runner_dry_run_plan_impl(
-    target: str,
-    inputs_json: str | None,
+    target: TierAString,
+    inputs_json: JsonBlobStrOpt,
     strict_graph: bool,
-    metadata_json: str | None,
-    experiment_json: str | None,
-    policy_hook_context_json: str | None,
+    metadata_json: JsonBlobStrOpt,
+    experiment_json: JsonBlobStrOpt,
+    policy_hook_context_json: JsonBlobStrOpt,
     ctx: Context | None,
 ) -> dict[str, Any]:
     """Implementation of runner_dry_run_plan (wrapped with timeout)."""

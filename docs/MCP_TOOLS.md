@@ -93,7 +93,60 @@ The bridge **does not** sandbox replayt. Handlers and any replayt **subprocess**
 
 Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); hosts receive JSON Schema derived from the Python signatures below.
 
+### String parameter bounds (backlog spec)
+
+**Backlog title:** **Add JSON-schema bounds on high-risk string tool parameters** — traceability and close-out checklist: [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec). **Implementation status:** **Shipped** (workflow phase **3** Builder); numeric limits below match [`tools_bounds.py`](../src/replayt_mcp_bridge/tools_bounds.py) and FastMCP-derived **`tools/list`** schemas.
+
+**Goal:** Declare **`maxLength`**, **`maxItems`**, and per-element string caps so MCP hosts can pre-validate and the bridge rejects absurd inputs **before** `load_target`, persistence resolution, or large `json.loads` work.
+
+**Tier A — path-like and target-resolution strings** (generous for deep filesystem paths, Windows prefixes, and `module.path:variable` targets):
+
+| Parameter | Tool(s) | `maxLength` (Unicode code points) | Notes |
+| --------- | ------- | ----------------------------------- | ----- |
+| `target` | `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan` | **8192** | Above typical `PATH_MAX`-class limits; still bounded. |
+| `target` | `replayt_doctor` (optional) | **8192** | Same grammar as workflow tools when present. |
+| `store_hint` | `persistence_list_run_events` (optional) | **8192** | Includes typed prefixes (`file:`, `jsonl-dir:`, …) plus path text. |
+| `inputs_file` | `replayt_doctor` (optional) | **8192** | Filesystem path passed to subprocess argv. |
+
+**Tier B — identifiers:**
+
+| Parameter | Tool(s) | `maxLength` | Notes |
+| --------- | ------- | ----------- | ----- |
+| `run_id` | `persistence_list_run_events` | **1024** | Headroom beyond typical run id formats; replayt may still reject invalid ids first. |
+
+**Tier C — large JSON object text** (dry-check / doctor inputs; cap total paste size per field):
+
+| Parameter | Tool(s) | `maxLength` | Notes |
+| --------- | ------- | ----------- | ----- |
+| `inputs_json` | `runner_dry_run_plan`, `replayt_doctor` | **1_048_576** (1 MiB) | JSON **text**; malformed JSON remains replayt’s `invalid` / error story **after** length passes. |
+| `metadata_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+| `experiment_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+| `policy_hook_context_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+
+**Tier D — diagnostic echo:**
+
+| Parameter | Tool | `maxLength` | Notes |
+| --------- | ---- | ----------- | ----- |
+| `message` | `replayt_echo` | **262_144** (256 KiB) | Large enough for integration tests; still caps accidental dumps. |
+
+**Tier E — string lists:**
+
+| Parameter | Tool | `maxItems` | Per-element `maxLength` | Notes |
+| --------- | ---- | ---------- | ------------------------ | ----- |
+| `input_overrides` | `replayt_doctor` | **128** | **8192** | Each entry becomes one CLI `--input`; empty strings **SHOULD** be rejected or ignored consistently with existing doctor mapping (Builder aligns with current handler). |
+| `event_fields` | `persistence_list_run_events` | **256** | **256** | Top-level JSON key names only; generous for real allowlists. |
+
+**Omitted / null arguments:** Optional parameters that are **`null`** or omitted **do not** trigger length checks. Bounds apply when the value is a **non-null** string or a **present** list.
+
+**Structured error on violation:** Return **`status: "error"`** with **`replayt_surface: "bridge_input_bounds"`** (stable label) plus **`tool`**, **`message`**, **`correlation_id`** per [Error response shape](#error-response-shape). **`message` MUST NOT** include the full client-supplied string.
+
+**Pytest bar (summary):** See [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec) — over-limit + at-least-one at-limit success, no traceback in returned dict. Coverage: [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) (`test_bridge_input_bounds_*`, `test_list_tools_input_schema_includes_string_bounds`).
+
+Per-tool **Input shapes** tables below remain authoritative for **types** and **required** flags; **numeric bounds** are defined in this subsection. Each subsection that lists string or list parameters **MUST** point here so limits do not drift.
+
 ### `replayt_echo`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -104,6 +157,8 @@ Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); ho
 No properties (empty object).
 
 ### `replayt_doctor`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -116,17 +171,23 @@ No properties (empty object).
 
 ### `workflow_contract_snapshot`
 
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
+
 | Property | Type | Required |
 | -------- | ---- | -------- |
 | `target` | string | yes |
 
 ### `workflow_graph_mermaid`
 
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
+
 | Property | Type | Required |
 | -------- | ---- | -------- |
 | `target` | string | yes |
 
 ### `runner_dry_run_plan`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -163,6 +224,8 @@ This section refines **what “CLI parity” means** between the MCP tool and **
 3. Pytest covers **at least one** knob that changes the outcome versus the default (`strict_graph=true` on a **trusted** two-state workflow file with no declared transitions; packaged `replayt_examples` targets in the supported range currently include transitions, so the contract test uses an on-disk `.py` workflow under `tmp_path`, same resolution path as `load_target` for files).
 
 ### `persistence_list_run_events`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
