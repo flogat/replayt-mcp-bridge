@@ -15,6 +15,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- **`persistence_list_run_events` + `replayt.LogLockError`** — JSONL log lock failures from replayt ( **`load_events`** on the JSONL store) map to structured `{ status: error, … }` with **`replayt_surface`** **`replayt.persistence.jsonl (JSONL log lock)`**, the same **`correlation_id`** as **`tool.begin`** / **`tool.end`** in stderr JSON, and **no** traceback in the returned dict. [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) inventory row; tests in **`tests/test_mcp_tools.py`**. [Backlog: Add correlation IDs and narrower unhandled-error mapping]
+
 - **Per-tool execution timeouts (runtime)** — `observability.resolve_bridge_tool_timeout_seconds` enforces documented precedence (per-tool `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS` → `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS` → built-in **300** s; **`≤ 0`** at the winning step disables the bridge limit). All **required** workflow and persistence tools use `utils.with_timeout`. Timeout tool results add `timeout_seconds` and `timeout_source` (`per_tool_env` / `global_env` / `default`); stderr emits structured JSON for `replayt_mcp_bridge.tool.timeout`. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
 
 ### Fixed

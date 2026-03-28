@@ -442,6 +442,8 @@ replayt public APIs  — load_target, Workflow.contract, graph export,
 
 **Residual:** Mapped **`message`** fields may still disclose operational detail to every MCP client—same posture as existing `_tool_error` paths. Unmapped exceptions continue to depend on FastMCP / host presentation for the wire-visible error shape; stderr still carries **`correlation_id`** on **`unhandled_exception`** for operator triage.
 
+**Shipped mapping (this backlog):** `persistence_list_run_events` catches **`replayt.LogLockError`** from the JSONL store **`load_events`** path and returns **`_tool_error`** with stable **`replayt_surface`** **`replayt.persistence.jsonl (JSONL log lock)`** and **`str(exc)`** as **`message`**; pytest in **`tests/test_mcp_tools.py`** covers correlated **`tool.begin`** / **`tool.end`** ids and unmapped propagation (shared **`begin`** / **`unhandled_exception`** id, re-raise).
+
 ## Related files
 
 | Path | Purpose |

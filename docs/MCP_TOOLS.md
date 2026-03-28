@@ -207,7 +207,7 @@ Target loading, persistence validation, and store resolution failures return a J
 Backlog **Return correlation ids on structured tool errors** — integrator-facing bar (see also [ARCHITECTURE.md § Architecture review: structured tool errors and correlation IDs](ARCHITECTURE.md#architecture-review-structured-tool-errors-and-correlation-ids)):
 
 1. **Documented field** — This section (payload example, specification table, and mapped inventory) plus the architecture review cross-link define **`correlation_id`** for mapped `{ "status": "error", … }` results and stderr JSON. **Out of scope:** changing FastMCP transport-level errors.
-2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) and logging capture on `replayt_mcp_bridge.server`).
+2. **Result ↔ log alignment (tested)** — At least one mapped handler path is covered by pytest so the tool result and structured log lines for that invocation share the same **`correlation_id`** (see **`test_persistence_list_run_events_log_lock_error_correlates_logs`** and related cases in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py); logging capture on `replayt_mcp_bridge.server`).
 3. **Per-failing-request ids (spot check)** — When the bridge generates an id (no non-empty FastMCP `Context.request_id`), values are **UUID version 4** and **distinct invocations** receive **different** ids in ordinary use; pytest should assert **distinct** ids and **`uuid.UUID(…).version == 4`** where the suite covers synthesized ids (same module as (2)).
 
 ### Backlog spec: narrower unhandled-error mapping (replayt and SDK)
@@ -251,6 +251,7 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | `persistence_list_run_events` | Explicit **store_hint** rejected by **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** | branch → `_tool_error` (+ optional `replayt_mcp_bridge.store_hint.rejected` log) | same |
 | `persistence_list_run_events` | SQLite path does not exist or is not a file | branch → `_tool_error` | same |
 | `persistence_list_run_events` | Store open / read failure | `OSError` from `_open_read_store` / `load_events` → `_tool_error` | same |
+| `persistence_list_run_events` | JSONL log file lock failure (contention / platform lock error) | `LogLockError` from `replayt.persistence.jsonl` during `load_events` on the JSONL store → `_tool_error` | `replayt.persistence.jsonl (JSONL log lock)` |
 
 **Outside `status: "error"`:** `runner_dry_run_plan` graph/input validation failures use **`status: "invalid"`** and a `replayt.validate_report.v1` object in **`report`** (replayt-owned semantics).
 
@@ -266,7 +267,7 @@ Handlers return plain dicts that the MCP SDK serializes as structured tool conte
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 

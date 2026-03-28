@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 from mcp.server.fastmcp.server import Context
+from replayt import LogLockError
 from replayt.persistence.jsonl import validate_run_id as validate_run_id_for_store
 
 from replayt_mcp_bridge.mcp_instance import mcp
@@ -114,6 +115,12 @@ async def _persistence_list_run_events_impl(
     try:
         with _open_read_store(log_dir, sqlite) as store:
             events = store.load_events(safe_run_id)
+    except LogLockError as exc:
+        return _tool_error(
+            tool=tool,
+            replayt_surface="replayt.persistence.jsonl (JSONL log lock)",
+            message=str(exc),
+        )
     except OSError as exc:
         return _tool_error(tool=tool, replayt_surface=surface, message=str(exc))
     allow = _effective_run_event_field_allowlist(event_fields)

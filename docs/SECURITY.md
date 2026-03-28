@@ -111,7 +111,7 @@ This package emits **one JSON object per line** on stderr for the `replayt_mcp_b
 
 ## Structured tool errors vs unhandled exceptions
 
-**Mapped operational failures** (inventory in [MCP_TOOLS.md § Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory), extended per [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk)) return a structured dict with **`status: "error"`**, **`message`**, and **`correlation_id`**. The **`message`** is visible to **every** attached MCP client (same disclosure model as today’s Typer / `ValueError` / `OSError` mapped paths)—it may contain paths or replayt wording; it is **not** a traceback inside that dict.
+**Mapped operational failures** (inventory in [MCP_TOOLS.md § Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory), extended per [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk)) return a structured dict with **`status: "error"`**, **`message`**, and **`correlation_id`**. The **`message`** is visible to **every** attached MCP client (same disclosure model as Typer / `ValueError` / `OSError` paths and, on the JSONL store read path, mapped **`replayt.LogLockError`** lock-contention text)—it may contain paths or replayt wording; it is **not** a traceback inside that dict.
 
 **Correlation alignment:** For those calls, bridge stderr emits **`replayt_mcp_bridge.tool.begin`** and **`replayt_mcp_bridge.tool.end`** with the **same** **`correlation_id`** as the tool result, so operators can join client reports to server logs without relying on host-only traces.
 
