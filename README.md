@@ -97,7 +97,7 @@ ruff format --check src tests
 pytest -q -m "not network"
 ```
 
-**Dependency audit:** Linux CI also runs **`pip-audit`** after the same editable install; copy the exact command from [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) or [CONTRIBUTING.md](CONTRIBUTING.md).
+**Dependency audit:** Linux CI runs **`pip-audit`** in a separate **`supply-chain`** job after the same **`pip install -e ".[dev]"`**. A failed audit **fails that job** (blocking); it is **not** bundled with the default **pytest** step. Copy the exact command from [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) or [CONTRIBUTING.md](CONTRIBUTING.md).
 
 CI runs the same **Ruff** and **`pytest -m 'not network'`** steps on **Linux** (matrix **3.11–3.13**) and on **Windows** (**`windows-latest`**, **3.12** only); see [.github/workflows/ci.yml](.github/workflows/ci.yml), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
 
@@ -120,7 +120,7 @@ match your team’s tooling.
 | `docs/MCP_TOOLS.md` | MCP tool catalog and mapping to replayt APIs / CLI |
 | `docs/ARCHITECTURE.md` | Bridge layering, stdio process model, and review notes |
 | `docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md` | Maintainer spike log for replayt 0.5.x compatibility (procedure + findings) |
-| `docs/DEPENDENCY_AUDIT.md` | CI **`pip-audit`** command, gating policy, accepted CVE ignores |
+| `docs/DEPENDENCY_AUDIT.md` | CI **`pip-audit`** command, blocking policy, accepted CVE ignores |
 | `docs/SECURITY.md` | Env vars, logging rules, deployment trust boundary, replayt credentials |
 | `docs/reference-documentation/` | Optional markdown snapshot for contributors (when present) |
 | `src/replayt_mcp_bridge/` | Python package (import `replayt_mcp_bridge`) |
