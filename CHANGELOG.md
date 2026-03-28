@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Dependabot / GitHub Actions pins (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **Dependabot (or equivalent) for GitHub Actions pins** (intent, non-goals, default **`.github/dependabot.yml`** shape, documented-behavior bar, acceptance criteria **(1–5)**, and backlog traceability). [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) clarifies that **`pip-audit`** does not cover **`uses:`** pins. [docs/SECURITY.md](docs/SECURITY.md) points maintainers at the same MISSION section for **Actions** supply-chain automation. [Backlog: Add Dependabot (or equivalent) for GitHub Actions pins — workflow phase 2]
+
 ### Added
 
 - **Diagnostic echo gate** — Optional **`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`** (truthy: **`1`**, **`true`**, **`yes`**, **`on`**, same family as redaction env) hides **`replayt_echo`** from **`tools/list`** and maps **`tools/call`** for that name to **`replayt_surface: bridge_diagnostic_tools_disabled`** (structured error, no echo of client payload). Parsing in **`observability.py`**; **`BridgeFastMCP`** in **`mcp_instance.py`** overrides **`list_tools`** / **`call_tool`**. CLI: **`--no-diagnostic-echo-tools`** on **`python -m replayt_mcp_bridge`** / **`replayt-mcp-bridge`**, mutually exclusive with **`health`**. Docs: **[docs/SECURITY.md](docs/SECURITY.md)**, **[docs/MCP_TOOLS.md](docs/MCP_TOOLS.md#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration)**; tests: **`tests/test_diagnostic_echo_gate.py`**, **`tests/test_security_docs.py`**. [Backlog workflow phase 3 — Optional gated mode that omits diagnostic echo tools from registration]
