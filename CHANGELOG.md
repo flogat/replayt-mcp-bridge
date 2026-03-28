@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **GitHub issue templates (spec, workflow phase 2)** — [docs/MISSION.md](docs/MISSION.md) adds **GitHub issue templates (integration vs bridge-defect reports)** (intent, template split, minimum fields, version and secrets guidance, doc links, acceptance criteria **(1–3)**, backlog traceability). [CONTRIBUTING.md](CONTRIBUTING.md) adds **GitHub issues** (template choice + SECURITY pointer). [docs/SECURITY.md](docs/SECURITY.md) § **MCP host and client logs** points reporters at the same MISSION section. [Backlog: Add GitHub issue templates for integration vs bridge-defect reports — workflow phase 2]
+
 ### Added
 
 - **Local CI check script** — [`scripts/run_ci_checks.py`](scripts/run_ci_checks.py) runs **`ruff check src tests`**, **`ruff format --check src tests`**, and **`pytest -q -m "not network"`** in order (fail-fast), matching the Linux **`test`**, **`test-windows`**, and **`replayt-floor`** jobs in [`.github/workflows/ci.yml`](.github/workflows/ci.yml). [CONTRIBUTING.md](CONTRIBUTING.md) documents **`python scripts/run_ci_checks.py`**; [README.md](README.md) **Local checks** links to it. Contract test: [`tests/test_version_contract_docs.py`](tests/test_version_contract_docs.py) **`test_run_ci_checks_script_matches_ci_test_job_steps`**. [Backlog workflow phase 3 — Provide a single local check entrypoint for contributors]

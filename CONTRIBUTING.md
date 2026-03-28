@@ -68,6 +68,10 @@ If you do not use GitHub, reproduce the same steps in your automation or run the
 
 If your **org** disables Dependabot, replace it with an **equivalent** (for example **Renovate** with **`github-actions`** enabled) and document that choice in the same **`.github/`** config story plus **MISSION** — see the Dependabot section above.
 
+## GitHub issues
+
+When reporting problems, use the **issue forms** under [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) once they exist. Choose **bridge defect** vs **integration / host** per [docs/MISSION.md § GitHub issue templates](docs/MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports) so triage stays fast. Do **not** paste secrets, full env dumps, or raw tool traffic—see [docs/SECURITY.md](docs/SECURITY.md).
+
 ## MCP host snippets (`docs/MCP_HOST_CONFIG.md`)
 
 When you edit copy-paste JSON or host-specific notes, keep placeholders generic (no real API keys, tokens, or machine-specific home paths) and preserve an explicit **stdio** story per host (stdin/stdout MCP, or the host’s **`type: "stdio"`** field where required). To validate that your snippet still matches a working launch, install the bridge in a venv and use the same **`command`** and **`args`** as in the doc, then attach your MCP client and confirm the server is **active** and **`replayt_version_info`** (or at least **`tools/list`**) succeeds. From the repo root you can also run **`pytest tests/test_mcp_stdio_session_smoke.py -q`**, which drives **`python -m replayt_mcp_bridge`** over real stdio with the MCP Python SDK (handshake plus one tool call). **`pytest tests/test_mcp_host_config_docs.py -q`** guards required doc strings, upstream links, and README wiring.

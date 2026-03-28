@@ -356,6 +356,50 @@ YAML **leading comments** satisfy this bar; a short **`.github/DEPENDABOT.md`** 
 
 **Map to this section:** **`.github/dependabot.yml`** (or **equivalent**), **[CONTRIBUTING.md](../CONTRIBUTING.md)** cross-links, and **(1–5)** above. Close the tracker when the **original** bullets hold **and** **scope** stays **GitHub Actions**-only unless **explicitly** expanded with doc updates.
 
+## GitHub issue templates (integration vs bridge-defect reports)
+
+**Backlog title:** **Add GitHub issue templates for integration vs bridge-defect reports**
+
+**User story:** As a **reporter**, I want **guided GitHub issue forms** that ask for **MCP host**, **bridge and replayt versions**, and **redacted** configuration snippets, so **maintainers** can triage **bridge defects** separately from **host / integration** noise with less back-and-forth.
+
+**Intent:** Ship **two** distinct **[issue forms](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/syntax-for-issue-forms)** under **`.github/ISSUE_TEMPLATE/`** (YAML with **`body`** + front matter). Each template’s **description** and/or **markdown** blocks should **link** **[docs/SECURITY.md](SECURITY.md)** (logging, redaction, what not to paste) and **[CONTRIBUTING.md](../CONTRIBUTING.md)** (checks, scope, how to run the same pytest/Ruff bar locally). Optionally add **`.github/ISSUE_TEMPLATE/config.yml`** to tune **blank issues** and **contact links**—not required for acceptance unless maintainers want a single entry screen.
+
+**Non-goals:** No **runtime** bridge code, **pytest**, or **CI workflow** changes are required for this backlog item (templates and docs only). **Security embargo** process (if any) stays outside this spec—templates still **remind** readers of **[docs/SECURITY.md](SECURITY.md)**.
+
+### Template split (normative)
+
+| Template | Audience / when to use | Primary maintainer question |
+| -------- | ---------------------- | ---------------------------- |
+| **Bridge bug** (working name; slug SHOULD be readable, e.g. **`bridge-bug.yml`**) | Regressions or incorrect behavior in **this repository’s** MCP bridge (**handlers**, **packaging**, **documented tool contracts**, **tests** that ship here) | “Is this a defect in **replayt-mcp-bridge** (or its tests/docs) on a **supported** matrix?” |
+| **Integration / host** (e.g. **`integration-host.yml`**) | **MCP client / IDE** wiring, **launch config**, **stdio** attachment, **permissions**, **environment** on the operator side—often “works in a terminal but not in the host” | “Is this a **host configuration** or **trust-boundary** problem rather than bridge logic?” |
+
+Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`**, **`description`**, optional **`title`**, optional **`labels`**, and a **`body`** list of **`type: markdown`**, **`input`**, **`textarea`**, **`dropdown`**, etc., as appropriate.
+
+### Fields and copy (minimum bar)
+
+**Both** templates MUST:
+
+1. **MCP host** — Ask for **product name** and **version** (or “unknown”) of the MCP client / IDE hosting the server (e.g. Cursor, Claude Desktop, Zed, custom).
+2. **Versions** — Ask for **replayt-mcp-bridge** / package version and **replayt** version, and point reporters to **at least one** of: **`pip show replayt-mcp-bridge`**, **`pip show replayt`**, **`python -m replayt_mcp_bridge health`** (stderr + exit **0** on success), or the **`replayt_version_info`** tool over MCP—consistent with **[README.md](../README.md)** and **[MCP_TOOLS.md](MCP_TOOLS.md)**. **Python** version (`python --version`) SHOULD be requested when relevant to reproducing install issues.
+3. **Secrets and logs** — Explicitly tell reporters **not** to paste API keys, tokens, private URLs with credentials, full environment dumps, or **unredacted** persistence / tool payloads; point to **[docs/SECURITY.md](SECURITY.md)** (**especially [MCP host and client logs](SECURITY.md#mcp-host-and-client-logs)** and any related subsections maintainers rely on).
+4. **Doc links** — Visible links (markdown blocks or `description` text) to **`docs/SECURITY.md`**, **`CONTRIBUTING.md`**, and (for the integration template) **`docs/MCP_HOST_CONFIG.md`** using **repository-relative** paths so they resolve in the GitHub web UI.
+
+**Integration / host** template SHOULD additionally ask for a **redacted** snippet of **MCP server config** (e.g. `command` / `args` shape with **placeholder** env values), **working directory** / `cwd` if known, and cross-link **[MCP_HOST_CONFIG.md](MCP_HOST_CONFIG.md)** for stdio-oriented examples.
+
+**Bridge bug** template SHOULD ask for **expected vs actual** behavior, **steps to reproduce**, and—when a structured tool error was returned—the **`correlation_id`** (and remind reporters **not** to paste full stderr if it contains sensitive paths—summarize or redact per **[docs/SECURITY.md](SECURITY.md)**).
+
+### Acceptance criteria (refined, for implementation and review)
+
+1. **Two YAML issue forms** live under **`.github/ISSUE_TEMPLATE/`**, matching the **Bridge bug** vs **Integration / host** split above (filenames are implementer choice; content MUST match intent).
+2. **Both** reference **where to read versions** (commands / tools above) and **both** warn **not** to paste secrets; **both** link **SECURITY** and **CONTRIBUTING** as in the **Intent** paragraph.
+3. **No runtime code** changes are required to close this backlog item (docs + templates only).
+
+### Backlog traceability
+
+**Original acceptance criteria:** (1) At least **two** templates—**Bug** (bridge) and **Integration / host**; (2) both reference version info and no-secrets guidance; (3) no runtime code required.
+
+**Map to this section:** **`.github/ISSUE_TEMPLATE/*.yml`**, links to **`docs/SECURITY.md`** / **`CONTRIBUTING.md`**, and **(1–3)** above. Close the tracker when the **original** bullets hold **and** the **minimum field bar** (host, versions, secrets, doc links) is satisfied in **both** forms.
+
 ## Windows CI runner (install and pytest smoke)
 
 **User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
