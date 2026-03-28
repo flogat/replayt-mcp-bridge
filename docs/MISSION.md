@@ -494,21 +494,44 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 
 ## Windows CI runner (install and pytest smoke)
 
-**User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
+**Backlog title:** **Run CI on Windows in addition to Ubuntu**
 
-**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
+**User story:** As a **contributor on Windows**, I want **CI** to exercise the **same install + test path** on **`windows-latest`** so **README** guidance on **venv** and **console scripts** stays honest.
 
-**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise.
+**Context:** [README.md](../README.md) documents Windows-specific **`pip`** / **`Scripts\`** pitfalls; the **Linux** job matrix does not substitute for native Windows path and entry-point behavior.
+
+**Intent:** Keep **one** lean job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence (same **`src`** / **`tests`** argv) and **`actions/setup-python`** **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, **`replayt-mcp-bridge`** / **`python -m`** entry points, and encoding issues common on Windows MCP hosts.
+
+**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise. **pip-audit** / **`supply-chain`** duplication on Windows is **out of scope** for this item (see [CI dependency vulnerability scanning (supply-chain)](#ci-dependency-vulnerability-scanning-supply-chain)).
+
+**Pytest on Windows (normative for Builder / Tester):**
+
+- The Windows job runs the **same** **`pytest -q -m "not network"`** collection as the default Linux **`test`** rows—**no** separate Windows-only “smoke subset” unless this section and **README** / **CONTRIBUTING** are updated together with maintainer rationale.
+- **No Windows-only skips** without **documentation**: if a test **must** be skipped on Windows, use **`@pytest.mark.skipif(sys.platform == "win32", reason="…")`** (or equivalent) with a **`reason`** that states **why** native Windows is unsupported for that case **and** add a **short** note under this section (or link a **tracking issue**). Prefer **fixing** the test or product path so the suite stays green on **`windows-latest`**.
+- **Allowed patterns today:** **Module-level** **`pytest.skip`** when **optional** MCP stdio client imports fail applies on **all** OSes, not Windows-specific. Tests that assert **console script** names may branch on **`sys.platform == "win32"`** for **`.exe`** (parity with packaging), which is **not** a skip.
 
 **Acceptance criteria (refined, for implementation and review):**
 
-1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (for example **`test-windows`**) on **`windows-latest`** with a single pinned minor (**3.12**).
-2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
-3. **`actions/setup-python`** enables **pip** caching with **`cache-dependency-path`** (or equivalent) tied to dependency metadata such as **`pyproject.toml`**.
-4. **README** and **CONTRIBUTING** state how the **Linux** matrix and the **Windows** job differ (runner label, Python minor, and that floor / supply-chain jobs are not duplicated on Windows).
-5. **Contract tests** (for example in **`tests/test_version_contract_docs.py`**) keep workflow labels, pinned minor, steps, and cache fields aligned with prose docs.
-6. If **Ruff** or **pytest** cannot run on Windows for a technical reason, record the **documented** exception and the substitute checks in this section and in contributor-facing docs.
+1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (**`test-windows`**) on **`windows-latest`** with **`python-version: "3.12"`** (single minor).
+2. That job runs, in order: **`pip install -e ".[dev]"`**, **`ruff check src tests`**, **`ruff format --check src tests`**, **`pytest -q -m "not network"`**—the **same** **run** lines as the Linux **`test`** job (aside from **`replayt-floor`**’s extra reinstall step, which the Windows job does **not** duplicate).
+3. **`actions/setup-python`** sets **`cache: pip`** and **`cache-dependency-path: pyproject.toml`** (or documented equivalent).
+4. **[README.md](../README.md)** and **[CONTRIBUTING.md](../CONTRIBUTING.md)** state how the **Linux** matrix and **`test-windows`** differ (**runner**, **Python** minor, and that **`replayt-floor`** / **`supply-chain`** are not duplicated on Windows), with a link to this section.
+5. **Regression guard** — [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) **`test_ci_includes_windows_test_job`** (and related CI prose checks) stay aligned with **`test-windows`** (**`runs-on`**, pinned minor, step commands, pip cache fields). When the workflow changes, update **contract tests** in the **same** change-set.
+6. If **Ruff** or **pytest** cannot run on Windows for a **technical** reason, record the **documented** exception and substitute checks **here** and in contributor-facing docs **before** merging a job that would otherwise be red.
 7. **`replayt-floor`** and **`supply-chain`** are **not** required on the Windows job by default.
+
+**Implementation status (shipped):** **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** job **`test-windows`**; contributor copy in **README** / **CONTRIBUTING**; **`test_ci_includes_windows_test_job`** in **`tests/test_version_contract_docs.py`**.
+
+### Backlog traceability: “Run CI on Windows in addition to Ubuntu”
+
+**Original acceptance criteria:**
+
+- Workflow adds **`windows-latest`** coverage (**job** or **matrix include**) with **`pip install -e ".[dev]"`**, **Ruff**, **pytest**.
+- Document any **Windows-only** test skips with justification, or **eliminate** the need for skips.
+
+**Map to this section:** **`test-windows`** + **Pytest on Windows** policy above; **README** / **CONTRIBUTING** / **MISSION** (this heading).
+
+**Close the tracker when:** **(1–7)** under **Acceptance criteria (refined)** hold, the **two** **original** bullets remain satisfied, and **default branch CI** stays green (operational bar—see [CI and contributor automation](#ci-and-contributor-automation)).
 
 ## Python 3.13+ CI matrix (supported CPython line)
 
