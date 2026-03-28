@@ -1,0 +1,80 @@
+name: Bridge bug (code, packaging, or tests)
+description: >-
+  Incorrect behavior in this repository: MCP handlers, packaging, documented tool
+  contracts, or tests. Use the Integration / host template for IDE launch wiring.
+title: "[bridge] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the problem is in **replayt-mcp-bridge** itself (or its tests/docs) on a supported matrix—not when the server works from a terminal but fails only inside an MCP client.
+
+        Before filing: [docs/SECURITY.md](docs/SECURITY.md) (what not to log or paste), [CONTRIBUTING.md](CONTRIBUTING.md) (scope and local checks).
+
+        Template choice and field bar: [docs/MISSION.md](docs/MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports).
+
+  - type: textarea
+    id: mcp_host
+    attributes:
+      label: MCP host
+      description: Product name and version of the MCP client or IDE (or "unknown").
+      placeholder: e.g. Cursor 0.45, Claude Desktop 0.7, Zed, custom host + version
+    validations:
+      required: true
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Bridge and replayt versions
+      description: >-
+        Paste outputs if you can. At least one of these is enough: `pip show replayt-mcp-bridge`,
+        `pip show replayt`, `python -m replayt_mcp_bridge health` (stderr, exit 0 on success),
+        or the `replayt_version_info` MCP tool. Include **Python** (`python --version`) if install or import issues matter.
+      placeholder: |
+        replayt-mcp-bridge: …
+        replayt: …
+        Python: …
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        **Do not** paste API keys, tokens, URLs with credentials, full environment dumps, or unredacted persistence or tool payloads. Summarize or redact per [docs/SECURITY.md](docs/SECURITY.md), especially [MCP host and client logs](docs/SECURITY.md#mcp-host-and-client-logs).
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: >-
+        Minimal steps: host command/args if relevant, tool name and arguments (redacted), workflow target shape without secrets.
+    validations:
+      required: true
+
+  - type: textarea
+    id: correlation_id
+    attributes:
+      label: Structured error correlation_id (if any)
+      description: >-
+        If the bridge returned `{ "status": "error", …, "correlation_id": "…" }`, paste the id here.
+        Do not paste full stderr if it may contain sensitive paths—summarize or redact per [docs/SECURITY.md](docs/SECURITY.md).
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Optional context, always redacted.

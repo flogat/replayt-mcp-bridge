@@ -1,0 +1,74 @@
+name: Integration / MCP host
+description: >-
+  MCP client or IDE wiring: launch config, stdio attachment, permissions, or environment.
+  Use the Bridge bug template when handlers or packaged behavior in this repo are wrong.
+title: "[integration] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this template when the bridge runs in a terminal but misbehaves in the host, or when the question is **configuration** and **trust boundaries** rather than bridge logic.
+
+        Guides: [docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md), [docs/SECURITY.md](docs/SECURITY.md), [CONTRIBUTING.md](CONTRIBUTING.md).
+
+        Template choice: [docs/MISSION.md](docs/MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports).
+
+  - type: textarea
+    id: mcp_host
+    attributes:
+      label: MCP host
+      description: Product name and version of the MCP client or IDE (or "unknown").
+      placeholder: e.g. Cursor, Claude Desktop, Zed + version
+    validations:
+      required: true
+
+  - type: textarea
+    id: versions
+    attributes:
+      label: Bridge and replayt versions
+      description: >-
+        Paste outputs if you can. At least one of: `pip show replayt-mcp-bridge`, `pip show replayt`,
+        `python -m replayt_mcp_bridge health` (stderr, exit 0 on success), or the `replayt_version_info` MCP tool.
+        Add **Python** (`python --version`) when install or interpreter selection matters.
+      placeholder: |
+        replayt-mcp-bridge: …
+        replayt: …
+        Python: …
+    validations:
+      required: true
+
+  - type: markdown
+    attributes:
+      value: |
+        **Do not** paste API keys, tokens, URLs with credentials, full environment dumps, or unredacted persistence or tool payloads. See [docs/SECURITY.md](docs/SECURITY.md) and [MCP host and client logs](docs/SECURITY.md#mcp-host-and-client-logs).
+
+  - type: textarea
+    id: redacted_config
+    attributes:
+      label: Redacted MCP server configuration
+      description: >-
+        `command` / `args` (or equivalent) with placeholder values for any secret env vars.
+        See [docs/MCP_HOST_CONFIG.md](docs/MCP_HOST_CONFIG.md) for stdio-oriented examples.
+    validations:
+      required: true
+
+  - type: textarea
+    id: cwd
+    attributes:
+      label: Working directory / cwd
+      description: If the host sets a cwd for the server process, describe it (redact user-specific paths if needed).
+
+  - type: textarea
+    id: symptom
+    attributes:
+      label: What goes wrong
+      description: >-
+        Symptom, what you already tried, and how it differs from a plain `python -m replayt_mcp_bridge` run in a shell.
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Optional notes, always redacted.
