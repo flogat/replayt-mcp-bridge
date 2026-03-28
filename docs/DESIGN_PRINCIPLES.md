@@ -32,7 +32,7 @@ APIs shift. For the next minor line (**0.5.x**), maintainers run the procedure a
 **console scripts** (e.g. `replayt.exe`) can make `pip install -U -e .` fail when pip tries to replace scripts under
 `Scripts\` while uninstalling a different layout (user site vs system). Mission Control’s workflow shell step uses the
 active `python` for `pip install -U -e .`; prefer a venv for that Python so dependency resolution and script installs
-stay in one prefix.
+stay in one prefix. **Windows CI** — install and pytest smoke on **`windows-latest`** are described under **[Windows CI runner (install and pytest smoke)](MISSION.md#windows-ci-runner-install-and-pytest-smoke)** in [MISSION.md](MISSION.md).
 
 ## LLM / demos (if applicable)
 

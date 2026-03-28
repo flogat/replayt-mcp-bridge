@@ -16,7 +16,7 @@ Declared support is **`replayt>=0.4.25,<0.5`** in [`pyproject.toml`](pyproject.t
 
 When replayt **minor** or **major** lines change behavior or APIs this bridge uses, maintainers should bump the dependency range in `pyproject.toml`, refresh this table and [CHANGELOG.md](CHANGELOG.md), and extend CI if a new floor pin is needed. For the upcoming **0.5.x** line, see **[docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md](docs/REPLAYT_0_5_COMPATIBILITY_SPIKE.md)** (status, rerun commands, and migration draft).
 
-**Python:** [`pyproject.toml`](pyproject.toml) sets **`requires-python = ">=3.11"`**. CI exercises **CPython 3.11, 3.12, and 3.13** with the same **Ruff** + **pytest** steps as [Local checks](#local-checks-pytest-and-ruff) (see [.github/workflows/ci.yml](.github/workflows/ci.yml)). Trove classifiers list the interpreter minors CI covers; newer CPython releases within `requires-python` are best validated locally until the matrix expands.
+**Python:** [`pyproject.toml`](pyproject.toml) sets **`requires-python = ">=3.11"`**. CI exercises **CPython 3.11, 3.12, and 3.13** on **Ubuntu** (`ubuntu-latest`) and **CPython 3.12** on **`windows-latest`**, each with the same **Ruff** + **pytest** steps as [Local checks](#local-checks-pytest-and-ruff) (see [.github/workflows/ci.yml](.github/workflows/ci.yml)). The Windows job covers packaging, console scripts, and stdio smoke tests where README’s **WinError** / `Scripts\` guidance applies—see [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke). Trove classifiers list the interpreter minors the **Linux** matrix covers; newer CPython releases within `requires-python` are best validated locally until the matrix expands.
 
 ## Overview
 
@@ -97,7 +97,7 @@ ruff format --check src tests
 pytest -q
 ```
 
-CI runs the same steps; see [.github/workflows/ci.yml](.github/workflows/ci.yml) and [CONTRIBUTING.md](CONTRIBUTING.md).
+CI runs the same steps on **Linux** (matrix **3.11–3.13**) and on **Windows** (**`windows-latest`**, **3.12** only); see [.github/workflows/ci.yml](.github/workflows/ci.yml), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
 
 ## Optional agent workflows
 

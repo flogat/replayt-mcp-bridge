@@ -7,7 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **CI — Windows runner** — [.github/workflows/ci.yml](.github/workflows/ci.yml) adds **`test-windows`** on **`windows-latest`** with **CPython 3.12**: **`pip install -e ".[dev]"`**, **`ruff check` / `ruff format --check`** on **`src`** and **`tests`**, **`pytest -q`**, and **`actions/setup-python`** **`cache: pip`** keyed on **`pyproject.toml`**. [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md) describe the Linux matrix vs the Windows job. [Backlog: Add a Windows runner to CI for install and pytest smoke — workflow phase 3]
+
 ### Documentation
+
+- **Windows CI runner (MISSION)** — [docs/MISSION.md](docs/MISSION.md) adds **Windows CI runner (install and pytest smoke)** so deep links from [README.md](README.md) and [CONTRIBUTING.md](CONTRIBUTING.md) resolve; [docs/DESIGN_PRINCIPLES.md](docs/DESIGN_PRINCIPLES.md) points the Windows install note at the same section. [Backlog: Add a Windows runner to CI for install and pytest smoke — workflow phase 5]
 
 - **Correlation IDs + narrower unhandled-error mapping (spec, workflow phase 2)** — [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) adds a normative **Lifecycle** paragraph for **`tool.begin` / `tool.end` / `unhandled_exception`**, a **Backlog spec: narrower unhandled-error mapping (replayt and SDK)** section (acceptance bar, `replayt` exception stance, recommended **`LogLockError`** mapping target), and tightens the **Unmapped exceptions** cross-link. [docs/SECURITY.md](docs/SECURITY.md) adds **Structured tool errors vs unhandled exceptions** (disclosure + correlation alignment). [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) adds **Architecture review: correlation IDs and narrower unhandled-error mapping** and points follow-ups at the same spec. [docs/MISSION.md](docs/MISSION.md) links unhandled paths to those sections. [Backlog: Add correlation IDs and narrower unhandled-error mapping]
 

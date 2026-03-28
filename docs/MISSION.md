@@ -213,6 +213,24 @@ Architecture layering, gaps vs handler tests, and follow-up file naming are reco
 5. **CONTRIBUTING states expectations** — [CONTRIBUTING.md](../CONTRIBUTING.md) describes the PR bar: run the same checks as CI (or document a verified equivalent for non-GitHub hosts).
 6. **Default branch health** — After the workflow merges, **CI on the default branch stays green** (operational bar for closing the backlog item).
 
+## Windows CI runner (install and pytest smoke)
+
+**User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
+
+**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → pytest** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
+
+**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (for example **`test-windows`**) on **`windows-latest`** with a single pinned minor (**3.12**).
+2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
+3. **`actions/setup-python`** enables **pip** caching with **`cache-dependency-path`** (or equivalent) tied to dependency metadata such as **`pyproject.toml`**.
+4. **README** and **CONTRIBUTING** state how the **Linux** matrix and the **Windows** job differ (runner label, Python minor, and that floor / supply-chain jobs are not duplicated on Windows).
+5. **Contract tests** (for example in **`tests/test_version_contract_docs.py`**) keep workflow labels, pinned minor, steps, and cache fields aligned with prose docs.
+6. If **Ruff** or **pytest** cannot run on Windows for a technical reason, record the **documented** exception and the substitute checks in this section and in contributor-facing docs.
+7. **`replayt-floor`** and **`supply-chain`** are **not** required on the Windows job by default.
+
 ## Python 3.13+ CI matrix (supported CPython line)
 
 **User story:** As a **library consumer on the latest CPython**, I want **official CI signal** for **Python 3.13** so I can standardize my runtime without guessing compatibility with **replayt**, the **MCP SDK**, and this bridge.
