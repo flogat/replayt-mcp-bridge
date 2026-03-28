@@ -83,3 +83,5 @@ Stay within the bridge’s mission and tool contracts in [docs/MISSION.md](docs/
 ## Releases
 
 To cut a bridge release, bump `[project].version` in `pyproject.toml`, add a dated section to [CHANGELOG.md](CHANGELOG.md) (Keep a Changelog style) describing user-visible changes, and if upstream **replayt** minor or major releases change behavior or APIs the bridge relies on, widen or narrow the `replayt` constraint in `pyproject.toml`, update the compatibility table in [README.md](README.md), and adjust the `replayt-floor` job pin in [.github/workflows/ci.yml](.github/workflows/ci.yml) when the declared minimum moves. Merge to the default branch with green CI, then tag the commit (for example `v0.1.0`) so integrators can pin this package while choosing their own exact replayt version inside the declared range.
+
+For a **step-by-step replayt range bump** (including **changelog**, **MCP_TOOLS.md** mapping review, and **`tests/test_version_contract_docs.py`**), use the ordered checklist in [docs/MISSION.md § Replayt minor-line upgrade playbook](docs/MISSION.md#replayt-minor-line-upgrade-playbook-backlog-spec).

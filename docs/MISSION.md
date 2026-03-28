@@ -536,6 +536,58 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 2. **Change list** — Required code or documentation edits with **rough effort** and suggested order.
 3. **If widening the range** — Update **`pyproject.toml`**, **README** compatibility table, **`replayt-floor`** pin and job label in **CI**, **`test_version_contract_docs.py`** (`_EXPECTED_REPLAYT_SPEC`), prose in **DESIGN_PRINCIPLES** / **MCP_TOOLS** / **ARCHITECTURE** that quotes the range, optional **reference doc** refresh, and **CHANGELOG** migration text. Work may be **split across follow-up PRs**.
 
+## Replayt minor-line upgrade playbook (backlog spec)
+
+**Backlog title:** **Publish a replayt minor-line upgrade playbook before 0.5**
+
+**User story:** As a **maintainer**, I want a **short, ordered checklist** for changing the declared **`replayt`** range in **`pyproject.toml`** so **compatibility prose**, **CI floor pins**, **tool mapping docs**, **changelog**, and **contract tests** stay aligned when the next pre-1.0 minor line (for example **0.5.x**) is ready.
+
+**Intent:** **Documentation-first** in the satellite repo: surface an explicit procedure maintainers can follow for any **minor-line** (or breaking) range change, not only **0.5.x**. Optional **make target** or **script** is acceptable only if it matches existing repo conventions (for example **`scripts/run_ci_checks.py`**-style helpers); do not introduce new automation requirements in this backlog.
+
+**Placement (normative for Builder):**
+
+- Add a **maintainer-facing** subsection that contains the **ordered checklist** below. **Primary home:** either **`docs/MISSION.md`** (this section, promoted to operator copy-of-record after ship) **or** **[CONTRIBUTING.md](../CONTRIBUTING.md)** — pick **one** file for the full checklist prose so there is a single source of truth. The other location may hold a **one-line pointer** only.
+- **[README.md](../README.md)** — Under **## Compatibility with replayt**, add **at least one sentence** plus a **markdown link** to the checklist heading (repository-relative path, stable fragment).
+- **Wording** — Use neutral maintainer / integrator vocabulary only; **do not** name internal automation products or orchestration runbooks in committed markdown.
+
+**Ordered checklist (must appear verbatim as a numbered or tick-friendly list in the shipped doc):**
+
+Maintainers **must** walk these in order when changing the declared **`replayt`** dependency range (including raising the upper bound past **0.5** once the spike allows it):
+
+1. **Dependency specification** — Update the **`replayt`** line under **`[project].dependencies`** in **`pyproject.toml`** (keep PEP 440 shape and policy aligned with [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) § **replayt version contract**).
+2. **Compatibility table** — Refresh [README.md](../README.md) **## Compatibility with replayt**: repeat the **exact** dependency line from **`pyproject.toml`** and update the **Supported replayt (declared)** / **CI-tested replayt** table row for the bridge version when needed.
+3. **Changelog** — Add or extend an **[CHANGELOG.md](../CHANGELOG.md)** **Unreleased** bullet (or release section) describing the range change and any integrator-facing migration notes.
+4. **CI floor pin job** — Update [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) **`replayt-floor`**: the **`pip install --force-reinstall "replayt==…"`** pin **must** match the **new lower bound** parsed from **`pyproject.toml`**, and the job **`name:`** (or equivalent visible label) should remain accurate for operators reading workflow logs.
+5. **MCP_TOOLS mapping review** — Re-read [MCP_TOOLS.md](MCP_TOOLS.md) **Mapping: tool → replayt capability** (and any adjacent prose that quotes the supported range). Update rows or notes if upstream entry points, tool behavior, or version callouts change with the new replayt line.
+6. **Contract and schema tests** — Update [tests/test_version_contract_docs.py](../tests/test_version_contract_docs.py) **`_EXPECTED_REPLAYT_SPEC`** (and any related expectations if the spec string shape changes). Run **`pytest -q -m "not network"`** (and the same **Ruff** steps as CI). If replayt API shifts affect MCP tools, update or extend **handler / schema** tests (for example **`tests/test_mcp_tools.py`**) as needed so registered tool contracts stay truthful.
+
+**Strongly related (cross-check, not a substitute for the six steps):**
+
+- **0.5.x spike** — Before widening past **`<0.5`**, follow [REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md) and record outcomes there.
+- **Prose that quotes the range** — Sync [docs/DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), and any other docs that embed the literal range string (contract tests already enforce several of these).
+- **Reference doc snapshots** — If project policy keeps [docs/reference-documentation/](reference-documentation/) in lockstep with the supported floor, run **`scripts/refresh_replayt_reference_docs.py`** when the floor or range policy changes.
+- **Contributor Releases blurb** — [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases** already lists **`pyproject.toml`**, **README**, **`replayt-floor`**, and **CHANGELOG**; keep that paragraph aligned with the checklist (no duplicate prose requirement unless the checklist lives outside **CONTRIBUTING**).
+
+**Original backlog acceptance criteria (traceability):**
+
+1. New section in **CONTRIBUTING** or **`docs/MISSION.md`**, linked from **README**.
+2. Checklist **explicitly** names: **dependency specification**, **compatibility table**, **changelog**, **CI floor pin job**, **MCP_TOOLS mapping review**, and **contract/schema tests** (the six bullets above use those names).
+3. **No** internal orchestration-product vocabulary in committed markdown for this deliverable.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **Single source of truth** — One of **`docs/MISSION.md`** or **`CONTRIBUTING.md`** contains the **full** ordered checklist (all six items, same intent as above); the other may only **link** to it.
+2. **README** — **## Compatibility with replayt** includes a **repository-relative** link to that checklist heading.
+3. **Vocabulary** — Checklist and links use **maintainer/integrator** language only (same bar as item **3** under **Original backlog acceptance criteria**).
+4. **Green tests** — After edits, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** pass; **`_EXPECTED_REPLAYT_SPEC`** matches **`pyproject.toml`** whenever the range changes.
+5. **Changelog** — When the user-facing playbook ships, add an **Unreleased** bullet in **[CHANGELOG.md](../CHANGELOG.md)** (Builder commit).
+
+**Implementation status:** **Shipped** — [README.md](../README.md) **## Compatibility with replayt**, [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases**, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py).
+
+### Backlog traceability: “Publish a replayt minor-line upgrade playbook before 0.5”
+
+**Close the tracker when:** the five bullets under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied.
+
 ## Audience
 
 | Audience | Needs |
