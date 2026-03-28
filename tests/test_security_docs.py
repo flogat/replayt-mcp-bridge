@@ -122,6 +122,10 @@ def test_security_doc_covers_minimal_environment_inheritance() -> None:
         "REPLAYT_SEAL_HOOK",
         "REPLAYT_VERIFY_SEAL_HOOK",
         "REPLAYT_RUN_HOOK_TIMEOUT",
+        "REPLAYT_RESUME_HOOK_TIMEOUT",
+        "REPLAYT_EXPORT_HOOK_TIMEOUT",
+        "REPLAYT_SEAL_HOOK_TIMEOUT",
+        "REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT",
         "REPLAYT_POLICY_HOOK_CONTEXT_JSON",
         "REPLAYT_POLICY_HOOK_NAME",
     ):

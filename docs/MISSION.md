@@ -136,6 +136,47 @@ dynamic code execution, or paths outside documented intent.
 
 **Close the tracker when:** the four bullets under **Acceptance criteria (refined, for implementation and review)** above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
 
+## Replayt hook env inheritance in MCP deployments (backlog spec)
+
+**Backlog title:** **Document and test replayt hook env inheritance in MCP deployments**
+
+**User story:** As an **operator**, I want the bridge docs to spell out how **`REPLAYT_RUN_HOOK`** and related hook variables behave when tools trigger replayt paths that may execute subprocesses, so I can reason about command injection and lateral movement risks.
+
+**Context:** [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance) and the [variables table](SECURITY.md#variables-that-commonly-affect-this-bridge) already list upstream hook names for **spawn hygiene**. This backlog makes the **tool inventory** ([MCP_TOOLS.md](MCP_TOOLS.md)) explicitly tie **which MCP tools** can reach **hook-adjacent or subprocess** replayt surfaces to that security copy—so integrators do not have to infer it from code.
+
+**Intent:** **Documentation-first** (extend **[MCP_TOOLS.md](MCP_TOOLS.md)** and, where helpful, short cross-refs in **[ARCHITECTURE.md](ARCHITECTURE.md)** / **[SECURITY.md](SECURITY.md)** if a gap appears during Builder review). **Optional** pytest contract that **`docs/SECURITY.md`** still contains a **curated** list of hook-related variable names (same spirit as [`tests/test_security_docs.py`](../tests/test_security_docs.py)).
+
+**Normative statements (operator copy-of-record after Builder ships):**
+
+1. **No sandbox** — The bridge **does not** sandbox replayt. The server process runs as **one OS user**; **hook commands**, policy-hook subprocesses, and **`replayt doctor`**’s child process run with **that user’s privileges** and see the **same inherited environment** as the bridge (unless the operator strips env before launch—see [SECURITY.md § Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance)).
+2. **Subprocess vs in-process** — **`replayt_doctor`** launches **`python -m replayt doctor`** in a **subprocess**; the child **inherits the full process environment** by default (see [ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) matrix row). **`runner_dry_run_plan`** calls replayt **in-process** but forwards optional **`policy_hook_context_json`** (and related dry-check knobs) into **`validation_report`**; upstream may run **policy-hook**-related work when those features are used—see [ARCHITECTURE.md § Architecture review: runner dry-check parity](ARCHITECTURE.md#architecture-review-runner-dry-check-parity) (**Policy hook and JSON blobs**).
+3. **Other tools** — **`workflow_contract_snapshot`**, **`workflow_graph_mermaid`**, **`persistence_list_run_events`**, **`replayt_version_info`**, and **`replayt_echo`** do not add a **second** OS subprocess for replayt in the bridge implementation; they still execute **in-process** with **full env inheritance**, and replayt may **read** hook-related env vars during normal library use. Operators must not assume hooks are inert solely because a tool name sounds “read-only.”
+
+**Placement (normative for Builder):**
+
+- Add a dedicated subsection under **[MCP_TOOLS.md](MCP_TOOLS.md)** (after **Mapping: tool → replayt capability**, before **Input shapes**) titled along the lines **Hook env inheritance and MCP deployments** with the **no-sandbox** sentence, a **classification table** (subprocess vs in-process hook-adjacent vs other), and **markdown links** to **`docs/SECURITY.md`** and **`docs/ARCHITECTURE.md`** using stable fragments.
+- Extend the **Notes** column (or equivalent prose) for **`replayt_doctor`** and **`runner_dry_run_plan`** in the mapping table so each row explicitly points readers to that subsection and to [SECURITY.md](SECURITY.md) hook / minimal-env guidance.
+
+**Original backlog acceptance criteria (traceability):**
+
+- ARCHITECTURE or SECURITY links from MCP_TOOLS for tools that can reach hook-executing replayt surfaces.
+- Clear statement: bridge does not sandbox replayt; hooks run with process privileges.
+- If a contract test is added, it fails on accidental doc drift for listed variables.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/MCP_TOOLS.md`** — Mapping **Notes** (or adjacent bullets) for **`replayt_doctor`** and **`runner_dry_run_plan`** include explicit links to **`docs/SECURITY.md`** (at minimum [Minimal environment inheritance](SECURITY.md#minimal-environment-inheritance) and/or [Variables that commonly affect this bridge](SECURITY.md#variables-that-commonly-affect-this-bridge)) and to **`docs/ARCHITECTURE.md`** on subprocess env inheritance and dry-check / policy-hook forwarding (e.g. [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) and [Architecture review: runner dry-check parity](ARCHITECTURE.md#architecture-review-runner-dry-check-parity)); fragments **must** resolve in GitHub-style rendering.
+2. **Standalone operator sentence** — The same file contains a **clear** statement that the bridge **does not sandbox replayt** and that hooks / replayt subprocesses run with **the MCP server process’s OS privileges** and inherited env (modulo operator spawn hygiene).
+3. **Optional contract test** — If implemented, extend or add a test alongside [`tests/test_security_docs.py`](../tests/test_security_docs.py) so CI fails when any **curated** hook-related name (the five **`REPLAYT_*_HOOK`**, five **`REPLAYT_*_HOOK_TIMEOUT`**, **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`**, **`REPLAYT_POLICY_HOOK_NAME`**) disappears from **`docs/SECURITY.md`**. **Recommended:** assert the full timeout sibling set, not only **`REPLAYT_RUN_HOOK_TIMEOUT`**, so docs cannot drop **`REPLAYT_RESUME_HOOK_TIMEOUT`**, etc., silently.
+
+**Changelog:** Add an **Unreleased** note in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit).
+
+**Implementation status:** **Shipped** — [MCP_TOOLS.md § Hook env inheritance and MCP deployments (backlog spec)](MCP_TOOLS.md#hook-env-inheritance-and-mcp-deployments-backlog-spec), mapping **Notes** for **`runner_dry_run_plan`** / **`replayt_doctor`**, [`tests/test_security_docs.py`](../tests/test_security_docs.py) (full five **`REPLAYT_*_HOOK_TIMEOUT`** names in **`docs/SECURITY.md`**), [CHANGELOG.md](../CHANGELOG.md) **Unreleased**; workflow phase **3** Builder.
+
+### Backlog traceability: “Document and test replayt hook env inheritance in MCP deployments”
+
+**Close the tracker when:** the three **Acceptance criteria (refined, for implementation and review)** bullets above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
+
 ## LLM / demos
 
 This mission is not “LLM showcase first.” If future demos or model calls are added, document models, secrets handling,
