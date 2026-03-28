@@ -46,6 +46,7 @@ def test_security_doc_lists_environment_variables() -> None:
     assert "`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`" in text
     assert "`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`" in text
     assert "`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`" in text
+    assert "`REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS`" in text
 
 
 def test_security_doc_states_do_not_log_rules() -> None:
@@ -162,3 +163,12 @@ def test_observability_defines_run_events_volume_env_vars() -> None:
     assert "REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES" in text
     assert "parse_default_run_events_max_count" in text
     assert "parse_default_run_events_max_total_bytes" in text
+
+
+def test_observability_defines_diagnostic_echo_gate() -> None:
+    obs = REPO_ROOT / "src" / "replayt_mcp_bridge" / "observability.py"
+    text = obs.read_text(encoding="utf-8")
+    assert "REPLAYT_MCP_BRIDGE_DISABLE_DIAGNOSTIC_ECHO_TOOLS" in text
+    assert "diagnostic_echo_tools_disabled" in text
+    assert "set_disable_diagnostic_echo_tools_for_cli" in text
+    assert "GATED_DIAGNOSTIC_ECHO_TOOL_NAMES_V1" in text
