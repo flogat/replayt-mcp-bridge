@@ -58,8 +58,16 @@ Maintainers use this list when closing backlog work on this document (single sou
 
 ### Backlog traceability: “Lock mission, primary pattern, and non-goals in MISSION.md”
 
-The tracker item for this document is satisfied when the four bullets in **Spec gate checklist** above hold, including
-the **tool → replayt** inventory pointer to [MCP_TOOLS.md](MCP_TOOLS.md) under **What replayt provides**.
+**Original backlog acceptance criteria:**
+
+1. MISSION.md has no placeholder draft section.
+2. Primary pattern (core-gap / showcase / bridge / combinator) is stated in one sentence.
+3. README links to MISSION.md in the first screenful.
+
+Close the tracker when these three hold **and** the four bullets in **Spec gate checklist** above hold—the checklist
+makes (2) testable (explicit **bridge** vs named alternatives, both [REPLAYT_ECOSYSTEM_IDEA.md](REPLAYT_ECOSYSTEM_IDEA.md)
+anchors), adds the **README** ~30-line discoverability bar, and adds the **tool → replayt** inventory pointer to
+[MCP_TOOLS.md](MCP_TOOLS.md) under **What replayt provides**.
 
 ## Security and trust boundaries
 
