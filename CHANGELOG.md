@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Tests — `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS` (persistence reads)** — [`tests/test_mcp_tools.py`](tests/test_mcp_tools.py) adds handler coverage for **denied** explicit **`store_hint`** outside configured roots (generic **`message`**, no distinctive probe substring; stderr **`replayt_mcp_bridge.store_hint.rejected`** **`reason: outside_allowlist`**), **comma-separated** second root, **`allowlist_unusable`** when the env is non-empty but no absolute roots parse, and omitted **`store_hint`** bypass when **`resolve_log_dir`** is monkeypatched to a path outside listed roots. [docs/MISSION.md](docs/MISSION.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) **store_hint** allowlist sections record **Shipped** status and the test inventory. [Backlog workflow phase 3 — Support optional store path allowlisting for persistence reads]
+
 ### Documentation
 
 - **Replayt minor-line upgrade playbook (MISSION)** — [docs/MISSION.md](docs/MISSION.md) § **Replayt minor-line upgrade playbook** ships the ordered maintainer checklist (dependency specification, compatibility table, changelog, CI floor pin job, MCP_TOOLS mapping review, contract and schema tests). [README.md](README.md) **Compatibility with replayt** and [CONTRIBUTING.md](CONTRIBUTING.md) § **Releases** link the same anchor; [`tests/test_version_contract_docs.py`](tests/test_version_contract_docs.py) guards shipped status and checklist labels.
