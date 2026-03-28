@@ -13,6 +13,8 @@ README_PATH = REPO_ROOT / "README.md"
 CHANGELOG_PATH = REPO_ROOT / "CHANGELOG.md"
 CONTRIBUTING_PATH = REPO_ROOT / "CONTRIBUTING.md"
 CI_PATH = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+DEPENDABOT_PATH = REPO_ROOT / ".github" / "dependabot.yml"
+MISSION_PATH = REPO_ROOT / "docs" / "MISSION.md"
 DEPENDENCY_AUDIT_PATH = REPO_ROOT / "docs" / "DEPENDENCY_AUDIT.md"
 SECURITY_PATH = REPO_ROOT / "docs" / "SECURITY.md"
 
@@ -294,3 +296,37 @@ def test_ci_test_jobs_do_not_invoke_pip_audit() -> None:
             f"CI job {job!r} must not invoke pip-audit "
             "(keep the scanner in supply-chain only; default pytest jobs stay offline-friendly)"
         )
+
+
+def test_dependabot_yml_configures_github_actions_weekly_with_group() -> None:
+    assert DEPENDABOT_PATH.is_file(), ".github/dependabot.yml must exist"
+    text = DEPENDABOT_PATH.read_text(encoding="utf-8")
+    assert "version: 2" in text
+    assert 'package-ecosystem: "github-actions"' in text
+    assert 'directory: "/"' in text
+    assert "interval: weekly" in text.replace('"', "").replace("'", ""), (
+        "dependabot.yml must set schedule.interval to weekly"
+    )
+    assert "groups:" in text
+    assert "github-actions:" in text
+    assert "patterns:" in text
+    assert '"*"' in text or "'*'" in text
+
+
+def test_mission_dependabot_section_records_shipped_status() -> None:
+    mission = MISSION_PATH.read_text(encoding="utf-8")
+    sec = mission.split("## Dependabot (or equivalent) for GitHub Actions pins", 1)[
+        1
+    ].split("### Backlog traceability", 1)[0]
+    assert "**Implementation status (shipped):**" in sec
+    assert "dependabot.yml" in sec
+
+
+def test_contributing_documents_dependabot_and_separates_pip_audit() -> None:
+    text = CONTRIBUTING_PATH.read_text(encoding="utf-8")
+    assert "## GitHub Actions pin updates (Dependabot)" in text
+    assert ".github/dependabot.yml" in text
+    assert "docs/MISSION.md#dependabot-or-equivalent-for-github-actions-pins" in text
+    assert "docs/MISSION.md#ci-dependency-vulnerability-scanning-supply-chain" in text
+    assert "docs/DEPENDENCY_AUDIT.md" in text
+    assert "pip-audit" in text

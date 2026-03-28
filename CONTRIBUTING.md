@@ -50,6 +50,16 @@ GitHub Actions runs those steps on push and pull requests (see [.github/workflow
 
 If you do not use GitHub, reproduce the same steps in your automation or run them locally before merge—ideally on the same minor you deploy.
 
+## GitHub Actions pin updates (Dependabot)
+
+**`.github/dependabot.yml`** turns on **Dependabot v2** for the **`github-actions`** ecosystem only (`uses:` pins under **`.github/workflows/`**, **`directory: "/"`**). Dependabot opens **pull requests** on its **weekly** schedule when pins drift; PR titles and branches reflect the **`github-actions`** **group** when multiple bumps batch together.
+
+**Merge bar:** treat **green CI** as the default requirement before merging a Dependabot PR, unless the team **intentionally** holds an update (for example waiting on an upstream fix). Review **semver** and release notes for **major** action releases the same as any other dependency change.
+
+**PyPI vs Actions:** **`pip-audit`** and **[docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md)** cover **Python packages** resolved after **`pip install -e ".[dev]"`**; they do **not** bump **`actions/checkout`**-style **`uses:`** references. Full intent and acceptance criteria: [docs/MISSION.md § Dependabot (or equivalent) for GitHub Actions pins](docs/MISSION.md#dependabot-or-equivalent-for-github-actions-pins) and [docs/MISSION.md § CI dependency vulnerability scanning (supply-chain)](docs/MISSION.md#ci-dependency-vulnerability-scanning-supply-chain).
+
+If your **org** disables Dependabot, replace it with an **equivalent** (for example **Renovate** with **`github-actions`** enabled) and document that choice in the same **`.github/`** config story plus **MISSION** — see the Dependabot section above.
+
 ## MCP host snippets (`docs/MCP_HOST_CONFIG.md`)
 
 When you edit copy-paste JSON or host-specific notes, keep placeholders generic (no real API keys, tokens, or machine-specific home paths) and preserve an explicit **stdio** story per host (stdin/stdout MCP, or the host’s **`type: "stdio"`** field where required). To validate that your snippet still matches a working launch, install the bridge in a venv and use the same **`command`** and **`args`** as in the doc, then attach your MCP client and confirm the server is **active** and **`replayt_version_info`** (or at least **`tools/list`**) succeeds. From the repo root you can also run **`pytest tests/test_mcp_stdio_session_smoke.py -q`**, which drives **`python -m replayt_mcp_bridge`** over real stdio with the MCP Python SDK (handshake plus one tool call). **`pytest tests/test_mcp_host_config_docs.py -q`** guards required doc strings, upstream links, and README wiring.

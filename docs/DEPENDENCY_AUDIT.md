@@ -2,6 +2,8 @@
 
 This document is the **policy and audit trail** for CI **dependency vulnerability scanning**. It complements [MISSION.md § CI dependency vulnerability scanning (supply-chain)](MISSION.md#ci-dependency-vulnerability-scanning-supply-chain) and the operator-facing pointer in [SECURITY.md § Dependency vulnerability scanning (CI)](SECURITY.md#dependency-vulnerability-scanning-ci).
 
+**Out of scope here:** **`pip-audit`** does **not** inspect **GitHub Actions** **`uses:`** version pins. Automated bumps for those pins are specified under [MISSION.md § Dependabot (or equivalent) for GitHub Actions pins](MISSION.md#dependabot-or-equivalent-for-github-actions-pins).
+
 ## What runs in CI
 
 GitHub Actions job **`supply-chain`** in [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) (Linux only, CPython **3.11 / 3.12 / 3.13**):

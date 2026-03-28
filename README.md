@@ -101,6 +101,8 @@ pytest -q -m "not network"
 
 **Dependency audit:** Linux CI runs **`pip-audit`** in a separate **`supply-chain`** job after the same **`pip install -e ".[dev]"`**. A failed audit **fails that job** (blocking); it is **not** bundled with the default **pytest** step. Copy the exact command from [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) or [CONTRIBUTING.md](CONTRIBUTING.md).
 
+**Workflow action pins:** [`.github/dependabot.yml`](.github/dependabot.yml) configures **Dependabot** for **`uses:`** references (weekly, grouped PRs). That path is separate from **`pip-audit`**; see [CONTRIBUTING.md § GitHub Actions pin updates](CONTRIBUTING.md#github-actions-pin-updates-dependabot) and [docs/MISSION.md § Dependabot](docs/MISSION.md#dependabot-or-equivalent-for-github-actions-pins).
+
 CI runs the same **Ruff** and **`pytest -m 'not network'`** steps on **Linux** (matrix **3.11–3.13**) and on **Windows** (**`windows-latest`**, **3.12** only); see [.github/workflows/ci.yml](.github/workflows/ci.yml), [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
 
 ## Optional agent workflows
@@ -115,6 +117,7 @@ match your team’s tooling.
 | `CHANGELOG.md` | Release history (Keep a Changelog) |
 | `CONTRIBUTING.md` | How to run checks locally and what CI enforces |
 | `.github/workflows/ci.yml` | Automated Ruff + pytest workflow |
+| `.github/dependabot.yml` | Dependabot for GitHub Actions `uses:` pins (weekly) |
 | `docs/REPLAYT_ECOSYSTEM_IDEA.md` | Positioning (pattern options and recorded **Your choice**) |
 | `docs/MISSION.md` | Mission and scope |
 | `docs/DESIGN_PRINCIPLES.md` | Design and integration principles |

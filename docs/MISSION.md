@@ -253,6 +253,52 @@ pip-audit --ignore-vuln CVE-2026-4539 --desc
 
 **Map to this section:** **pip-audit**, job **`supply-chain`**, and **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)**. Close the tracker when **(1–7)** above hold **and** the original backlog bullets hold: **workflow step** reproducible from **[CONTRIBUTING.md](../CONTRIBUTING.md)** with the **exact** command; **blocking vs advisory** policy explicit in docs and the workflow comment; **default pytest** path stays **decoupled** from **`pip-audit`** so offline contributors can match the test jobs without running the scanner.
 
+## Dependabot (or equivalent) for GitHub Actions pins
+
+**Backlog title:** **Add Dependabot (or equivalent) for GitHub Actions pins**
+
+**User story:** As a **maintainer**, I want **automated pull requests** bumping **`actions/checkout`**, **`actions/setup-python`**, and other **`uses:`** pins in workflow YAML so **supply-chain hygiene** for the **Actions layer** does not rely on **manual audits** alone.
+
+**Intent:** Complement **[CI dependency vulnerability scanning (supply-chain)](#ci-dependency-vulnerability-scanning-supply-chain)** (PyPI / **`pip-audit`**) with **targeted automation for GitHub-hosted action references**. Today [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) pins **`actions/checkout@v4`** and **`actions/setup-python@v5`** across **Linux** and **Windows** jobs; the automation should keep those pins **current** on a **predictable cadence** without spamming unrelated ecosystems.
+
+**Non-goals:**
+
+- **No** **`pip`** / **`npm`** / **Docker** **Dependabot** (or Renovate) ecosystems in the **same** backlog unless maintainers **explicitly** widen scope in the **implementation PR** and record the decision **here** and in **[CONTRIBUTING.md](../CONTRIBUTING.md)**.
+- **Not** a replacement for **reading upstream release notes** when a major **Actions** release changes behavior (reviewers still judge **semver** and **breaking** changes).
+- **Not** a substitute for **[pip-audit](#ci-dependency-vulnerability-scanning-supply-chain)**—**PyPI** and **Actions** supply-chain signals stay **separate** by design.
+
+**Default implementation shape (normative unless an equivalent is documented):**
+
+- Commit **`.github/dependabot.yml`** (or **`.github/dependabot.yaml`**) using **`version: 2`** with **at least one** `updates` entry where:
+  - **`package-ecosystem: "github-actions"`**
+  - **`directory: "/"`** (GitHub’s documented convention for workflow files under **`.github/workflows/`**)
+- Set **`schedule.interval`** to **`weekly`** unless maintainers choose **`monthly`** for **lower noise**; the **committed file** must state the **effective cadence** (YAML comment or this section stays in sync when the choice changes).
+- Prefer **`groups`** (or Dependabot’s **grouping** fields) so **multiple** action bumps can land in **one** PR when that matches **team noise tolerance**; if **ungrouped** PRs are chosen, document **why** (for example **easier bisection**) in the **same** change-set.
+
+**Documented behavior (required):** The **config file** under **`.github/`** must make the following **discoverable without opening GitHub settings**:
+
+- **What** is managed (**GitHub Actions** `uses:` references in this repository’s workflow files).
+- **How often** checks run (**schedule**).
+- **Whether** updates are **grouped** and any **naming** convention for PR titles (if customized).
+
+YAML **leading comments** satisfy this bar; a short **`.github/DEPENDABOT.md`** (or similar) is optional if comments become unwieldy.
+
+**Acceptance criteria (refined, for implementation and review):**
+
+1. **Committed config** — A **Dependabot v2** config (or a **documented equivalent**, for example **Renovate** with **`github-actions`** enabled and config committed under **`.github/`**) is **merged** and **active** on the repository (Dependabot enabled per **org/repo** policy is a **prerequisite** maintainers verify).
+2. **Scope** — Automation targets **only** the **GitHub Actions** ecosystem for **`uses:`** pins (this repo’s **`.github/workflows/*.yml`**). Expanding to **other** ecosystems is **out of scope** unless **(non-goals)** above is updated in the **same** PR.
+3. **Discoverable policy** — The **config** (and optional companion note under **`.github/`**) documents **interval**, **grouping** (or explicit **ungrouped** policy), and **what** files are scanned, per **Documented behavior** above.
+4. **CONTRIBUTING maintainer note** — [CONTRIBUTING.md](../CONTRIBUTING.md) gains **at least one** short subsection or paragraph that tells maintainers **how Action pin updates arrive** (Dependabot PRs or equivalent), that **green CI** is the **merge bar** unless a change is **intentionally** held, and **where** to read the **full** policy (**this section** + the **`.github/`** config). It should **cross-link** **[pip-audit](#ci-dependency-vulnerability-scanning-supply-chain)** / **[DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md)** so **PyPI** vs **Actions** automation is not conflated.
+5. **Operational bar** — After merge, **Dependabot (or equivalent)** is observed to open **at least one** valid PR or **would** open PRs when pins drift (maintainers may **simulate** by temporarily pinning an **older** patch in a throwaway branch if needed); **no** requirement to merge a bot PR in the **same** change-set as the config **unless** the team chooses to.
+
+**Implementation status (shipped):** **`.github/dependabot.yml`** is committed (**`github-actions`**, **`directory: "/"`**, **weekly** schedule, **grouped** updates under **`github-actions`**). Maintainer process lives in **[CONTRIBUTING.md](../CONTRIBUTING.md)**. **Org/repo** must still allow Dependabot version updates (or maintainers use a documented equivalent such as Renovate).
+
+### Backlog traceability: “Add Dependabot (or equivalent) for GitHub Actions pins”
+
+**Original acceptance criteria:** (1) Config under **`.github/`** with **documented behavior**; (2) **CONTRIBUTING.md** maintainer note on **how updates are handled**.
+
+**Map to this section:** **`.github/dependabot.yml`** (or **equivalent**), **[CONTRIBUTING.md](../CONTRIBUTING.md)** cross-links, and **(1–5)** above. Close the tracker when the **original** bullets hold **and** **scope** stays **GitHub Actions**-only unless **explicitly** expanded with doc updates.
+
 ## Windows CI runner (install and pytest smoke)
 
 **User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
