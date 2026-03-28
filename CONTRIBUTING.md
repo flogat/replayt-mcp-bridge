@@ -20,12 +20,12 @@ Run the same commands CI uses, in order (any failure should block the PR):
 ```bash
 ruff check src tests
 ruff format --check src tests
-pytest -q
+pytest -q -m "not network"
 ```
 
 **Supply-chain (same as CI `supply-chain` job, Linux-oriented):** after `pip install -e ".[dev]"`, run **`pip-audit`** with the **exact** flags documented in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (currently `pip-audit --ignore-vuln CVE-2026-4539 --desc`). Any **new** `--ignore-vuln` must be recorded **there** and in [`.github/workflows/ci.yml`](.github/workflows/ci.yml).
 
-The default **`pytest -q`** run collects **`tests/test_mcp_server_stdio.py`** (bridge subprocess starts **without a Python traceback**, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (MCP SDK client over real stdio: **initialize**, **tools/list**, **`replayt_version_info`**). Failures there usually mean broken stdio wiring, tool registration, or a hung/broken child process—see [docs/MISSION.md](docs/MISSION.md#stdio-mcp-session-integration-smoke-test).
+The default **`pytest -q -m "not network"`** run matches CI: it skips tests marked **`@pytest.mark.network`** (for example **`replayt_doctor`** with **`skip_connectivity: false`**). To include those, run **`pytest -q`** without the **`-m`** filter when your environment allows outbound HTTP. The default run still collects **`tests/test_mcp_server_stdio.py`** (bridge subprocess starts **without a Python traceback**, no MCP traffic) and **`tests/test_mcp_stdio_session_smoke.py`** (MCP SDK client over real stdio: **initialize**, **tools/list**, **`replayt_version_info`**). Failures there usually mean broken stdio wiring, tool registration, or a hung/broken child process—see [docs/MISSION.md](docs/MISSION.md#stdio-mcp-session-integration-smoke-test).
 
 To apply Ruff’s formatter when `ruff format --check` fails:
 
@@ -35,7 +35,7 @@ ruff format src tests
 
 ## CI
 
-GitHub Actions runs those steps on push and pull requests (see [.github/workflows/ci.yml](.github/workflows/ci.yml)) on **CPython 3.11, 3.12, and 3.13** on **Ubuntu** (`ubuntu-latest`). A **`test-windows`** job runs the same **install + Ruff + pytest** sequence on **`windows-latest`** with **CPython 3.12** (same path arguments **`src`** / **`tests`**, **`pip`/`setup-python`** cache keyed on **`pyproject.toml`**). A separate **`replayt-floor`** job pins the minimum **replayt** release on 3.11 (Linux only). A **`supply-chain`** job runs **`pip-audit`** on Linux after **`pip install -e ".[dev]"`**, using the canonical command in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (kept in sync with **`.github/workflows/ci.yml`**). **`replayt-floor`** and **`supply-chain`** are not duplicated on Windows—see [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
+GitHub Actions runs those steps on push and pull requests (see [.github/workflows/ci.yml](.github/workflows/ci.yml)) on **CPython 3.11, 3.12, and 3.13** on **Ubuntu** (`ubuntu-latest`). A **`test-windows`** job runs the same **install + Ruff + pytest** sequence on **`windows-latest`** with **CPython 3.12** (same path arguments **`src`** / **`tests`**, **`pip`/`setup-python`** cache keyed on **`pyproject.toml`**). Test jobs invoke **`pytest -q -m "not network"`** so **`network`**-marked tests stay opt-in. A separate **`replayt-floor`** job pins the minimum **replayt** release on 3.11 (Linux only). A **`supply-chain`** job runs **`pip-audit`** on Linux after **`pip install -e ".[dev]"`**, using the canonical command in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md) (kept in sync with **`.github/workflows/ci.yml`**). **`replayt-floor`** and **`supply-chain`** are not duplicated on Windows—see [docs/MISSION.md § Windows CI runner](docs/MISSION.md#windows-ci-runner-install-and-pytest-smoke).
 
 If you do not use GitHub, reproduce the same steps in your automation or run them locally before merge—ideally on the same minor you deploy.
 

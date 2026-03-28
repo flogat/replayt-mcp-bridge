@@ -15,7 +15,7 @@ def test_security_doc_exists() -> None:
 
 
 def test_security_doc_defines_tool_capability_tiers() -> None:
-    """Guards the operator tier table: six tools, each named once (backlog: selective exposure)."""
+    """Guards the operator tier table: seven tools, each named once (backlog: selective exposure)."""
     text = SECURITY_PATH.read_text(encoding="utf-8")
     assert "## MCP tool capability tiers" in text
     start = text.index("## MCP tool capability tiers")
@@ -24,6 +24,7 @@ def test_security_doc_defines_tool_capability_tiers() -> None:
     tools = (
         "`replayt_echo`",
         "`replayt_version_info`",
+        "`replayt_doctor`",
         "`workflow_contract_snapshot`",
         "`workflow_graph_mermaid`",
         "`runner_dry_run_plan`",

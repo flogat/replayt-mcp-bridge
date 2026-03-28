@@ -1,10 +1,10 @@
 # MCP tools (initial surface)
 
-This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process (handlers in `src/replayt_mcp_bridge/tools_*.py`, registered when `server.py` imports those modules). For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
+This bridge exposes a small, versioned set of MCP tools that map to **replayt** APIs or CLI workflows. **Input schemas stay stable** so clients can integrate early; workflow, dry-check, and persistence tools call replayt in-process, while **`replayt_doctor`** invokes **`python -m replayt doctor`** in a subprocess with a fixed argv list (**no** shell)—see [Backlog spec: `replayt_doctor`](#backlog-spec-replayt_doctor-mcp-wrapper-for-replayt-doctor). Handlers live in `src/replayt_mcp_bridge/tools_*.py`, registered when `server.py` imports those modules. For process boundaries and how tools sit above replayt, see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Execution timeouts
 
-**Problem:** Handlers call replayt **in-process**. Without a bridge-level wall-clock policy, a single stuck call can block the whole MCP stdio session.
+**Problem:** Most handlers call replayt **in-process**; **`replayt_doctor`** awaits a bounded subprocess. Without a bridge-level wall-clock policy, a single stuck call can block the whole MCP stdio session.
 
 **Approach:** Apply an **outer** `asyncio.wait_for` (or equivalent) around the async body of each **in-scope** tool (see [Tools in scope](#execution-timeouts-tools-in-scope)). This is **in addition to** any timeouts inside replayt (HTTP clients, hooks, etc.); upstream behavior is not reimplemented here.
 
@@ -16,7 +16,7 @@ This bridge exposes a small, versioned set of MCP tools that map to **replayt** 
 
 **Precedence (highest wins):**
 
-1. **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS`** — Per-tool override. **`<TOOL>`** is the MCP tool name in **ASCII uppercase with underscores**, matching the registered name exactly (e.g. `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_WORKFLOW_CONTRACT_SNAPSHOT_SECONDS`, `…_RUNNER_DRY_RUN_PLAN_SECONDS`, `…_PERSISTENCE_LIST_RUN_EVENTS_SECONDS`). When set and **strictly > 0** after parsing, this is the wall-clock budget for that tool.
+1. **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS`** — Per-tool override. **`<TOOL>`** is the MCP tool name in **ASCII uppercase with underscores**, matching the registered name exactly (e.g. `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_WORKFLOW_CONTRACT_SNAPSHOT_SECONDS`, `…_RUNNER_DRY_RUN_PLAN_SECONDS`, `…_PERSISTENCE_LIST_RUN_EVENTS_SECONDS`, `…_REPLAYT_DOCTOR_SECONDS`). When set and **strictly > 0** after parsing, this is the wall-clock budget for that tool.
 2. **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_SECONDS`** — Global default for in-scope tools when (1) is unset or invalid.
 3. **Built-in default** — When (1) and (2) are both unset or invalid, the bridge **MUST** apply a built-in limit of **`300`** seconds for in-scope tools (conservative default for shared stdio sessions).
 
@@ -30,6 +30,7 @@ This bridge exposes a small, versioned set of MCP tools that map to **replayt** 
 | `workflow_graph_mermaid` | **Required** |
 | `runner_dry_run_plan` | **Required** |
 | `persistence_list_run_events` | **Required** |
+| `replayt_doctor` | **Required** |
 | `replayt_echo` | **Exempt** (synchronous, trivial) |
 | `replayt_version_info` | **Exempt** (package metadata only) |
 
@@ -72,6 +73,7 @@ For **Define and enforce per-tool execution timeouts for replayt-backed handlers
 | `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Returns `{ status, target, mermaid }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
 | `runner_dry_run_plan` | `replayt run --dry-check` (graph validation + `validation_report`) | Validates graph and optional JSON strings without executing steps or writing logs. Returns `{ status: ok \| invalid, report }` matching `replayt.validate_report.v1`, or an error object. Optional `strict_graph` and `metadata_json` / `experiment_json` / `policy_hook_context_json` match the CLI `--dry-check` knobs; defaults and gaps are documented under [Dry-check parity specification (runner_dry_run_plan)](#dry-check-parity-specification-runner_dry_run_plan). Subject to [Execution timeouts](#execution-timeouts). |
 | `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a legacy filesystem path (JSONL **directory** or `.sqlite` / `.db` file per suffix heuristics), or an explicit typed hint (`file:…`, `jsonl-dir:…`, `jsonl:…`, `sqlite:…`—see [store_hint grammar](#store_hint-grammar)). Optional env **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (see [SECURITY.md](SECURITY.md)) restricts **explicit** `store_hint` paths to resolved locations under listed absolute roots. Optional **`event_fields`** (list of strings): when non-empty, each **object-shaped** event keeps **only those top-level keys** that exist on the event; omit, `null`, or **`[]`** means no MCP-level allowlist for that call (see [Field allowlist semantics](#field-allowlist-semantics)). Optional env **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** supplies a **default** comma-separated allowlist when **`event_fields`** is omitted or `null`; explicit **`event_fields: []`** overrides that default to “no allowlist.” Optional env **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy: **`1`**, **`true`**, **`yes`**, **`on`**) applies **`redact_structure`** **after** any top-level field selection. Default for existing callers remains full pass-through when those knobs are unset. **Volume limits** (max event count + compact JSON UTF-8 size on the post-`load_events` list, with env defaults and optional **`max_events`** / **`max_total_bytes`** per call) are enforced per [Run event volume limits](#run-event-volume-limits-backlog-spec) (`bridge_run_events_volume` on over-limit). Returns `{ status, run_id, event_count, events, store }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
+| `replayt_doctor` | `python -m replayt doctor` (**subprocess**, JSON via **`--format json`**) | Default **`skip_connectivity: true`** passes **`--skip-connectivity`**. Optional **`target`** is validated with **`replayt.cli.targets.load_target`** before the subprocess (same grammar as workflow tools). Optional **`strict_graph`**, **`inputs_json`**, **`inputs_file`**, **`input_overrides`** map to CLI flags per [Backlog spec: `replayt_doctor`](#backlog-spec-replayt_doctor-mcp-wrapper-for-replayt-doctor). Returns `{ status: ok, tool, doctor, replayt_exit_code }` on success (including **`healthy: false`** inside **`doctor`**); structured errors for bad **`target`**, parse failures, **`OSError`** starting the child, or **`bridge_timeout`**. Subject to [Execution timeouts](#execution-timeouts). |
 
 ## Input shapes (JSON Schema concepts)
 
@@ -86,6 +88,17 @@ Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); ho
 ### `replayt_version_info`
 
 No properties (empty object).
+
+### `replayt_doctor`
+
+| Property | Type | Required |
+| -------- | ---- | -------- |
+| `skip_connectivity` | boolean | no (default **`true`**) |
+| `target` | string \| null | no |
+| `strict_graph` | boolean | no (default `false`; only when **`target`** is set) |
+| `inputs_json` | string \| null | no |
+| `inputs_file` | string \| null | no |
+| `input_overrides` | array of string \| null | no (each non-empty element becomes one CLI **`--input`**) |
 
 ### `workflow_contract_snapshot`
 
@@ -315,7 +328,7 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 
 | MCP tool(s) | Trigger | Mechanism | Typical `replayt_surface` (handler) |
 | ----------- | ------- | --------- | ------------------------------------- |
-| `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan`, `persistence_list_run_events` | Handler exceeds **bridge** wall-clock budget | `asyncio.wait_for` (or equivalent) → mapped timeout result; see [Execution timeouts](#execution-timeouts) | `bridge_timeout` |
+| `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan`, `persistence_list_run_events`, `replayt_doctor` | Handler exceeds **bridge** wall-clock budget | `asyncio.wait_for` (or equivalent) → mapped timeout result; see [Execution timeouts](#execution-timeouts) | `bridge_timeout` |
 | `workflow_contract_snapshot` | Bad or unresolvable **target** | `typer.BadParameter` from `replayt.cli.targets.load_target` → `_tool_error` | `Workflow.contract + replayt.cli.targets.load_target` |
 | `workflow_graph_mermaid` | Bad **target** | same | `replayt.graph_export.workflow_to_mermaid` |
 | `runner_dry_run_plan` | Bad **target** | same (`load_target` before validation) | `replayt run --dry-check / validate_workflow_graph + validation_report` |
@@ -329,6 +342,9 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | `persistence_list_run_events` | JSONL log file lock failure (contention / platform lock error) | `LogLockError` from `replayt.persistence.jsonl` during `load_events` on the JSONL store → `_tool_error` | `replayt.persistence.jsonl (JSONL log lock)` |
 | `persistence_list_run_events` | Loaded events exceed **volume limits** (count and/or encoded size) | Bridge branch after `load_events` → `_tool_error`; see [Run event volume limits](#run-event-volume-limits-backlog-spec) | `bridge_run_events_volume` |
 | `persistence_list_run_events` | Invalid **`max_events`** or **`max_total_bytes`** (for example **≤ 0** where the bridge validates before `load_events`) | Bridge validation → `_tool_error` | `EventStore.load_events (JSONL directory or SQLite file)` |
+| `replayt_doctor` | Bad or unresolvable **`target`** (when provided) | `typer.BadParameter` from `replayt.cli.targets.load_target` → `_tool_error` | `replayt doctor + replayt.cli.targets.load_target` |
+| `replayt_doctor` | **`OSError`** starting the subprocess | `_tool_error` | `replayt doctor (subprocess / parse)` |
+| `replayt_doctor` | Empty stdout, **non-JSON** stdout, or JSON missing an expected **`replayt.doctor_report`** schema id | `_tool_error` (stderr tail may be included in **`message`**, truncated) | `replayt doctor (subprocess / parse)` |
 
 **Outside `status: "error"`:** `runner_dry_run_plan` graph/input validation failures use **`status: "invalid"`** and a `replayt.validate_report.v1` object in **`report`** (replayt-owned semantics).
 
@@ -342,11 +358,101 @@ To **narrow** this set, add explicit rows to [Mapped failure paths](#mapped-fail
 
 Handlers return plain dicts that the MCP SDK serializes as structured tool content:
 
-- **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
+- **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads, successful **`replayt_doctor`** JSON parse—including when **`doctor.healthy`** is **`false`**).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
 - **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec)) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
+
+## Backlog spec: `replayt_doctor` (MCP wrapper for `replayt doctor`)
+
+**Backlog title:** Add an optional MCP tool wrapping `replayt doctor` for safe connectivity checks.  
+**Implementation status:** **Registered** — handler in [`tools_health.py`](../src/replayt_mcp_bridge/tools_health.py); **subprocess** via **`sys.executable -m replayt doctor`** (argv list, **no** shell).
+
+### Intent
+
+Operators debugging attach and provider setup want **`replayt doctor`** diagnostics inside the MCP session. The upstream command can perform **outbound HTTP** (OpenAI-compatible **`OPENAI_BASE_URL` / `models` probe**) and **inspects credential-related environment**; the MCP tool **must not** enable network I/O unless the client explicitly opts out of the safe default, and docs **must** match replayt’s own CLI warnings.
+
+### Replayt mapping
+
+| Item | Specification |
+| ---- | ------------- |
+| **CLI / capability** | `replayt doctor` (Typer command). Use **`--format json`** so the bridge returns a machine-readable object (schema id **`replayt.doctor_report.v1`** in replayt **0.4.25**; treat as upstream-owned and version-guard in code if the shape drifts). |
+| **Implementation (shipped)** | **`subprocess`**: **`asyncio.create_subprocess_exec`** with **`sys.executable`**, **`-m`**, **`replayt`**, **`doctor`**, plus mapped flags—**no** shell. Recorded in **`tools_health.py`** module docstring. |
+| **Human text mode** | **Out of scope** for the MCP tool: hosts receive **structured JSON** only (`doctor` payload below), not raw Rich/text terminal output. |
+
+### Parameters (MCP → CLI parity)
+
+Defaults are chosen so **omitting all optional fields** matches a **safe** operator habit: **`replayt doctor --skip-connectivity --format json`** (no network probe for the default OpenAI-compat connectivity check).
+
+| Property | Type | Required | Default | Semantics |
+| -------- | ---- | -------- | ------- | --------- |
+| `skip_connectivity` | boolean | no | **`true`** | When **`true`**, pass **`--skip-connectivity`** (no HTTP **`GET`** to **`OPENAI_BASE_URL`/models** and no API key sent for that probe). When **`false`**, omit **`--skip-connectivity`** so behavior matches a bare **`replayt doctor`** — **network I/O** and use of **`OPENAI_API_KEY`** (and related env) follow [replayt’s doctor documentation](https://pypi.org/project/replayt/) / packaged README security notes. |
+| `target` | string \| null | no | `null` | When non-empty, pass **`--target`** using the same grammar as **`workflow_contract_snapshot`** (`load_target`). **Operator-trusted** input (import + file reads). |
+| `strict_graph` | boolean | no | `false` | When **`target`** is set, pass **`--strict-graph`** when **`true`** (same as CLI). |
+| `inputs_json` | string \| null | no | `null` | When set, pass **`--inputs-json`** for target preflight (JSON **object** text; malformed JSON follows replayt’s doctor / validate rules). |
+| `inputs_file` | string \| null | no | `null` | When set, pass **`--inputs-file`** with the resolved path (filesystem read; operator-trusted). Bridge **does not** implement CLI **`@path`** / stdin indirection for this string unless a separate backlog explicitly adds it (same stance as [Dry-check parity specification](#dry-check-parity-specification-runner_dry_run_plan) for MCP JSON blobs). |
+| `input_overrides` | array of string \| null | no | `null` | Each element is one **`key=value`** pair; map to repeated CLI **`--input`** in order (dotted keys allowed per upstream rules). |
+
+**Explicit client action for network:** Setting **`skip_connectivity: false`** is the MCP equivalent of opting into **`replayt doctor`** without **`--skip-connectivity`**; integrators should treat it like running the CLI on an untrusted network only when **`OPENAI_BASE_URL`** and provider policy allow it.
+
+### Success shape
+
+On successful completion (doctor ran and produced parseable JSON):
+
+```json
+{
+  "status": "ok",
+  "tool": "replayt_doctor",
+  "doctor": { "schema": "replayt.doctor_report.v1", "healthy": true, "checks": [] }
+}
+```
+
+**Normative rules:**
+
+- **`doctor`** **MUST** be the parsed **object** from replayt’s JSON doctor output (same keys upstream emits; do not strip **`checks`** entries for “privacy” unless a documented redaction pass is added in the same change-set).
+- **`healthy: false`** inside **`doctor`** is still a **successful tool completion** — it means the environment failed a diagnostic, not that the MCP handler crashed. Optionally include **`replayt_exit_code`** (integer) when the implementation uses a subprocess so operators can correlate with CLI exit codes (replayt uses **non-zero** exits for unhealthy JSON runs per packaged CLI docs).
+- **`tool`** key on success is **optional** but **recommended** for symmetry with error payloads and host logging.
+
+### Structured errors
+
+Use the standard object from [Error response shape](#error-response-shape) (`status: "error"`, `tool`, `replayt_surface`, `message`, `correlation_id`) for **mapped** operational failures, with **no Python traceback** in the returned dict for those paths.
+
+**Builder must extend** [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory) when implementing, including at minimum:
+
+| Trigger | Typical `replayt_surface` (suggested) |
+| ------- | ------------------------------------- |
+| Bad **`target`** (Typer / `load_target`) | `replayt doctor` + `replayt.cli.targets.load_target` (or concise variant) |
+| Subprocess failure, empty stdout, or **non-JSON** stdout when using subprocess mode | `replayt doctor` (subprocess / parse) |
+| Bridge **`asyncio.wait_for` timeout** | `bridge_timeout` |
+
+**Unhandled** exceptions remain subject to [Unmapped exceptions (explicit)](#unmapped-exceptions-explicit).
+
+### Execution timeouts
+
+**`replayt_doctor`** is **Required** under [Tools in scope](#tools-in-scope). Per-tool env: **`REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_REPLAYT_DOCTOR_SECONDS`**.
+
+### Security, logging, and redaction
+
+- **No shell:** assemble **argv** only; never pass MCP strings through `/bin/sh` or `shell=True`.
+- **Secrets:** The **`doctor`** object may reference **which** env vars exist or provider configuration (upstream **`checks`** entries). That is **not** a substitute for logging redaction: stderr remains subject to [SECURITY.md](SECURITY.md) rules (**no** full MCP argument payloads in structured logs). If the implementation logs auxiliary structured fields, run them through the same **`redact_structure`** path as other bridge logs.
+- **Network column:** For [SECURITY.md § MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers), **`replayt_doctor`** is **conditional**: **None** when **`skip_connectivity`** is **`true`** (default); **Outbound HTTP** (replayt-owned client to **`OPENAI_BASE_URL`**) when the client sets **`skip_connectivity: false`**.
+
+### Pytest / CI bar (implementation phase)
+
+1. **Default collection — no network:** Default CI runs **`pytest -m 'not network'`**; tests **MUST** pass with **`skip_connectivity` at default** (or **`true`**) so that job does not open outbound connections.
+2. **Opt-in network:** Tests that set **`skip_connectivity: false`** carry **`@pytest.mark.network`** and are excluded unless pytest is invoked without that filter (see [CONTRIBUTING.md](../CONTRIBUTING.md)).
+3. **Coverage (shipped):** [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) — happy path, bad **`target`**, non-JSON subprocess stdout, **`bridge_timeout`**, and an opt-in **`network`** test.
+
+### Inventory rows (shipped)
+
+**Builder checklist:**
+
+- [x] Add **`replayt_doctor`** to the [Mapping: tool → replayt capability](#mapping-tool--replayt-capability) table.
+- [x] Add input schema rows under [Input shapes (JSON Schema concepts)](#input-shapes-json-schema-concepts).
+- [x] Add the security summary row beside other tools in [Security](#security) (this file).
+- [x] Add the **MCP tool capability tiers** row in [SECURITY.md](SECURITY.md) and extend **`tests/test_security_docs.py`** (`test_security_doc_defines_tool_capability_tiers` tool tuple).
+- [x] Add **`replayt_doctor`** to [Tools in scope](#tools-in-scope) for timeouts.
 
 ## Security
 
@@ -361,6 +467,7 @@ Tools that load workflow definitions or read event stores follow the **same trus
 | `workflow_contract_snapshot` | **Yes** (via `load_target`) | Can import modules and read workflow files the server user can access—equivalent to `replayt contract` target resolution. |
 | `workflow_graph_mermaid` | **Yes** (same as above) | Same target resolution as contract snapshot. |
 | `runner_dry_run_plan` | **Yes** (target + optional JSON strings: `inputs_json`, `metadata_json`, `experiment_json`, `policy_hook_context_json`, and `strict_graph`) | Same trust model as passing those flags to `replayt run --dry-check`: resolves the target, validates graph/text only; no workflow execution or log writes. |
+| `replayt_doctor` | **Optional** — **`target`** / **`inputs_file`** imply the same **`load_target`** / filesystem reads as **`replayt doctor`**; subprocess inherits the process environment | Default **`skip_connectivity: true`** avoids the OpenAI-compat HTTP probe; **`skip_connectivity: false`** enables replayt-owned outbound HTTP per upstream doctor docs. Returns structured **`doctor`** JSON (paths, env-var **names** in **`checks`**, provider hints)—treat like other diagnostics for logging and retention. |
 | `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns stored events **pass-through by default** (no top-level allowlist unless **`event_fields`**, **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`**, or redaction applies—see [Field allowlist semantics](#field-allowlist-semantics) and [SECURITY.md](SECURITY.md)). Integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** to limit **top-level** keys only; nested content under kept keys is unchanged. Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy values per [SECURITY.md](SECURITY.md)) so **`events`** are copied through **`redact_structure`** after any allowlist step. Explicit hints may be legacy paths or typed prefixes **`file:`** / **`jsonl-dir:`** / **`jsonl:`** / **`sqlite:`** (see [store_hint grammar](#store_hint-grammar)). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). **Volume limits** (event count + compact JSON UTF-8 size after **`load_events`**, env + optional tool params, structured **`bridge_run_events_volume`** errors) are documented in [Run event volume limits](#run-event-volume-limits-backlog-spec) and enforced in **`tools_persistence.py`**. |
 
 The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.

@@ -146,6 +146,15 @@ def test_ci_matrix_lists_expected_python_versions() -> None:
         )
 
 
+def test_ci_pytest_excludes_network_marked_tests_by_default() -> None:
+    ci = CI_PATH.read_text(encoding="utf-8")
+    needle = 'pytest -q -m "not network"'
+    assert ci.count(needle) == 3, (
+        "Linux test, Windows test, and replayt-floor jobs must run the same "
+        f"default pytest invocation ({needle!r})"
+    )
+
+
 def test_ci_includes_windows_test_job() -> None:
     ci = CI_PATH.read_text(encoding="utf-8")
     assert "test-windows:" in ci, (
@@ -165,7 +174,7 @@ def test_ci_includes_windows_test_job() -> None:
         'pip install -e ".[dev]"',
         "ruff check src tests",
         "ruff format --check src tests",
-        "pytest -q",
+        'pytest -q -m "not network"',
     ):
         assert step in win_block, f"test-windows job must run {step!r}"
     assert "cache: pip" in win_block
