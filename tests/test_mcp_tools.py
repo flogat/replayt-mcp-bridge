@@ -12,7 +12,10 @@ from replayt.persistence.jsonl import JSONLStore
 
 from replayt_mcp_bridge.tools_health import replayt_echo, replayt_version_info
 from replayt_mcp_bridge.tools_persistence import persistence_list_run_events
-from replayt_mcp_bridge.observability import resolve_bridge_tool_timeout_seconds
+from replayt_mcp_bridge.observability import (
+    parse_default_run_events_max_count,
+    resolve_bridge_tool_timeout_seconds,
+)
 from replayt_mcp_bridge.tools_workflow import (
     runner_dry_run_plan,
     workflow_contract_snapshot,
@@ -143,6 +146,111 @@ def test_persistence_list_run_events_unmapped_exception_correlates_unhandled_log
     assert len(unhandled_cids) == 1
     assert begin_cids[0] == unhandled_cids[0]
     assert not end_seen
+
+
+def test_persistence_list_run_events_volume_limit_count_exceeded_correlates_logs(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    run_id = "volume-count-run"
+    big_list = [{"i": i} for i in range(5)]
+
+    def _many_events(self: JSONLStore, _rid: str) -> list[dict[str, object]]:
+        return big_list
+
+    monkeypatch.setattr(JSONLStore, "load_events", _many_events)
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+
+    out = asyncio.run(
+        persistence_list_run_events(
+            run_id=run_id,
+            store_hint=str(log_dir),
+            max_events=2,
+        )
+    )
+    assert out["status"] == "error"
+    assert out["tool"] == "persistence_list_run_events"
+    assert out["replayt_surface"] == "bridge_run_events_volume"
+    cid = out["correlation_id"]
+    assert isinstance(cid, str) and cid
+    assert "traceback" not in out
+    assert "5" in out["message"] and "2" in out["message"]
+
+    vol_cids: list[object] = []
+    for payload in _structured_log_payloads(caplog):
+        if payload.get("event") == "replayt_mcp_bridge.run_events.volume_limit":
+            vol_cids.append(payload.get("correlation_id"))
+            assert payload.get("reason") == "event_count"
+    assert vol_cids == [cid]
+
+    begin_cids = [
+        p.get("correlation_id")
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.tool.begin"
+        and p.get("tool") == "persistence_list_run_events"
+    ]
+    end_cids = [
+        p.get("correlation_id")
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.tool.end"
+        and p.get("tool") == "persistence_list_run_events"
+    ]
+    assert begin_cids == [cid]
+    assert end_cids == [cid]
+
+
+def test_persistence_list_run_events_volume_limit_encoded_bytes_exceeded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    run_id = "volume-bytes-run"
+    payload = [{"blob": "x" * 500}]
+
+    def _fat_events(self: JSONLStore, _rid: str) -> list[dict[str, object]]:
+        return payload
+
+    monkeypatch.setattr(JSONLStore, "load_events", _fat_events)
+    out = asyncio.run(
+        persistence_list_run_events(
+            run_id=run_id,
+            store_hint=str(log_dir),
+            max_total_bytes=80,
+        )
+    )
+    assert out["status"] == "error"
+    assert out["replayt_surface"] == "bridge_run_events_volume"
+    assert "UTF-8" in out["message"] or "bytes" in out["message"]
+    assert "traceback" not in out
+
+
+def test_persistence_list_run_events_invalid_max_events_param(
+    tmp_path: Path,
+) -> None:
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir()
+    out = asyncio.run(
+        persistence_list_run_events(
+            run_id="bad-param-run",
+            store_hint=str(log_dir),
+            max_events=0,
+        )
+    )
+    assert out["status"] == "error"
+    assert (
+        out["replayt_surface"]
+        == "EventStore.load_events (JSONL directory or SQLite file)"
+    )
+    assert "max_events" in out["message"]
+    assert "traceback" not in out
+
+
+def test_parse_default_run_events_max_count_invalid_env_falls_back(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT", "not-an-int")
+    assert parse_default_run_events_max_count() == 10_000
 
 
 def test_persistence_list_run_events_allowlist_sqlite_under_root(

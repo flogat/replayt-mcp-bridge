@@ -71,7 +71,7 @@ For **Define and enforce per-tool execution timeouts for replayt-backed handlers
 | `workflow_contract_snapshot` | `Workflow.contract()`, via `replayt.cli.targets.load_target` | Same **target** grammar as `replayt contract` / `replayt run` (e.g. `module.path:wf`, `workflow.py`). Returns `{ status, target, contract }` or `{ status: error, tool, replayt_surface, message }`. Subject to [Execution timeouts](#execution-timeouts). |
 | `workflow_graph_mermaid` | `replayt.graph_export.workflow_to_mermaid` | Aligns with `replayt graph` Mermaid output. Returns `{ status, target, mermaid }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
 | `runner_dry_run_plan` | `replayt run --dry-check` (graph validation + `validation_report`) | Validates graph and optional JSON strings without executing steps or writing logs. Returns `{ status: ok \| invalid, report }` matching `replayt.validate_report.v1`, or an error object. Optional `strict_graph` and `metadata_json` / `experiment_json` / `policy_hook_context_json` match the CLI `--dry-check` knobs; defaults and gaps are documented under [Dry-check parity specification (runner_dry_run_plan)](#dry-check-parity-specification-runner_dry_run_plan). Subject to [Execution timeouts](#execution-timeouts). |
-| `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a legacy filesystem path (JSONL **directory** or `.sqlite` / `.db` file per suffix heuristics), or an explicit typed hint (`file:…`, `jsonl-dir:…`, `jsonl:…`, `sqlite:…`—see [store_hint grammar](#store_hint-grammar)). Optional env **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (see [SECURITY.md](SECURITY.md)) restricts **explicit** `store_hint` paths to resolved locations under listed absolute roots. Optional **`event_fields`** (list of strings): when non-empty, each **object-shaped** event keeps **only those top-level keys** that exist on the event; omit, `null`, or **`[]`** means no MCP-level allowlist for that call (see [Field allowlist semantics](#field-allowlist-semantics)). Optional env **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** supplies a **default** comma-separated allowlist when **`event_fields`** is omitted or `null`; explicit **`event_fields: []`** overrides that default to “no allowlist.” Optional env **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy: **`1`**, **`true`**, **`yes`**, **`on`**) applies **`redact_structure`** **after** any top-level field selection. Default for existing callers remains full pass-through when those knobs are unset. Returns `{ status, run_id, event_count, events, store }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
+| `persistence_list_run_events` | `EventStore.load_events` on JSONL log dir or SQLite DB | `store_hint`: omit for project-resolved default log dir (`resolve_log_dir(DEFAULT_LOG_DIR)`), or pass a legacy filesystem path (JSONL **directory** or `.sqlite` / `.db` file per suffix heuristics), or an explicit typed hint (`file:…`, `jsonl-dir:…`, `jsonl:…`, `sqlite:…`—see [store_hint grammar](#store_hint-grammar)). Optional env **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (see [SECURITY.md](SECURITY.md)) restricts **explicit** `store_hint` paths to resolved locations under listed absolute roots. Optional **`event_fields`** (list of strings): when non-empty, each **object-shaped** event keeps **only those top-level keys** that exist on the event; omit, `null`, or **`[]`** means no MCP-level allowlist for that call (see [Field allowlist semantics](#field-allowlist-semantics)). Optional env **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** supplies a **default** comma-separated allowlist when **`event_fields`** is omitted or `null`; explicit **`event_fields: []`** overrides that default to “no allowlist.” Optional env **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy: **`1`**, **`true`**, **`yes`**, **`on`**) applies **`redact_structure`** **after** any top-level field selection. Default for existing callers remains full pass-through when those knobs are unset. **Volume limits** (max event count + compact JSON UTF-8 size on the post-`load_events` list, with env defaults and optional **`max_events`** / **`max_total_bytes`** per call) are enforced per [Run event volume limits](#run-event-volume-limits-backlog-spec) (`bridge_run_events_volume` on over-limit). Returns `{ status, run_id, event_count, events, store }` or an error object. Subject to [Execution timeouts](#execution-timeouts). |
 
 ## Input shapes (JSON Schema concepts)
 
@@ -142,12 +142,87 @@ This section refines **what “CLI parity” means** between the MCP tool and **
 | `run_id` | string | yes |
 | `store_hint` | string \| null | no (optional store path or typed hint for multi-backend setups; see [store_hint grammar](#store_hint-grammar)) |
 | `event_fields` | array of string \| null | no (default `null`; see [Field allowlist semantics](#field-allowlist-semantics) below) |
+| `max_events` | integer \| null | no (default `null`; see [Run event volume limits](#run-event-volume-limits-backlog-spec)) |
+| `max_total_bytes` | integer \| null | no (default `null`; see [Run event volume limits](#run-event-volume-limits-backlog-spec)) |
 
 ### Field allowlist semantics
 
 When **`event_fields`** is omitted or **`null`**, the bridge may still apply a **default** allowlist from **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (comma-separated top-level key names; see [SECURITY.md](SECURITY.md)). When **`event_fields`** is a **non-empty** array, those names are the allowlist for that call (**replacing** any env default). When **`event_fields`** is an **empty array** **`[]`**, no top-level allowlist is applied for that call (**overriding** an env default so integrators can still request full objects). Allowlisting applies only to **top-level** keys of **JSON object** events: each retained value (including nested objects) is left **unchanged**—secrets nested under an allowed key are **not** removed by this step. Non-object elements in **`events`** are returned unchanged. **`event_count`** remains the number of events loaded from the store, independent of filtering.
 
 **Optional result redaction (operator policy):** By default the tool returns **`events`** as replayt’s store provides them (no bridge-side key walk) unless **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** is truthy or an allowlist is in effect. When the process environment sets **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** to a truthy token (**`1`**, **`true`**, **`yes`**, **`on`**, case-insensitive), the handler runs **`redact_structure`** on the **`events`** list **after** any top-level field selection, replacing values under dict keys that match the same sensitive-key substring list as structured stderr logging (`redact_structure` in `observability.py`—e.g. `api_key`, `password`, `token`). Nested dicts and lists are walked; this is **not** a complete PII or secret guarantee for arbitrary event shapes.
+
+### Run event volume limits (backlog spec)
+
+**Backlog title:** **Define hard caps for `persistence_list_run_events` volume** — bound worst-case **MCP response size** and typical **in-process memory** for the materialized event list returned to clients. **Implementation status:** handlers enforce the contract below; see [CHANGELOG.md](../CHANGELOG.md) **Unreleased** and [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) (`test_persistence_list_run_events_volume_limit_*`).
+
+**Trust model:** Persistence paths and `run_id` values remain **operator-trusted** (see [MISSION.md § Security and trust boundaries](MISSION.md#security-and-trust-boundaries)). Caps are **resource-protection defaults**, not a substitute for host tool policy or replayt-side hardening against hostile stores.
+
+#### Caps (two independent axes)
+
+Both checks apply to the **same snapshot** of the list returned by **`EventStore.load_events(run_id)`** (after a successful load, **before** top-level field allowlisting and **before** optional redaction):
+
+1. **Event count** — `len(events)` **MUST NOT** exceed the effective **max events** limit.
+2. **Total encoded size** — Let **`encoded`** be the UTF-8 byte length of a **compact JSON** serialization of that list (implementation **MUST** use a deterministic rule equivalent to Python **`json.dumps(events, separators=(',', ':'), ensure_ascii=False)`** on the loaded objects, or document any deliberate deviation). **`encoded`** **MUST NOT** exceed the effective **max total bytes** limit.
+
+If **either** cap is exceeded, the tool **MUST NOT** return **`status: "ok"`** with a truncated list unless a **separate** backlog explicitly adopts partial-return semantics; today’s bar is a **hard stop** with a structured error.
+
+#### Built-in defaults (when env is unset or invalid)
+
+| Axis | Built-in default | Notes |
+| ---- | ---------------- | ----- |
+| Max events | **`10_000`** | Conservative for interactive MCP use; large legitimate runs require operator override. |
+| Max total bytes | **`33_554_432`** (32 MiB) | Bounds approximate JSON payload size to the MCP client for the **`events`** array. |
+
+Invalid or non-numeric env values **SHOULD** follow the same pattern as [Execution timeouts](#execution-timeouts): log a warning and fall back to the built-in default for that axis.
+
+#### Environment variables (read only in `observability.py`)
+
+| Variable | Semantics |
+| -------- | --------- |
+| **`REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_COUNT`** | Optional **integer**. When **unset**, empty, or **invalid**, use the built-in **10_000** default. When set to **`0`** or a **negative** integer, **disable** the event-count cap for the process (operator opt-out; document operational risk). When set to a **positive** integer, that value is the effective default **max events** unless a per-invocation tool parameter overrides it. |
+| **`REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES`** | Optional **integer**. When **unset**, empty, or **invalid**, use the built-in **32 MiB** default. When **`0`** or **negative**, **disable** the byte cap. When **positive**, that value is the effective default **max total bytes** unless a per-invocation tool parameter overrides it. |
+
+#### MCP tool parameters
+
+Optional **`max_events`** and **`max_total_bytes`** (JSON integers or `null`):
+
+- **`null`** (or omitted) — Use the effective limit from **env → built-in default** for that axis (after applying the disable rules above).
+- **Positive integer** — Overrides the env/default effective limit for **this invocation only** (allows a **tighter** or **looser** cap per call than the process default).
+- **Zero or negative** — **Invalid**; the tool **MUST** return a structured `{ "status": "error", … }` (no traceback in the dict) with a clear operational **`message`** (surface label below). **Do not** treat **`0`** on parameters as “unlimited” (unlimited remains **env-only**).
+
+#### Error shape when a cap trips
+
+The handler **MUST** return:
+
+- `status: "error"`
+- `tool: "persistence_list_run_events"`
+- `replayt_surface: "bridge_run_events_volume"`
+- `message` — Stable English text naming which limit failed (**event count** and/or **encoded size**), including the **effective limits** and, when practical, **observed** count and/or encoded size **without** embedding event bodies or large fragments.
+- `correlation_id` — Same contract as [Error response shape](#error-response-shape); **MUST** match structured stderr for the invocation.
+
+**MUST NOT:** Include a Python traceback in the returned dict for this mapped path.
+
+**Stderr (SHOULD):** Emit a structured JSON log line (for example `replayt_mcp_bridge.run_events.volume_limit`) with **`correlation_id`**, which cap tripped, and numeric limits—**without** logging raw events or client-controlled strings beyond what is already normal for this tool.
+
+#### Evaluation order and interaction with allowlist / redaction
+
+Volume checks run on the **loaded** list **before** **`event_fields`** / **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** filtering and **before** **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`**. Rationale: allowlisting could make a pathological run appear small on the wire while the process already paid decode/memory cost; the spec optimizes for **bounded handler work** on the materialized store output.
+
+#### Known limitation (replayt API)
+
+Today’s handler calls **`load_events`** and receives a full in-memory list. A **single** pathological event line could still stress memory **during** replayt’s load before these caps run. Closing that fully may require **upstream** replayt or store API support (streaming / per-line limits). After load, the bridge still enforces **count** and **encoded-size** caps on the materialized list so MCP responses and typical memory use stay bounded for **large numbers** of events.
+
+#### Pytest / CI bar (run event volume limits)
+
+1. **Over-limit fixture** — At least one test uses a **synthetic** JSONL (or SQLite, if simpler for the suite) store where **`load_events`** returns a list that **exceeds** the effective **max events** **or** produces an **`encoded`** length **above** the effective **max total bytes** (use **monkeypatch** on the store or handler boundary if that keeps CI deterministic).
+2. **Assertions** — `status == "error"`, `replayt_surface == "bridge_run_events_volume"`, **`correlation_id`** present, and **no** traceback payload in the returned dict (same style as other mapped errors in [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py)).
+3. **Optional** — Align stderr **`correlation_id`** with the tool result for the volume-limit path (covered by **`test_persistence_list_run_events_volume_limit_count_exceeded_correlates_logs`**).
+
+#### Backlog closure checklist
+
+- [x] Defaults (**10_000** events, **32 MiB** encoded), env vars, and tool parameters match this section and [SECURITY.md](SECURITY.md).
+- [x] Mapped failure row present in [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory).
+- [x] Pytest meets [Pytest / CI bar (run event volume limits)](#pytest--ci-bar-run-event-volume-limits) above.
 
 ### store_hint grammar
 
@@ -252,6 +327,8 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | `persistence_list_run_events` | SQLite path does not exist or is not a file | branch → `_tool_error` | same |
 | `persistence_list_run_events` | Store open / read failure | `OSError` from `_open_read_store` / `load_events` → `_tool_error` | same |
 | `persistence_list_run_events` | JSONL log file lock failure (contention / platform lock error) | `LogLockError` from `replayt.persistence.jsonl` during `load_events` on the JSONL store → `_tool_error` | `replayt.persistence.jsonl (JSONL log lock)` |
+| `persistence_list_run_events` | Loaded events exceed **volume limits** (count and/or encoded size) | Bridge branch after `load_events` → `_tool_error`; see [Run event volume limits](#run-event-volume-limits-backlog-spec) | `bridge_run_events_volume` |
+| `persistence_list_run_events` | Invalid **`max_events`** or **`max_total_bytes`** (for example **≤ 0** where the bridge validates before `load_events`) | Bridge validation → `_tool_error` | `EventStore.load_events (JSONL directory or SQLite file)` |
 
 **Outside `status: "error"`:** `runner_dry_run_plan` graph/input validation failures use **`status: "invalid"`** and a `replayt.validate_report.v1` object in **`report`** (replayt-owned semantics).
 
@@ -267,7 +344,7 @@ Handlers return plain dicts that the MCP SDK serializes as structured tool conte
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec)) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 
@@ -284,7 +361,7 @@ Tools that load workflow definitions or read event stores follow the **same trus
 | `workflow_contract_snapshot` | **Yes** (via `load_target`) | Can import modules and read workflow files the server user can access—equivalent to `replayt contract` target resolution. |
 | `workflow_graph_mermaid` | **Yes** (same as above) | Same target resolution as contract snapshot. |
 | `runner_dry_run_plan` | **Yes** (target + optional JSON strings: `inputs_json`, `metadata_json`, `experiment_json`, `policy_hook_context_json`, and `strict_graph`) | Same trust model as passing those flags to `replayt run --dry-check`: resolves the target, validates graph/text only; no workflow execution or log writes. |
-| `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns stored events **pass-through by default** (no top-level allowlist unless **`event_fields`**, **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`**, or redaction applies—see [Field allowlist semantics](#field-allowlist-semantics) and [SECURITY.md](SECURITY.md)). Integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** to limit **top-level** keys only; nested content under kept keys is unchanged. Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy values per [SECURITY.md](SECURITY.md)) so **`events`** are copied through **`redact_structure`** after any allowlist step. Explicit hints may be legacy paths or typed prefixes **`file:`** / **`jsonl-dir:`** / **`jsonl:`** / **`sqlite:`** (see [store_hint grammar](#store_hint-grammar)). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). |
+| `persistence_list_run_events` | **Yes** (`store_hint`, default log dir) | Read-only store access; returns stored events **pass-through by default** (no top-level allowlist unless **`event_fields`**, **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`**, or redaction applies—see [Field allowlist semantics](#field-allowlist-semantics) and [SECURITY.md](SECURITY.md)). Integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** to limit **top-level** keys only; nested content under kept keys is unchanged. Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy values per [SECURITY.md](SECURITY.md)) so **`events`** are copied through **`redact_structure`** after any allowlist step. Explicit hints may be legacy paths or typed prefixes **`file:`** / **`jsonl-dir:`** / **`jsonl:`** / **`sqlite:`** (see [store_hint grammar](#store_hint-grammar)). Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so explicit `store_hint` values outside configured roots are rejected with a structured error (default log-dir resolution when `store_hint` is omitted is unchanged). **Volume limits** (event count + compact JSON UTF-8 size after **`load_events`**, env + optional tool params, structured **`bridge_run_events_volume`** errors) are documented in [Run event volume limits](#run-event-volume-limits-backlog-spec) and enforced in **`tools_persistence.py`**. |
 
 The bridge does **not** add shell indirection for these parameters. **Operators** should assume any connected MCP client can invoke all registered tools with arbitrary arguments permitted by the schemas.
 
