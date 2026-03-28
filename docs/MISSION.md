@@ -78,12 +78,63 @@ listeners, authentication, and network exposure to a threat model that matches w
 effects (filesystem, network, subprocesses), and align exposure with organizational access policy.
 
 **Secrets:** Do not embed API keys, tokens, or private paths in code or committed defaults; document required environment
-variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below).
+variables and logging/redaction expectations for integrators in **[SECURITY.md](SECURITY.md)** (see also **LLM / demos** below). For **normative acceptance criteria** on spawning the bridge with a **minimal inherited environment** (high-assurance hosts), see [Minimal environment for high-assurance hosts (backlog spec)](#minimal-environment-for-high-assurance-hosts-backlog-spec) below; the shipped operator copy-of-record for examples and variable lists will live in **[SECURITY.md](SECURITY.md)** once implemented.
 
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent.
 
 **Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** (legacy path or optional typed `file:` / `jsonl-dir:` / `jsonl:` / `sqlite:` prefix per [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **pass-through by default**; integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (see [SECURITY.md](SECURITY.md)) to keep **only listed top-level keys** on each object-shaped event (**before** any optional redaction step). Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy per [SECURITY.md](SECURITY.md)) so the bridge applies key-based redaction to **`events`** on the MCP result. Top-level filtering does **not** remove nested secrets under retained keys unless redaction applies; payloads may still contain sensitive data—integrators should combine controls, restrict tool access, and read [ARCHITECTURE.md § Optional top-level event field allowlist](ARCHITECTURE.md#architecture-review-optional-top-level-event-field-allowlist) for layering. Expected failures map to structured `{ status: error, tool, replayt_surface, message, correlation_id }` objects without Python tracebacks in the return value for the covered paths; the same **`correlation_id`** appears in matching stderr logs—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). **Unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior when they fall **outside** the mapped inventory; stderr still records **`replayt_mcp_bridge.tool.unhandled_exception`** with the same **`correlation_id`** as **`tool.begin`** for operator triage—see [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions), [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk), and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping). For a line-by-line handler pass and residual risks, see [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) in [ARCHITECTURE.md](ARCHITECTURE.md).
+
+## Minimal environment for high-assurance hosts (backlog spec)
+
+**Backlog title:** **Publish minimal-environment invocation guidance for high-assurance hosts**
+
+**User story:** As a **security reviewer**, I want a **short, actionable pattern** for spawning the bridge with a **stripped environment** so **inherited provider keys**, **hook commands**, and **accidental secrets** are less likely to be visible to replayt code paths than when launching from a fat desktop shell.
+
+**Intent:** **Documentation-only** in this backlog: add a dedicated subsection to **[SECURITY.md](SECURITY.md)** (not a new top-level doc) and link it from the README **Security, secrets, and MCP hosting** block. The section teaches **process environment** hygiene; it does **not** change bridge code, env parsing, or MCP contracts.
+
+**Placement (normative for Builder):**
+
+- Add a new **`##`-level heading** in `docs/SECURITY.md` (suggested slug-friendly title: **Minimal environment inheritance** or equivalent). Place it **after** [Environment variables](SECURITY.md#environment-variables) (or immediately after its credential / proxy subsections) so readers already understand **`REPLAYT_*`**, **`REPLAYT_MCP_BRIDGE_*`**, and provider keys before seeing spawn recipes.
+- In [README.md](../README.md) under **## Security, secrets, and MCP hosting**, add **one sentence** plus an anchor link to that new heading (same style as existing `docs/SECURITY.md#mcp-tool-capability-tiers` links). The link **must** use a path under `docs/SECURITY.md` with the correct fragment for the chosen heading.
+
+**Content requirements (normative):**
+
+1. **State the trust surface in one place** — The Python process **inherits the full OS environment** (already stated elsewhere in SECURITY); restate briefly that **replayt** may read **hook argv** from env (commands or argv strings), **policy-hook JSON** from env, **provider / LLM** variables, and **standard credential names** (see [Credentials and LLM / API access (replayt)](SECURITY.md#credentials-and-llm--api-access-replayt) and `LLM_CREDENTIAL_ENV_VARS` in upstream **`replayt.security`**). **Bridge-owned** knobs remain **`REPLAYT_MCP_BRIDGE_*`** as in [Environment variables](SECURITY.md#environment-variables).
+2. **Hook-related replayt variables (must be named explicitly)** — The shipped doc **must** call out at least these **upstream** env vars (names only; do not paste real hook commands or secrets in examples):
+   - **`REPLAYT_RUN_HOOK`**, **`REPLAYT_RESUME_HOOK`**, **`REPLAYT_EXPORT_HOOK`**, **`REPLAYT_SEAL_HOOK`**, **`REPLAYT_VERIFY_SEAL_HOOK`** (hook argv sources per replayt **`run_support` / `config_cmd`**).
+   - Matching **`*_TIMEOUT`** siblings where replayt documents them (**`REPLAYT_RUN_HOOK_TIMEOUT`**, **`REPLAYT_RESUME_HOOK_TIMEOUT`**, **`REPLAYT_EXPORT_HOOK_TIMEOUT`**, **`REPLAYT_SEAL_HOOK_TIMEOUT`**, **`REPLAYT_VERIFY_SEAL_HOOK_TIMEOUT`**).
+   - **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`** and **`REPLAYT_POLICY_HOOK_NAME`** (policy-hook subprocess context).
+   - Cross-link or align with the existing short row for **`REPLAYT_POLICY_HOOK_CONTEXT_JSON`** and the ellipsis row for **`REPLAYT_RUN_HOOK`**, **`REPLAYT_RESUME_HOOK`**, … in the [Variables that commonly affect this bridge](SECURITY.md#variables-that-commonly-affect-this-bridge) table—avoid contradicting that table; extend it if the new section introduces additional names not already listed.
+3. **Two operator profiles** — Provide a **compact table or bullet lists** contrasting:
+   - **Local dev / full-fat shell** — Typical case: inherited desktop env; may include **`OPENAI_API_KEY`**, **`REPLAYT_PROVIDER`**, **`REPLAYT_MODEL`**, hooks, **`REPLAYT_LOG_DIR`**, etc.; acceptable when the MCP parent and workstation match the threat model.
+   - **Read-only introspection / high-assurance spawn** — Goal: run **`replayt_version_info`**, **`workflow_contract_snapshot`**, **`workflow_graph_mermaid`**, **`runner_dry_run_plan`**, and similar paths **without** LLM credentials and **without** hook commands in env. List categories of variables the operator **should unset or omit** (provider keys, hook argv, policy-hook JSON, optional proxy vars if egress must be denied) vs **minimal variables often still required** for a working **`python`** / **`PATH`** / **`HOME`** (or Windows equivalents) and any **explicit** `REPLAYT_MCP_BRIDGE_*` or **`REPLAYT_LOG_DIR`** the operator chooses to set. Call out that **exact minimal sets are OS- and install-dependent**—examples are illustrative.
+4. **POSIX example** — At least one **copy-paste-oriented** example using a **clean slate** pattern (e.g. `env -i` **or** `sudo -E` / systemd `Environment=` with an explicit allowlist—pick one primary pattern and explain it). Show passing **`PATH`** (and **`HOME`** if needed) so `python` resolves; show invoking **`python -m replayt_mcp_bridge`** or **`replayt-mcp-bridge`**. Use **placeholder** values only (`/usr/bin`, `/opt/venv/bin/python`, etc.).
+5. **Windows example** — At least one example for **cmd.exe** or **PowerShell** that achieves the **same intent** (replace inherited env with a small allowlist or clear sensitive names). Note **WSL** vs native Windows differences in one sentence if examples are POSIX-centric.
+6. **Honest limits (“does not fix”)** — A dedicated short subsection **must** state that stripping the environment **does not**:
+   - Remove **filesystem** access to secrets (**`.env`**, **`.replaytrc.toml`**, **`pyproject.toml`** `[tool.replayt]`, workflow files, JSONL/SQLite stores)—replayt and the bridge still read config from disk per project layout.
+   - Prevent **import-time** or **tool** side effects from a malicious **`target`** or readable workflow (same as [Security and trust boundaries](#security-and-trust-boundaries)).
+   - Replace **host-side tool policy**, **MCP client logging** controls, or **network** egress policy; combine with [Host-side partial tool exposure](SECURITY.md#host-side-partial-tool-exposure) and [MCP host and client logs](SECURITY.md#mcp-host-and-client-logs).
+   - Guarantee absence of secrets in **memory** if other processes share the address space or debuggers attach—scope is **inherited env of the child process**, not full OS isolation.
+
+**Original backlog acceptance criteria (traceability):**
+
+1. New subsection in **`docs/SECURITY.md`** linked from the README security callout.
+2. Explicitly calls out **hook-related replayt env vars** and **provider keys** as inherited trust surface.
+3. **No false claims** — states what stripping does **not** fix (e.g. filesystem access to **`.env`** files).
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** contains the new section with **POSIX** and **Windows** examples, the **two profiles**, **hook** and **credential** callouts, and the **does not fix** list above.
+2. **`README.md`** includes an anchor link to the new section from **## Security, secrets, and MCP hosting** (first ~45 lines remain consistent with [`tests/test_security_docs.py`](../tests/test_security_docs.py) expectations for SECURITY discoverability unless the test window is intentionally updated in the same change-set).
+3. **Wording** stays consistent with [Environment variables](SECURITY.md#environment-variables) (full inheritance, replayt + bridge vars).
+4. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when the user-facing doc ships (Builder commit); this spec-only phase does not require a changelog entry.
+
+**Implementation status:** **Not shipped** — spec recorded here for phase **3** (Builder).
+
+### Backlog traceability: “Publish minimal-environment invocation guidance for high-assurance hosts”
+
+**Close the tracker when:** the four bullets under **Acceptance criteria (refined, for implementation and review)** above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
 
 ## LLM / demos
 
