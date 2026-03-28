@@ -11,7 +11,10 @@ from typing import Any, Callable, TypeVar
 
 from mcp.server.fastmcp.utilities.context_injection import find_context_parameter
 
-from replayt_mcp_bridge.observability import emit_json_log
+from replayt_mcp_bridge.observability import (
+    emit_json_log,
+    maybe_redact_tool_error_message_for_mcp,
+)
 
 # Preserve pre-split logger namespace so stderr JSON and caplog tests stay aligned.
 logger = logging.getLogger("replayt_mcp_bridge.server")
@@ -147,7 +150,7 @@ def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, A
         "status": "error",
         "tool": tool,
         "replayt_surface": replayt_surface,
-        "message": message,
+        "message": maybe_redact_tool_error_message_for_mcp(message),
     }
     if cid is not None:
         out["correlation_id"] = cid
