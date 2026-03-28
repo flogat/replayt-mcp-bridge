@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- **Per-tool handler timeouts (spec)** — [docs/MCP_TOOLS.md](docs/MCP_TOOLS.md) restores the full tool catalog (replacing a stub checkpoint), adds a normative **Execution timeouts** section (per-tool env `REPLAYT_MCP_BRIDGE_TOOL_TIMEOUT_<TOOL>_SECONDS`, global fallback, built-in **300** s default, disable semantics, `bridge_timeout` shape, pytest bar), and extends [docs/SECURITY.md](docs/SECURITY.md) with timeout env table rows and an **availability / abuse** note. Implementation may still be partial versus this spec; see phase **2** handoff. [Backlog: Define and enforce per-tool execution timeouts for replayt-backed handlers]
+
 ### Fixed
 
 - **MCP stdio server** — `run_stdio()` uses the shared FastMCP app from `mcp_instance.py` (the object `tools_*` register on), so clients see the full tool list over stdio again.
