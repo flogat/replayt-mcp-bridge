@@ -236,6 +236,16 @@ On **mapped** operational failures, tools return a single string field **`messag
 
 The bridge **does not** promise **zero** disclosure of filesystem paths or operational strings across **all** replayt surfaces, **future** tools, **upstream** wording changes, or **unmapped** exception paths. Documentation here is meant to set **predictable expectations** for integrators, not to imply a blanket sanitization guarantee.
 
+### Operational mitigations (today)
+
+Without waiting for optional bridge **`message`** shaping, operators and integrators can reduce accidental disclosure:
+
+- **Host and client policy** — Restrict which principals may attach MCP clients; use host tool allowlists or gateways that **reject disallowed `tools/call` on the wire**, not only UI hiding—see [Host-side partial tool exposure](#host-side-partial-tool-exposure).
+- **Logging discipline** — Minimize MCP/protocol debug logs in shared pipelines; treat tool **results** (including structured errors) as sensitive—see [MCP host and client logs](#mcp-host-and-client-logs).
+- **Transcript hygiene** — Scrub or summarize **`message`** (and success payloads) before pasting into tickets, chat, or vendor support bundles.
+- **Operator triage** — Use **`correlation_id`** in the tool result to match **`replayt_mcp_bridge.tool.*`** lines on **stderr**; full stack traces for **unmapped** exceptions stay on stderr for the operator, not in the structured dict—see [Structured tool errors vs unhandled exceptions](#structured-tool-errors-vs-unhandled-exceptions).
+- **Pattern contrast** — **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** denials intentionally use **generic** **`message`** text; that pattern is **not** generalized to every mapped failure—see [Typical leak scenarios](#typical-leak-scenarios) item 3.
+
 ### Optional future hardening (spec — implement in a later phase)
 
 An **opt-in** **`REPLAYT_MCP_BRIDGE_*`** control (exact name and semantics **TBD** at implementation time) **may** apply **truncation or redaction** to **`message`** for **named** mapped error classes (for example path segments only, or a stable template per `replayt_surface`), with **default unset → current verbatim behavior** so automated clients stay backward compatible.
@@ -246,7 +256,7 @@ If shipped, maintainers **must**:
 - Add **pytest** that compares **off vs on** using a **controlled fixture** on a **stable** mapped branch (prefer bridge-owned validation text or a path fragment under **`tmp_path`**, not volatile upstream prose), proving **redacted/truncated** substrings when on and **raw** fragments when off.
 - Record user-visible behavior under [CHANGELOG.md](../CHANGELOG.md) **Unreleased**.
 
-Until that control exists, rely on **host policy**, **transcript filtering**, and **correlation_id** + **operator-only stderr** for full triage.
+Until that control exists, rely on **host policy**, **transcript filtering**, and **correlation_id** + **operator-only stderr** as described under [Operational mitigations (today)](#operational-mitigations-today).
 
 ## What must never be logged
 

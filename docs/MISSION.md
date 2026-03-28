@@ -177,6 +177,42 @@ dynamic code execution, or paths outside documented intent.
 
 **Close the tracker when:** the three **Acceptance criteria (refined, for implementation and review)** bullets above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
 
+## Path and detail disclosure in structured errors (backlog spec)
+
+**Backlog title:** **Tighten operator guidance on path and detail leakage in structured errors**
+
+**User story:** As an **integrator** sharing MCP transcripts, I want **predictable** handling of **filesystem paths** and **operational detail** inside `{ status: error, message }` so I can decide when to filter or upgrade trust boundaries.
+
+**Context:** [ARCHITECTURE.md](ARCHITECTURE.md) and handler code note that **`message`** may echo paths and replayt/Typer wording. **Full suppression** of that text would hurt operator debugging; this backlog documents behavior **honestly** and reserves an **opt-in** bridge knob (later phase) for **truncation or redaction** on **named** mapped error classes without breaking automated clients by default.
+
+**Intent:** **Mixed** — **primary:** normative **operator and integrator** documentation in **[SECURITY.md](SECURITY.md)** and cross-links from **[MCP_TOOLS.md](MCP_TOOLS.md)** / **[MISSION.md § Security and trust boundaries](#security-and-trust-boundaries)** / **[ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6)**. **Optional:** implement a documented **`REPLAYT_MCP_BRIDGE_*`** control (**default off**, verbatim **`message`** preserved) plus pytest proving **on vs off** on a **controlled** mapped fixture; record **CHANGELOG** **Unreleased** when that ships.
+
+**Placement (normative for Builder / doc drift):**
+
+- **Operator copy-of-record:** [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail) — sources table, leak scenarios, explicit **non-goal**, operational mitigations, and (until code ships) the **optional future hardening** paragraph for env-based **`message`** shaping.
+- **Integrator contract:** [MCP_TOOLS.md § Backlog spec: structured error `message` — path and detail disclosure](MCP_TOOLS.md#backlog-spec-structured-error-message--path-and-detail-disclosure) stays aligned with [Error response shape](MCP_TOOLS.md#error-response-shape).
+- **Layering / review:** [ARCHITECTURE.md § Security review (phase 6) — Information disclosure](ARCHITECTURE.md#security-review-phase-6) already points at the SECURITY section; update that sentence only if the disclosure story changes.
+
+**Original backlog acceptance criteria (traceability):**
+
+1. **SECURITY.md** section describes **what may appear** in **`message`** and **typical leak scenarios**.
+2. **If code changes:** **opt-in** flag or env **documented**; **tests** prove **truncated/redacted** vs **raw** paths (or other controlled substrings) for a **stable** mapped fixture.
+3. **No false promise** — documentation states there is **no guarantee of zero leakage** across **all** replayt surfaces, upstream wording, future tools, or **unmapped** exception paths.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** — The heading **`## Structured error messages: paths and operational detail`** (fragment **`#structured-error-messages-paths-and-operational-detail`**) includes: **(a)** a **sources** inventory (table or equivalent) tying **`message`** content to **replayt/Typer**, **bridge validation**, **`OSError`**, mapped **replayt** exceptions, **`replayt_doctor`** subprocess stderr, **`bridge_timeout`**, and explicit note that **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** does **not** rewrite error **`message`**; **(b)** **typical leak scenarios** (shared transcripts, multi-client visibility, contrast with **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** generic denials, **unhandled** / host-visible detail); **(c)** subsection **Explicit non-goal: zero leakage**; **(d)** subsection **Operational mitigations** describing what operators can do **without** new bridge code (host tool policy, logging discipline, transcript hygiene, **`correlation_id`** + stderr triage).
+2. **`docs/MCP_TOOLS.md`** — The backlog spec under **Backlog spec: structured error `message` — path and detail disclosure** matches SECURITY and states the **docs vs optional code** split; [Error response shape](MCP_TOOLS.md#error-response-shape) continues to treat **`message`** as **operator-visible free text** unless/until an opt-in control ships.
+3. **Optional contract test (recommended):** Extend [`tests/test_security_docs.py`](../tests/test_security_docs.py) so CI fails if the SECURITY heading or anchor text **Structured error messages: paths and operational detail** is removed (same spirit as host-side partial exposure coverage)—**Builder** may defer if maintainers prefer prose-only review for this item.
+4. **If optional code ships:** Document the **`REPLAYT_MCP_BRIDGE_*`** name beside other bridge knobs (**`observability.py`** or shared helper), **default unset → verbatim** **`message`**; list which **`replayt_surface`** labels or [Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory) rows participate; **pytest** asserts **off** shows a **known raw substring** (e.g. path fragment under **`tmp_path`**) and **on** removes or replaces it per spec—avoid asserting on volatile upstream English except in isolated replayt-version-pinned cases.
+5. **CHANGELOG** — Add an **Unreleased** bullet when **user-facing** doc changes ship in a releasable change-set; add another when a new env or CLI flag ships. **Spec-only** MISSION/MCP_TOOLS/SECURITY edits in workflow **phase 2** do not require a changelog entry by themselves (same bar as other backlog spec phases).
+
+**Implementation status:** **Documentation shipped** — [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail), integrator cross-links in [MCP_TOOLS.md](MCP_TOOLS.md) and [ARCHITECTURE.md](ARCHITECTURE.md), and the pointer in [Security and trust boundaries](#security-and-trust-boundaries) above. **Optional `message` redaction/truncation env** — **not shipped**; remains specified under SECURITY **Optional future hardening** until a Builder implements it.
+
+### Backlog traceability: “Tighten operator guidance on path and detail leakage in structured errors”
+
+**Close the tracker when:** bullets **1** and **2** under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied. Treat bullet **3** (contract test) as **recommended**. If the team ships optional **`message`** shaping, bullets **4** and **5** become **mandatory** for that change-set.
+
 ## Optional store path allowlisting for persistence reads (backlog spec)
 
 **Backlog title:** **Support optional store path allowlisting for persistence reads**
