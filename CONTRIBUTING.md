@@ -70,7 +70,7 @@ If your **org** disables Dependabot, replace it with an **equivalent** (for exam
 
 ## GitHub issues
 
-When reporting problems, use the **issue forms** under [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/) once they exist. Choose **bridge defect** vs **integration / host** per [docs/MISSION.md § GitHub issue templates](docs/MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports) so triage stays fast. Do **not** paste secrets, full env dumps, or raw tool traffic—see [docs/SECURITY.md](docs/SECURITY.md).
+When reporting problems, use the **issue forms** under [`.github/ISSUE_TEMPLATE/`](.github/ISSUE_TEMPLATE/). Choose **bridge defect** vs **integration / host** per [docs/MISSION.md § GitHub issue templates](docs/MISSION.md#github-issue-templates-integration-vs-bridge-defect-reports) so triage stays fast. Do **not** paste secrets, full env dumps, or raw tool traffic—see [docs/SECURITY.md](docs/SECURITY.md).
 
 ## MCP host snippets (`docs/MCP_HOST_CONFIG.md`)
 
