@@ -10,8 +10,9 @@ __pycache__/
 *.py[cod]
 *.egg-info/
 .eggs/
-dist/
-build/
+# Root-only (avoid hiding docs/examples/*/dist from Vite/Svelte/Vue builds)
+/dist/
+/build/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
@@ -32,3 +33,6 @@ venv/
 # Mis-placed alignment output (safety net if an agent writes at git root)
 alignment_result.json
 .alignment_result.json
+
+# Node / npm (nested examples or JS tooling)
+node_modules/

@@ -83,7 +83,7 @@ variables and logging/redaction expectations for integrators in **[SECURITY.md](
 **Inputs:** Validate and normalize tool arguments at this bridge’s boundary; avoid passing untrusted strings into shells,
 dynamic code execution, or paths outside documented intent. **`maxLength` / `maxItems` caps** for high-risk parameters are specified under [JSON-schema bounds on high-risk string tool parameters (backlog spec)](#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec) with integrator detail in [MCP_TOOLS.md § String parameter bounds (backlog spec)](MCP_TOOLS.md#string-parameter-bounds-backlog-spec); handlers and published tool schemas enforce the same numbers.
 
-**Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** (legacy path or optional typed `file:` / `jsonl-dir:` / `jsonl:` / `sqlite:` prefix per [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **pass-through by default**; integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (see [SECURITY.md](SECURITY.md)) to keep **only listed top-level keys** on each object-shaped event (**before** any optional redaction step). Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy per [SECURITY.md](SECURITY.md)) so the bridge applies key-based redaction to **`events`** on the MCP result. Top-level filtering does **not** remove nested secrets under retained keys unless redaction applies; payloads may still contain sensitive data—integrators should combine controls, restrict tool access, and read [ARCHITECTURE.md § Optional top-level event field allowlist](ARCHITECTURE.md#architecture-review-optional-top-level-event-field-allowlist) for layering. Expected failures map to structured `{ status: error, tool, replayt_surface, message, correlation_id }` objects without Python tracebacks in the return value for the covered paths; the same **`correlation_id`** appears in matching stderr logs—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). **Unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior when they fall **outside** the mapped inventory; stderr still records **`replayt_mcp_bridge.tool.unhandled_exception`** with the same **`correlation_id`** as **`tool.begin`** for operator triage—see [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions), [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk), and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping). For a line-by-line handler pass and residual risks, see [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) in [ARCHITECTURE.md](ARCHITECTURE.md).
+**Bridge tools (security review):** The current server uses **stdio only** (no bridge-owned network listener). Tool handlers do **not** spawn shells or pass arguments through a system shell; strings go to replayt APIs and `pathlib` as documented in [MCP_TOOLS.md](MCP_TOOLS.md). A **`target`** string has the **same implications as the replayt CLI** (`load_target`): it can cause **Python module import** and **workflow file reads** for paths the server process can access—treat it as **trusted operator input**, not anonymous MCP input. **`store_hint`** (legacy path or optional typed `file:` / `jsonl-dir:` / `jsonl:` / `sqlite:` prefix per [MCP_TOOLS.md](MCP_TOOLS.md#store_hint-grammar)) is resolved with `expanduser` and used for **read-only** JSONL directories or SQLite files; it can read any path the process may open, so scope who may attach MCP clients. Operators may set **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** so **explicit** `store_hint` values must resolve under listed absolute roots—see [SECURITY.md](SECURITY.md), [MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec), and [Optional store path allowlisting for persistence reads (backlog spec)](#optional-store-path-allowlisting-for-persistence-reads-backlog-spec). **`run_id`** is validated via replayt’s store helper before reads. **`persistence_list_run_events`** returns stored event JSON **pass-through by default**; integrators may pass **`event_fields`** or set **`REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`** (see [SECURITY.md](SECURITY.md)) to keep **only listed top-level keys** on each object-shaped event (**before** any optional redaction step). Operators may set **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** (truthy per [SECURITY.md](SECURITY.md)) so the bridge applies key-based redaction to **`events`** on the MCP result. Top-level filtering does **not** remove nested secrets under retained keys unless redaction applies; payloads may still contain sensitive data—integrators should combine controls, restrict tool access, and read [ARCHITECTURE.md § Optional top-level event field allowlist](ARCHITECTURE.md#architecture-review-optional-top-level-event-field-allowlist) for layering. Expected failures map to structured `{ status: error, tool, replayt_surface, message, correlation_id }` objects without Python tracebacks in the return value for the covered paths; the same **`correlation_id`** appears in matching stderr logs—see [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). The **`message`** string may embed **filesystem paths** and **replayt/Typer operational text** (not a traceback, but still a disclosure channel in transcripts)—see [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail). **Unhandled exceptions** from replayt or the workflow under inspection may still surface according to the MCP host/SDK behavior when they fall **outside** the mapped inventory; stderr still records **`replayt_mcp_bridge.tool.unhandled_exception`** with the same **`correlation_id`** as **`tool.begin`** for operator triage—see [SECURITY.md § Structured tool errors vs unhandled exceptions](SECURITY.md#structured-tool-errors-vs-unhandled-exceptions), [MCP_TOOLS.md § Backlog spec: narrower unhandled-error mapping](MCP_TOOLS.md#backlog-spec-narrower-unhandled-error-mapping-replayt-and-sdk), and [ARCHITECTURE.md § Architecture review: correlation IDs and narrower unhandled-error mapping](ARCHITECTURE.md#architecture-review-correlation-ids-and-narrower-unhandled-error-mapping). For a line-by-line handler pass and residual risks, see [Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6) in [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## Minimal environment for high-assurance hosts (backlog spec)
 
@@ -218,6 +218,87 @@ dynamic code execution, or paths outside documented intent. **`maxLength` / `max
 ### Backlog traceability: “Add JSON-schema bounds on high-risk string tool parameters”
 
 **Close the tracker when:** the five **Acceptance criteria (refined, for implementation and review — Builder / Tester)** bullets above hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree.
+
+## Path and detail disclosure in structured errors (backlog spec)
+
+**Backlog title:** **Tighten operator guidance on path and detail leakage in structured errors**
+
+**User story:** As an **integrator** sharing MCP transcripts, I want **predictable** handling of **filesystem paths** and **operational detail** inside `{ status: error, message }` so I can decide when to filter or upgrade trust boundaries.
+
+**Context:** [ARCHITECTURE.md](ARCHITECTURE.md) and handler code note that **`message`** may echo paths and replayt/Typer wording. **Full suppression** of that text would hurt operator debugging; this backlog documents behavior **honestly** and reserves an **opt-in** bridge knob (later phase) for **truncation or redaction** on **named** mapped error classes without breaking automated clients by default.
+
+**Intent:** **Mixed** — **primary:** normative **operator and integrator** documentation in **[SECURITY.md](SECURITY.md)** and cross-links from **[MCP_TOOLS.md](MCP_TOOLS.md)** / **[MISSION.md § Security and trust boundaries](#security-and-trust-boundaries)** / **[ARCHITECTURE.md § Security review (phase 6)](ARCHITECTURE.md#security-review-phase-6)**. **Optional:** implement a documented **`REPLAYT_MCP_BRIDGE_*`** control (**default off**, verbatim **`message`** preserved) plus pytest proving **on vs off** on a **controlled** mapped fixture; record **CHANGELOG** **Unreleased** when that ships.
+
+**Placement (normative for Builder / doc drift):**
+
+- **Operator copy-of-record:** [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail) — sources table, leak scenarios, explicit **non-goal**, operational mitigations, and (until code ships) the **optional future hardening** paragraph for env-based **`message`** shaping.
+- **Integrator contract:** [MCP_TOOLS.md § Backlog spec: structured error `message` — path and detail disclosure](MCP_TOOLS.md#backlog-spec-structured-error-message--path-and-detail-disclosure) stays aligned with [Error response shape](MCP_TOOLS.md#error-response-shape).
+- **Layering / review:** [ARCHITECTURE.md § Security review (phase 6) — Information disclosure](ARCHITECTURE.md#security-review-phase-6) already points at the SECURITY section; update that sentence only if the disclosure story changes.
+
+**Original backlog acceptance criteria (traceability):**
+
+1. **SECURITY.md** section describes **what may appear** in **`message`** and **typical leak scenarios**.
+2. **If code changes:** **opt-in** flag or env **documented**; **tests** prove **truncated/redacted** vs **raw** paths (or other controlled substrings) for a **stable** mapped fixture.
+3. **No false promise** — documentation states there is **no guarantee of zero leakage** across **all** replayt surfaces, upstream wording, future tools, or **unmapped** exception paths.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** — The heading **`## Structured error messages: paths and operational detail`** (fragment **`#structured-error-messages-paths-and-operational-detail`**) includes: **(a)** a **sources** inventory (table or equivalent) tying **`message`** content to **replayt/Typer**, **bridge validation**, **`OSError`**, mapped **replayt** exceptions, **`replayt_doctor`** subprocess stderr, **`bridge_timeout`**, and explicit note that **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** does **not** rewrite error **`message`**; **(b)** **typical leak scenarios** (shared transcripts, multi-client visibility, contrast with **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** generic denials, **unhandled** / host-visible detail); **(c)** subsection **Explicit non-goal: zero leakage**; **(d)** subsection **Operational mitigations** describing what operators can do **without** new bridge code (host tool policy, logging discipline, transcript hygiene, **`correlation_id`** + stderr triage).
+2. **`docs/MCP_TOOLS.md`** — The backlog spec under **Backlog spec: structured error `message` — path and detail disclosure** matches SECURITY and states the **docs vs optional code** split; [Error response shape](MCP_TOOLS.md#error-response-shape) continues to treat **`message`** as **operator-visible free text** unless/until an opt-in control ships.
+3. **Optional contract test (recommended):** Extend [`tests/test_security_docs.py`](../tests/test_security_docs.py) so CI fails if the SECURITY heading or anchor text **Structured error messages: paths and operational detail** is removed (same spirit as host-side partial exposure coverage)—**Builder** may defer if maintainers prefer prose-only review for this item.
+4. **If optional code ships:** Document the **`REPLAYT_MCP_BRIDGE_*`** name beside other bridge knobs (**`observability.py`** or shared helper), **default unset → verbatim** **`message`**; list which **`replayt_surface`** labels or [Mapped failure paths](MCP_TOOLS.md#mapped-failure-paths-exception--branch-inventory) rows participate; **pytest** asserts **off** shows a **known raw substring** (e.g. path fragment under **`tmp_path`**) and **on** removes or replaces it per spec—avoid asserting on volatile upstream English except in isolated replayt-version-pinned cases.
+5. **CHANGELOG** — Add an **Unreleased** bullet when **user-facing** doc changes ship in a releasable change-set; add another when a new env or CLI flag ships. **Spec-only** MISSION/MCP_TOOLS/SECURITY edits in workflow **phase 2** do not require a changelog entry by themselves (same bar as other backlog spec phases).
+
+**Implementation status:** **Documentation shipped** — [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail), integrator cross-links in [MCP_TOOLS.md](MCP_TOOLS.md) and [ARCHITECTURE.md](ARCHITECTURE.md), and the pointer in [Security and trust boundaries](#security-and-trust-boundaries) above. **Optional `message` redaction/truncation env** — **not shipped**; remains specified under SECURITY **Optional future hardening** until a Builder implements it.
+
+### Backlog traceability: “Tighten operator guidance on path and detail leakage in structured errors”
+
+**Close the tracker when:** bullets **1** and **2** under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied. Treat bullet **3** (contract test) as **recommended**. If the team ships optional **`message`** shaping, bullets **4** and **5** become **mandatory** for that change-set.
+
+## Optional store path allowlisting for persistence reads (backlog spec)
+
+**Backlog title:** **Support optional store path allowlisting for persistence reads**
+
+**User story:** As a **security-conscious deployer**, I want to restrict **`persistence_list_run_events`** to an operator-defined set of filesystem roots so a compromised or over-curious MCP client cannot probe arbitrary readable paths via **`store_hint`**.
+
+**Context:** Architecture security follow-up for multi-tenant or shared-host setups; complements host tool policy and other **`REPLAYT_MCP_BRIDGE_*`** persistence knobs ([SECURITY.md § MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers)).
+
+**Intent:** **Mixed** — bridge-owned **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** enforcement at the **`persistence_list_run_events`** boundary, operator documentation in **[SECURITY.md](SECURITY.md)**, integrator contract in **[MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec)**, layering notes in [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist), and **pytest** that proves both **allowed** and **denied** explicit hints using **temporary directories** (no reliance on host-global paths).
+
+**Design notes (normative):**
+
+1. **Default (unset / whitespace-only env)** — Behavior matches the **trusted-operator** model before this feature: explicit **`store_hint`** values are **not** restricted by the bridge beyond existing shape and resolution validation.
+2. **When configured** — **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** is a comma-separated list of **absolute** path entries (trimmed segments; **`~`** expansion allowed per root). Each root is resolved with **`Path.expanduser()`** and **`Path.resolve(strict=False)`** consistent with **`store_hint`** resolution. After **at least one** valid absolute root parses, every **explicit** **`store_hint`** on **`persistence_list_run_events`** must resolve to a filesystem path **equal to or under** one of those roots (**`Path.is_relative_to`**). **Omitted** **`store_hint`** (replayt default log directory via **`resolve_log_dir`**) is **not** checked against the list, so operators are not locked out when the default log tree sits outside listed roots.
+3. **Misconfiguration** — If the variable is **non-empty** but **no** usable absolute roots parse, explicit **`store_hint`** is **rejected** (fail-closed for hints).
+4. **Errors and leaks** — Rejections use the **existing structured tool error** shape (`status: "error"`, **`tool`**, **`replayt_surface`**, **`message`**, **`correlation_id`**) per [MCP_TOOLS.md § Error response shape](MCP_TOOLS.md#error-response-shape). **`message`** for allowlist denials **MUST NOT** embed the client-supplied hint string or resolved filesystem path. Structured stderr uses **`replayt_mcp_bridge.store_hint.rejected`** with **`reason`** **`outside_allowlist`** or **`allowlist_unusable`** and **MUST NOT** log the client hint or resolved path (see [SECURITY.md § Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`](SECURITY.md#examples-replayt_mcp_bridge_store_hint_roots)). **Residual:** successful responses may still expose **`store.path`** for **allowed** calls (existing persistence contract)—that is not a “partial leak” on denial paths.
+
+**Placement (normative for Builder / doc drift):**
+
+- **Operator copy-of-record:** [SECURITY.md § Environment variables](SECURITY.md#environment-variables) row for **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`**, examples under [Examples: `REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`](SECURITY.md#examples-replayt_mcp_bridge_store_hint_roots), and the persistence tier row in [MCP tool capability tiers](SECURITY.md#mcp-tool-capability-tiers).
+- **Integrator contract:** [MCP_TOOLS.md § Store hint path allowlist](MCP_TOOLS.md#store-hint-path-allowlist-backlog-spec) (cross-links SECURITY + error shape).
+- **Layering / review:** [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist).
+
+**Original backlog acceptance criteria (traceability):**
+
+- Documented environment variable or config mechanism with examples in **`docs/SECURITY.md`**.
+- Clear error when a hint resolves outside allowed roots (no partial leaks).
+- Pytest covers allowed vs denied paths using temporary directories.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** — Documents **`REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`** (syntax, semantics, omission of default **`store_hint`**, rejection logging policy, POSIX + Windows examples). **Contract:** [`tests/test_security_docs.py`](../tests/test_security_docs.py) continues to assert discoverability of the variable name where that test applies.
+2. **Structured errors** — Denials and unusable-root configuration return the structured error object with **generic** **`message`** text (no client hint or resolved path in **`message`**); stderr **`replayt_mcp_bridge.store_hint.rejected`** matches the SECURITY contract (reason codes; no path fields).
+3. **Pytest (required)** — At least **two** handler-level tests in **`tests/test_mcp_tools.py`** (or equivalent replayt-boundary module) using **`tmp_path`** / **`TemporaryDirectory`**:
+   - **Allowed:** explicit **`store_hint`** resolving **under** a configured root succeeds (existing SQLite-under-root coverage may satisfy this; JSONL-dir under root is an acceptable alternative or addition).
+   - **Denied:** explicit **`store_hint`** resolving **outside** all configured roots returns **`status: "error"`** and a **generic** **`message`** that does **not** contain a **distinctive probe substring** chosen for the test (e.g. a unique directory name under **`tmp_path`** only used for the denied hint).
+4. **Recommended further coverage (nice-to-have for Tester):** comma-separated **multiple** roots (hint under second root); **`allowlist_unusable`** when env is non-empty but no absolute roots parse; omitted **`store_hint`** still resolves when **`resolve_log_dir`** is monkeypatched to a path **outside** listed roots (documents bypass semantics).
+5. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when operator-visible behavior or docs for this backlog ship in a releasable change-set (typically Builder); spec-only MISSION/MCP_TOOLS/ARCHITECTURE edits in phase **2** do not require a changelog entry by themselves.
+
+**Implementation status:** **Shipped** — Enforcement, **SECURITY.md**, and integrator docs match the refined criteria. [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) covers an **allowed** explicit **`store_hint`** under a configured root (**`test_persistence_list_run_events_allowlist_sqlite_under_root`**), **denied** explicit hint outside roots with probe-safe **`message`** and stderr **`replayt_mcp_bridge.store_hint.rejected`** (**`test_persistence_list_run_events_allowlist_rejects_outside_root`**), comma-separated **second root** acceptance (**`test_persistence_list_run_events_allowlist_accepts_second_comma_separated_root`**), **`allowlist_unusable`** (**`test_persistence_list_run_events_allowlist_unusable_env_rejects_explicit_hint`**), and omitted **`store_hint`** allowlist bypass with monkeypatched **`resolve_log_dir`** (**`test_persistence_list_run_events_omitted_store_hint_bypasses_allowlist`**). [CHANGELOG.md](../CHANGELOG.md) **Unreleased** records workflow phase **3** test coverage. See [ARCHITECTURE.md § Architecture review: store_hint root allowlist](ARCHITECTURE.md#architecture-review-store-hint-root-allowlist) **Contract tests**.
+
+### Backlog traceability: “Support optional store path allowlisting for persistence reads”
+
+**Close the tracker when:** bullets **1–3** under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree (bullet **4** is recommended depth; bullet **5** when shipping user-facing changes).
 
 ## LLM / demos
 
@@ -536,21 +617,44 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 
 ## Windows CI runner (install and pytest smoke)
 
-**User story:** As a **Windows-first developer**, I want **CI** to prove **`pip install -e ".[dev]"`** and the **test suite** on a **Windows** image, because local docs already call out **WinError** and **`Scripts\`** edge cases for console scripts.
+**Backlog title:** **Run CI on Windows in addition to Ubuntu**
 
-**Intent:** Add **one** job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence and **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, entry points, and encoding issues common on Windows MCP hosts.
+**User story:** As a **contributor on Windows**, I want **CI** to exercise the **same install + test path** on **`windows-latest`** so **README** guidance on **venv** and **console scripts** stays honest.
 
-**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise.
+**Context:** [README.md](../README.md) documents Windows-specific **`pip`** / **`Scripts\`** pitfalls; the **Linux** job matrix does not substitute for native Windows path and entry-point behavior.
+
+**Intent:** Keep **one** lean job on **`windows-latest`** with **CPython 3.12**, matching the Linux **`test`** job’s **install → Ruff → `pytest -q -m "not network"`** sequence (same **`src`** / **`tests`** argv) and **`actions/setup-python`** **pip** cache keyed on **`pyproject.toml`**, so CI catches path separators, **`replayt-mcp-bridge`** / **`python -m`** entry points, and encoding issues common on Windows MCP hosts.
+
+**Non-goals:** No extra **Python** matrix on Windows (cost and complexity). **`replayt-floor`** and **`supply-chain`** stay **Linux-only** unless a new backlog says otherwise. **pip-audit** / **`supply-chain`** duplication on Windows is **out of scope** for this item (see [CI dependency vulnerability scanning (supply-chain)](#ci-dependency-vulnerability-scanning-supply-chain)).
+
+**Pytest on Windows (normative for Builder / Tester):**
+
+- The Windows job runs the **same** **`pytest -q -m "not network"`** collection as the default Linux **`test`** rows—**no** separate Windows-only “smoke subset” unless this section and **README** / **CONTRIBUTING** are updated together with maintainer rationale.
+- **No Windows-only skips** without **documentation**: if a test **must** be skipped on Windows, use **`@pytest.mark.skipif(sys.platform == "win32", reason="…")`** (or equivalent) with a **`reason`** that states **why** native Windows is unsupported for that case **and** add a **short** note under this section (or link a **tracking issue**). Prefer **fixing** the test or product path so the suite stays green on **`windows-latest`**.
+- **Allowed patterns today:** **Module-level** **`pytest.skip`** when **optional** MCP stdio client imports fail applies on **all** OSes, not Windows-specific. Tests that assert **console script** names may branch on **`sys.platform == "win32"`** for **`.exe`** (parity with packaging), which is **not** a skip.
 
 **Acceptance criteria (refined, for implementation and review):**
 
-1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (for example **`test-windows`**) on **`windows-latest`** with a single pinned minor (**3.12**).
-2. That job runs **`pip install -e ".[dev]"`**, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** on **`src`** / **`tests`** (same commands as the Linux **`test`** job), unless maintainers document a **deliberate** split with equivalent coverage.
-3. **`actions/setup-python`** enables **pip** caching with **`cache-dependency-path`** (or equivalent) tied to dependency metadata such as **`pyproject.toml`**.
-4. **README** and **CONTRIBUTING** state how the **Linux** matrix and the **Windows** job differ (runner label, Python minor, and that floor / supply-chain jobs are not duplicated on Windows).
-5. **Contract tests** (for example in **`tests/test_version_contract_docs.py`**) keep workflow labels, pinned minor, steps, and cache fields aligned with prose docs.
-6. If **Ruff** or **pytest** cannot run on Windows for a technical reason, record the **documented** exception and the substitute checks in this section and in contributor-facing docs.
+1. **[.github/workflows/ci.yml](../.github/workflows/ci.yml)** defines a dedicated Windows test job (**`test-windows`**) on **`windows-latest`** with **`python-version: "3.12"`** (single minor).
+2. That job runs, in order: **`pip install -e ".[dev]"`**, **`ruff check src tests`**, **`ruff format --check src tests`**, **`pytest -q -m "not network"`**—the **same** **run** lines as the Linux **`test`** job (aside from **`replayt-floor`**’s extra reinstall step, which the Windows job does **not** duplicate).
+3. **`actions/setup-python`** sets **`cache: pip`** and **`cache-dependency-path: pyproject.toml`** (or documented equivalent).
+4. **[README.md](../README.md)** and **[CONTRIBUTING.md](../CONTRIBUTING.md)** state how the **Linux** matrix and **`test-windows`** differ (**runner**, **Python** minor, and that **`replayt-floor`** / **`supply-chain`** are not duplicated on Windows), with a link to this section.
+5. **Regression guard** — [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py) **`test_ci_includes_windows_test_job`** (and related CI prose checks) stay aligned with **`test-windows`** (**`runs-on`**, pinned minor, step commands, pip cache fields). When the workflow changes, update **contract tests** in the **same** change-set.
+6. If **Ruff** or **pytest** cannot run on Windows for a **technical** reason, record the **documented** exception and substitute checks **here** and in contributor-facing docs **before** merging a job that would otherwise be red.
 7. **`replayt-floor`** and **`supply-chain`** are **not** required on the Windows job by default.
+
+**Implementation status (shipped):** **[`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** job **`test-windows`**; contributor copy in **README** / **CONTRIBUTING**; **`test_ci_includes_windows_test_job`** in **`tests/test_version_contract_docs.py`**.
+
+### Backlog traceability: “Run CI on Windows in addition to Ubuntu”
+
+**Original acceptance criteria:**
+
+- Workflow adds **`windows-latest`** coverage (**job** or **matrix include**) with **`pip install -e ".[dev]"`**, **Ruff**, **pytest**.
+- Document any **Windows-only** test skips with justification, or **eliminate** the need for skips.
+
+**Map to this section:** **`test-windows`** + **Pytest on Windows** policy above; **README** / **CONTRIBUTING** / **MISSION** (this heading).
+
+**Close the tracker when:** **(1–7)** under **Acceptance criteria (refined)** hold, the **two** **original** bullets remain satisfied, and **default branch CI** stays green (operational bar—see [CI and contributor automation](#ci-and-contributor-automation)).
 
 ## Python 3.13+ CI matrix (supported CPython line)
 
@@ -577,6 +681,58 @@ Each file MUST use GitHub’s issue-form syntax: top-level keys such as **`name`
 1. **Recorded findings** — Pass/fail summary against replayt **0.5.x** (exact version, wheel/sdist if relevant, date).
 2. **Change list** — Required code or documentation edits with **rough effort** and suggested order.
 3. **If widening the range** — Update **`pyproject.toml`**, **README** compatibility table, **`replayt-floor`** pin and job label in **CI**, **`test_version_contract_docs.py`** (`_EXPECTED_REPLAYT_SPEC`), prose in **DESIGN_PRINCIPLES** / **MCP_TOOLS** / **ARCHITECTURE** that quotes the range, optional **reference doc** refresh, and **CHANGELOG** migration text. Work may be **split across follow-up PRs**.
+
+## Replayt minor-line upgrade playbook (backlog spec)
+
+**Backlog title:** **Publish a replayt minor-line upgrade playbook before 0.5**
+
+**User story:** As a **maintainer**, I want a **short, ordered checklist** for changing the declared **`replayt`** range in **`pyproject.toml`** so **compatibility prose**, **CI floor pins**, **tool mapping docs**, **changelog**, and **contract tests** stay aligned when the next pre-1.0 minor line (for example **0.5.x**) is ready.
+
+**Intent:** **Documentation-first** in the satellite repo: surface an explicit procedure maintainers can follow for any **minor-line** (or breaking) range change, not only **0.5.x**. Optional **make target** or **script** is acceptable only if it matches existing repo conventions (for example **`scripts/run_ci_checks.py`**-style helpers); do not introduce new automation requirements in this backlog.
+
+**Placement (normative for Builder):**
+
+- Add a **maintainer-facing** subsection that contains the **ordered checklist** below. **Primary home:** either **`docs/MISSION.md`** (this section, promoted to operator copy-of-record after ship) **or** **[CONTRIBUTING.md](../CONTRIBUTING.md)** — pick **one** file for the full checklist prose so there is a single source of truth. The other location may hold a **one-line pointer** only.
+- **[README.md](../README.md)** — Under **## Compatibility with replayt**, add **at least one sentence** plus a **markdown link** to the checklist heading (repository-relative path, stable fragment).
+- **Wording** — Use neutral maintainer / integrator vocabulary only; **do not** name internal automation products or orchestration runbooks in committed markdown.
+
+**Ordered checklist (must appear verbatim as a numbered or tick-friendly list in the shipped doc):**
+
+Maintainers **must** walk these in order when changing the declared **`replayt`** dependency range (including raising the upper bound past **0.5** once the spike allows it):
+
+1. **Dependency specification** — Update the **`replayt`** line under **`[project].dependencies`** in **`pyproject.toml`** (keep PEP 440 shape and policy aligned with [DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md) § **replayt version contract**).
+2. **Compatibility table** — Refresh [README.md](../README.md) **## Compatibility with replayt**: repeat the **exact** dependency line from **`pyproject.toml`** and update the **Supported replayt (declared)** / **CI-tested replayt** table row for the bridge version when needed.
+3. **Changelog** — Add or extend an **[CHANGELOG.md](../CHANGELOG.md)** **Unreleased** bullet (or release section) describing the range change and any integrator-facing migration notes.
+4. **CI floor pin job** — Update [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) **`replayt-floor`**: the **`pip install --force-reinstall "replayt==…"`** pin **must** match the **new lower bound** parsed from **`pyproject.toml`**, and the job **`name:`** (or equivalent visible label) should remain accurate for operators reading workflow logs.
+5. **MCP_TOOLS mapping review** — Re-read [MCP_TOOLS.md](MCP_TOOLS.md) **Mapping: tool → replayt capability** (and any adjacent prose that quotes the supported range). Update rows or notes if upstream entry points, tool behavior, or version callouts change with the new replayt line.
+6. **Contract and schema tests** — Update [tests/test_version_contract_docs.py](../tests/test_version_contract_docs.py) **`_EXPECTED_REPLAYT_SPEC`** (and any related expectations if the spec string shape changes). Run **`pytest -q -m "not network"`** (and the same **Ruff** steps as CI). If replayt API shifts affect MCP tools, update or extend **handler / schema** tests (for example **`tests/test_mcp_tools.py`**) as needed so registered tool contracts stay truthful.
+
+**Strongly related (cross-check, not a substitute for the six steps):**
+
+- **0.5.x spike** — Before widening past **`<0.5`**, follow [REPLAYT_0_5_COMPATIBILITY_SPIKE.md](REPLAYT_0_5_COMPATIBILITY_SPIKE.md) and record outcomes there.
+- **Prose that quotes the range** — Sync [docs/DESIGN_PRINCIPLES.md](DESIGN_PRINCIPLES.md), [docs/ARCHITECTURE.md](ARCHITECTURE.md), and any other docs that embed the literal range string (contract tests already enforce several of these).
+- **Reference doc snapshots** — If project policy keeps [docs/reference-documentation/](reference-documentation/) in lockstep with the supported floor, run **`scripts/refresh_replayt_reference_docs.py`** when the floor or range policy changes.
+- **Contributor Releases blurb** — [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases** already lists **`pyproject.toml`**, **README**, **`replayt-floor`**, and **CHANGELOG**; keep that paragraph aligned with the checklist (no duplicate prose requirement unless the checklist lives outside **CONTRIBUTING**).
+
+**Original backlog acceptance criteria (traceability):**
+
+1. New section in **CONTRIBUTING** or **`docs/MISSION.md`**, linked from **README**.
+2. Checklist **explicitly** names: **dependency specification**, **compatibility table**, **changelog**, **CI floor pin job**, **MCP_TOOLS mapping review**, and **contract/schema tests** (the six bullets above use those names).
+3. **No** internal orchestration-product vocabulary in committed markdown for this deliverable.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **Single source of truth** — One of **`docs/MISSION.md`** or **`CONTRIBUTING.md`** contains the **full** ordered checklist (all six items, same intent as above); the other may only **link** to it.
+2. **README** — **## Compatibility with replayt** includes a **repository-relative** link to that checklist heading.
+3. **Vocabulary** — Checklist and links use **maintainer/integrator** language only (same bar as item **3** under **Original backlog acceptance criteria**).
+4. **Green tests** — After edits, **`ruff check`**, **`ruff format --check`**, and **`pytest -q -m "not network"`** pass; **`_EXPECTED_REPLAYT_SPEC`** matches **`pyproject.toml`** whenever the range changes.
+5. **Changelog** — When the user-facing playbook ships, add an **Unreleased** bullet in **[CHANGELOG.md](../CHANGELOG.md)** (Builder commit).
+
+**Implementation status:** **Shipped** — [README.md](../README.md) **## Compatibility with replayt**, [CONTRIBUTING.md](../CONTRIBUTING.md) § **Releases**, [CHANGELOG.md](../CHANGELOG.md) **Unreleased**, and [`tests/test_version_contract_docs.py`](../tests/test_version_contract_docs.py).
+
+### Backlog traceability: “Publish a replayt minor-line upgrade playbook before 0.5”
+
+**Close the tracker when:** the five bullets under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied.
 
 ## Audience
 

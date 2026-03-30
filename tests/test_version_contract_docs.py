@@ -351,6 +351,19 @@ def test_dependabot_yml_configures_github_actions_weekly_with_group() -> None:
     assert '"*"' in text or "'*'" in text
 
 
+_WINDOWS_CI_RUNNER_HEADING = "## Windows CI runner (install and pytest smoke)"
+
+
+def test_mission_windows_ci_runner_records_shipped_status_and_contract_test() -> None:
+    mission = MISSION_PATH.read_text(encoding="utf-8")
+    sec = mission.split(_WINDOWS_CI_RUNNER_HEADING, 1)[1].split(
+        "### Backlog traceability", 1
+    )[0]
+    assert "**Implementation status (shipped):**" in sec
+    assert "test-windows" in sec
+    assert "test_ci_includes_windows_test_job" in sec
+
+
 def test_mission_dependabot_section_records_shipped_status() -> None:
     mission = MISSION_PATH.read_text(encoding="utf-8")
     sec = mission.split("## Dependabot (or equivalent) for GitHub Actions pins", 1)[
@@ -368,3 +381,46 @@ def test_contributing_documents_dependabot_and_separates_pip_audit() -> None:
     assert "docs/MISSION.md#ci-dependency-vulnerability-scanning-supply-chain" in text
     assert "docs/DEPENDENCY_AUDIT.md" in text
     assert "pip-audit" in text
+
+
+_REPLAYT_MINOR_LINE_PLAYBOOK_HEADING = (
+    "## Replayt minor-line upgrade playbook (backlog spec)"
+)
+_REPLAYT_MINOR_LINE_PLAYBOOK_FRAGMENT = (
+    "docs/MISSION.md#replayt-minor-line-upgrade-playbook-backlog-spec"
+)
+
+
+def test_mission_replayt_minor_line_upgrade_playbook_records_shipped_status() -> None:
+    mission = MISSION_PATH.read_text(encoding="utf-8")
+    sec = mission.split(_REPLAYT_MINOR_LINE_PLAYBOOK_HEADING, 1)[1].split(
+        "### Backlog traceability", 1
+    )[0]
+    assert "**Implementation status:** **Shipped**" in sec
+
+
+def test_mission_replayt_minor_line_upgrade_playbook_lists_ordered_checklist_items() -> (
+    None
+):
+    mission = MISSION_PATH.read_text(encoding="utf-8")
+    sec = mission.split(_REPLAYT_MINOR_LINE_PLAYBOOK_HEADING, 1)[1].split(
+        "### Backlog traceability", 1
+    )[0]
+    for label in (
+        "**Dependency specification**",
+        "**Compatibility table**",
+        "**Changelog**",
+        "**CI floor pin job**",
+        "**MCP_TOOLS mapping review**",
+        "**Contract and schema tests**",
+    ):
+        assert label in sec, (
+            f"docs/MISSION.md replayt minor-line playbook must retain checklist label {label!r}"
+        )
+
+
+def test_readme_and_contributing_link_mission_replayt_minor_line_playbook() -> None:
+    readme = README_PATH.read_text(encoding="utf-8")
+    contributing = CONTRIBUTING_PATH.read_text(encoding="utf-8")
+    assert _REPLAYT_MINOR_LINE_PLAYBOOK_FRAGMENT in readme
+    assert _REPLAYT_MINOR_LINE_PLAYBOOK_FRAGMENT in contributing
