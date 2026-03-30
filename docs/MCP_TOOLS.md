@@ -113,6 +113,8 @@ Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); ho
 
 **Goal:** Declare **`maxLength`**, **`maxItems`**, and per-element string caps so MCP hosts can pre-validate and the bridge rejects absurd inputs **before** `load_target`, persistence resolution, or large `json.loads` work.
 
+**Published schema contract:** “Published” means the schema the host receives from MCP **`tools/list`** (or SDK equivalents such as **`mcp.list_tools()`**), not only local annotations on Python callables. For bounded arrays, hosts **must** be able to observe both the array-level **`maxItems`** and the per-string-item **`maxLength`** in that emitted schema shape.
+
 **Tier A — path-like and target-resolution strings** (generous for deep filesystem paths, Windows prefixes, and `module.path:variable` targets):
 
 | Parameter | Tool(s) | `maxLength` (Unicode code points) | Notes |
@@ -147,14 +149,16 @@ Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); ho
 
 | Parameter | Tool | `maxItems` | Per-element `maxLength` | Notes |
 | --------- | ---- | ---------- | ------------------------ | ----- |
-| `input_overrides` | `replayt_doctor` | **128** | **8192** | Each entry becomes one CLI `--input`; empty strings **SHOULD** be rejected or ignored consistently with existing doctor mapping (Builder aligns with current handler). |
-| `event_fields` | `persistence_list_run_events` | **256** | **256** | Top-level JSON key names only; generous for real allowlists. |
+| `input_overrides` | `replayt_doctor` | **128** | **8192** | Each non-empty entry becomes one CLI `--input`; this backlog adds only size caps and does **not** introduce a new non-empty rule. |
+| `event_fields` | `persistence_list_run_events` | **256** | **256** | Top-level JSON key names only; generous for real allowlists. Caps do **not** imply uniqueness or case-folding. |
 
 **Omitted / null arguments:** Optional parameters that are **`null`** or omitted **do not** trigger length checks. Bounds apply when the value is a **non-null** string or a **present** list.
 
+**Array / edge semantics:** **`maxItems`** counts decoded list elements; per-element **`maxLength`** applies independently to each present string item. This backlog adds **upper bounds only**. It does **not** add new **`minLength`**, **`pattern`**, duplicate-rejection, or JSON-shape semantics; malformed JSON and other semantic validation remain tool-specific behavior after size checks pass.
+
 **Structured error on violation:** Return **`status: "error"`** with **`replayt_surface: "bridge_input_bounds"`** (stable label) plus **`tool`**, **`message`**, **`correlation_id`** per [Error response shape](#error-response-shape). **`message` MUST NOT** include the full client-supplied string.
 
-**Pytest bar (summary):** See [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec) — over-limit + at-least-one at-limit success, no traceback in returned dict. Coverage: [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) (`test_bridge_input_bounds_*`, `test_list_tools_input_schema_includes_string_bounds`).
+**Pytest bar (summary):** See [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec) — over-limit + at-least-one at-limit success, no traceback in returned dict, and at least one emitted-schema assertion for a bounded array (`maxItems` plus item `maxLength`). Coverage: [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) (`test_bridge_input_bounds_*`, `test_list_tools_input_schema_includes_string_bounds`).
 
 Per-tool **Input shapes** tables below remain authoritative for **types** and **required** flags; **numeric bounds** are defined in this subsection. Each subsection that lists string or list parameters **MUST** point here so limits do not drift.
 
