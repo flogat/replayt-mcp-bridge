@@ -304,6 +304,31 @@ Target loading, persistence validation, and store resolution failures return a J
 }
 ```
 
+### Backlog spec: structured error `message` — path and detail disclosure
+
+**Backlog title:** **Tighten operator guidance on path and detail leakage in structured errors.**
+
+**Integrator SSoT:** [SECURITY.md § Structured error messages: paths and operational detail](SECURITY.md#structured-error-messages-paths-and-operational-detail) — what may appear in **`message`**, typical leak scenarios, explicit **non-goal** (no zero-leakage promise across all replayt surfaces), **operational mitigations**, and optional future **`REPLAYT_MCP_BRIDGE_*`** **`message`** shaping.
+
+**Mission traceability:** [MISSION.md § Path and detail disclosure in structured errors (backlog spec)](MISSION.md#path-and-detail-disclosure-in-structured-errors-backlog-spec).
+
+**Shipped today (behavioral summary):** Mapped failures return **verbatim** `message` strings from replayt/Typer, bridge validation, `OSError` text, mapped replayt exceptions, or (for `replayt_doctor`) truncated subprocess stderr—see the SECURITY table. **`REPLAYT_MCP_BRIDGE_REDACT_RUN_EVENTS`** affects **`persistence_list_run_events`** **`events`** on success paths only; it **does not** sanitize structured error **`message`** today.
+
+**Original backlog acceptance criteria (traceability):**
+
+1. **SECURITY.md** describes what may appear in **`message`** and typical leak scenarios.
+2. **If code changes:** opt-in flag or env documented; tests prove truncated/redacted vs raw paths for a controlled fixture.
+3. **No promise** of zero leakage across all replayt surfaces.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **`docs/SECURITY.md`** — Meets the normative content bar in [MISSION.md § Path and detail disclosure in structured errors (backlog spec)](MISSION.md#path-and-detail-disclosure-in-structured-errors-backlog-spec) bullet **1** (sources inventory, leak scenarios, non-goal, operational mitigations).
+2. **This subsection** and [Error response shape](#error-response-shape) stay aligned: **`message`** is **free-form** and **client-visible** on mapped errors unless/until an opt-in control ships and is documented in the [environment variables](SECURITY.md#environment-variables) table.
+3. **Optional contract test** — [`tests/test_security_docs.py`](../tests/test_security_docs.py) may assert the SECURITY heading **Structured error messages: paths and operational detail** remains present (MISSION recommends; Builder discretion).
+4. **If optional `message` shaping ships** — Documented **`REPLAYT_MCP_BRIDGE_*`**, **default off**; pytest **off vs on** on a stable mapped branch; **CHANGELOG** **Unreleased** entry.
+
+**Implementation status:** **Documentation shipped** — SECURITY section + cross-links. **Optional `message` redaction/truncation** — **not shipped** (spec paragraph only).
+
 ### Specification: `correlation_id` (bounded structured errors backlog)
 
 **Goal:** MCP client authors can quote a single identifier when reporting issues; operators find the same value in **structured stderr logs** for that tool invocation—without putting tracebacks in the tool result.

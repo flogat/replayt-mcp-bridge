@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -168,6 +169,17 @@ def run_events_redaction_enabled() -> bool:
     if raw is None:
         return False
     return raw.strip().lower() in _RUN_EVENTS_REDACTION_TRUTHY
+
+
+def maybe_redact_tool_error_message_for_mcp(message: str) -> str:
+    """Return the string used for structured tool-error ``message`` fields sent to MCP clients.
+
+    Default is **verbatim** passthrough so automated clients stay backward compatible. An opt-in
+    ``REPLAYT_MCP_BRIDGE_*`` control for truncation or redaction may be layered here when specified
+    in SECURITY.md / MCP_TOOLS.md (see **Structured error messages: paths and operational detail**).
+    """
+
+    return message
 
 
 _DEFAULT_RUN_EVENTS_MAX_COUNT = 10_000

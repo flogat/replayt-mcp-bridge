@@ -9,6 +9,7 @@ from typing import Any, Awaitable, Callable, TypeVar
 
 from replayt_mcp_bridge.observability import (
     emit_json_log,
+    maybe_redact_tool_error_message_for_mcp,
     resolve_bridge_tool_timeout_seconds,
 )
 from replayt_mcp_bridge.tools_common import _tool_invocation_correlation_id
@@ -40,7 +41,7 @@ def _tool_error(
         "status": "error",
         "tool": tool,
         "replayt_surface": replayt_surface,
-        "message": message,
+        "message": maybe_redact_tool_error_message_for_mcp(message),
         "correlation_id": correlation_id,
         **extra,
     }
