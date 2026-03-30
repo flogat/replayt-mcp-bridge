@@ -6,7 +6,9 @@ import logging
 from typing import Any, Sequence
 
 from mcp.server.fastmcp import FastMCP
+from mcp.server.fastmcp.exceptions import ToolError
 from mcp.types import ContentBlock, Tool as MCPTool
+from pydantic import ValidationError as PydanticValidationError
 
 from replayt_mcp_bridge.observability import (
     DISABLE_DIAGNOSTIC_ECHO_TOOLS_ENV,
@@ -19,6 +21,8 @@ from replayt_mcp_bridge.tools_common import (
     _tool_error,
     _tool_invocation_correlation_id,
     logger,
+    stable_bounds_message,
+    validation_error_is_bounds_only,
 )
 
 
@@ -74,7 +78,47 @@ class BridgeFastMCP(FastMCP):
                 return out
             finally:
                 _tool_invocation_correlation_id.reset(token)
-        return await super().call_tool(name, arguments)
+        try:
+            return await super().call_tool(name, arguments)
+        except ToolError as exc:
+            cause = exc.__cause__
+            if isinstance(
+                cause, PydanticValidationError
+            ) and validation_error_is_bounds_only(cause):
+                context = self.get_context()
+                correlation_id = _correlation_id_for_invocation(context)
+                log_fields: dict[str, Any] = {"correlation_id": correlation_id}
+                if context is not None:
+                    try:
+                        log_fields["mcp_request_id"] = context.request_id
+                    except ValueError:
+                        pass
+                token = _tool_invocation_correlation_id.set(correlation_id)
+                try:
+                    emit_json_log(
+                        logger,
+                        logging.INFO,
+                        "replayt_mcp_bridge.tool.begin",
+                        tool=name,
+                        **log_fields,
+                    )
+                    out = _tool_error(
+                        tool=name,
+                        replayt_surface="bridge_input_bounds",
+                        message=stable_bounds_message(cause),
+                    )
+                    emit_json_log(
+                        logger,
+                        logging.INFO,
+                        "replayt_mcp_bridge.tool.end",
+                        tool=name,
+                        status="error",
+                        **log_fields,
+                    )
+                    return out
+                finally:
+                    _tool_invocation_correlation_id.reset(token)
+            raise
 
 
 mcp = BridgeFastMCP("replayt-mcp-bridge")

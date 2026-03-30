@@ -10,6 +10,7 @@ import uuid
 from typing import Any, Callable, TypeVar
 
 from mcp.server.fastmcp.utilities.context_injection import find_context_parameter
+from pydantic import ValidationError as PydanticValidationError
 
 from replayt_mcp_bridge.observability import (
     emit_json_log,
@@ -155,3 +156,40 @@ def _tool_error(*, tool: str, replayt_surface: str, message: str) -> dict[str, A
     if cid is not None:
         out["correlation_id"] = cid
     return out
+
+
+_BOUNDS_PYDANTIC_TYPES = frozenset({"string_too_long", "too_long"})
+
+
+def validation_error_is_bounds_only(err: PydanticValidationError) -> bool:
+    errors = err.errors()
+    return bool(errors) and all(e.get("type") in _BOUNDS_PYDANTIC_TYPES for e in errors)
+
+
+def stable_bounds_message(err: PydanticValidationError) -> str:
+    parts: list[str] = []
+    for e in err.errors():
+        typ = e.get("type", "")
+        loc = e.get("loc", ())
+        param: str | None = None
+        for seg in loc:
+            if isinstance(seg, str) and seg != "body":
+                param = seg
+                break
+        if typ == "string_too_long":
+            parts.append(
+                f'Parameter "{param}" exceeds the maximum allowed length.'
+                if param
+                else "A string parameter exceeds the maximum allowed length."
+            )
+        elif typ == "too_long":
+            parts.append(
+                f'Parameter "{param}" exceeds the maximum allowed number of items.'
+                if param
+                else "A list parameter exceeds the maximum allowed number of items."
+            )
+        else:
+            parts.append("A parameter exceeds documented input bounds.")
+    if len(parts) == 1:
+        return parts[0]
+    return "Multiple parameters exceed documented input bounds."

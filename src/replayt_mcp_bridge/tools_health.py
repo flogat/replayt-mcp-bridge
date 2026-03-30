@@ -19,6 +19,12 @@ from replayt.cli.targets import load_target
 
 from . import installed_replayt_version, installed_replayt_version_tuple
 from .mcp_instance import mcp
+from .tools_bounds import (
+    EchoMessageStr,
+    InputOverridesOpt,
+    JsonBlobStrOpt,
+    TierAStringOpt,
+)
 from .tools_common import _log_replayt_tool_boundaries, _tool_error
 from .utils import with_timeout
 
@@ -82,7 +88,7 @@ def _parse_doctor_json(stdout_b: bytes) -> dict[str, Any] | None:
 
 @mcp.tool()
 @_log_replayt_tool_boundaries
-def replayt_echo(message: str) -> dict[str, str]:
+def replayt_echo(message: EchoMessageStr) -> dict[str, str]:
     """Echo a message back to the client."""
     return {"status": "ok", "echo": message}
 
@@ -103,11 +109,11 @@ def replayt_version_info() -> dict[str, Any]:
 @_log_replayt_tool_boundaries
 async def replayt_doctor(
     skip_connectivity: bool = True,
-    target: str | None = None,
+    target: TierAStringOpt = None,
     strict_graph: bool = False,
-    inputs_json: str | None = None,
-    inputs_file: str | None = None,
-    input_overrides: list[str] | None = None,
+    inputs_json: JsonBlobStrOpt = None,
+    inputs_file: TierAStringOpt = None,
+    input_overrides: InputOverridesOpt = None,
     ctx: Context | None = None,
 ) -> dict[str, Any]:
     """Run ``replayt doctor`` and return the JSON report (default skips connectivity probes)."""

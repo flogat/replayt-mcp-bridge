@@ -107,7 +107,64 @@ The bridge **does not** sandbox replayt. Handlers and any replayt **subprocess**
 
 Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); hosts receive JSON Schema derived from the Python signatures below.
 
+### String parameter bounds (backlog spec)
+
+**Backlog title:** **Add JSON-schema bounds on high-risk string tool parameters** — traceability and close-out checklist: [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec). **Implementation status:** **Shipped** (workflow phase **3** Builder); numeric limits below match [`tools_bounds.py`](../src/replayt_mcp_bridge/tools_bounds.py) and FastMCP-derived **`tools/list`** schemas.
+
+**Goal:** Declare **`maxLength`**, **`maxItems`**, and per-element string caps so MCP hosts can pre-validate and the bridge rejects absurd inputs **before** `load_target`, persistence resolution, or large `json.loads` work.
+
+**Published schema contract:** “Published” means the schema the host receives from MCP **`tools/list`** (or SDK equivalents such as **`mcp.list_tools()`**), not only local annotations on Python callables. For bounded arrays, hosts **must** be able to observe both the array-level **`maxItems`** and the per-string-item **`maxLength`** in that emitted schema shape.
+
+**Tier A — path-like and target-resolution strings** (generous for deep filesystem paths, Windows prefixes, and `module.path:variable` targets):
+
+| Parameter | Tool(s) | `maxLength` (Unicode code points) | Notes |
+| --------- | ------- | ----------------------------------- | ----- |
+| `target` | `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan` | **8192** | Above typical `PATH_MAX`-class limits; still bounded. |
+| `target` | `replayt_doctor` (optional) | **8192** | Same grammar as workflow tools when present. |
+| `store_hint` | `persistence_list_run_events` (optional) | **8192** | Includes typed prefixes (`file:`, `jsonl-dir:`, …) plus path text. |
+| `inputs_file` | `replayt_doctor` (optional) | **8192** | Filesystem path passed to subprocess argv. |
+
+**Tier B — identifiers:**
+
+| Parameter | Tool(s) | `maxLength` | Notes |
+| --------- | ------- | ----------- | ----- |
+| `run_id` | `persistence_list_run_events` | **1024** | Headroom beyond typical run id formats; replayt may still reject invalid ids first. |
+
+**Tier C — large JSON object text** (dry-check / doctor inputs; cap total paste size per field):
+
+| Parameter | Tool(s) | `maxLength` | Notes |
+| --------- | ------- | ----------- | ----- |
+| `inputs_json` | `runner_dry_run_plan`, `replayt_doctor` | **1_048_576** (1 MiB) | JSON **text**; malformed JSON remains replayt’s `invalid` / error story **after** length passes. |
+| `metadata_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+| `experiment_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+| `policy_hook_context_json` | `runner_dry_run_plan` | **1_048_576** | Same as above. |
+
+**Tier D — diagnostic echo:**
+
+| Parameter | Tool | `maxLength` | Notes |
+| --------- | ---- | ----------- | ----- |
+| `message` | `replayt_echo` | **262_144** (256 KiB) | Large enough for integration tests; still caps accidental dumps. |
+
+**Tier E — string lists:**
+
+| Parameter | Tool | `maxItems` | Per-element `maxLength` | Notes |
+| --------- | ---- | ---------- | ------------------------ | ----- |
+| `input_overrides` | `replayt_doctor` | **128** | **8192** | Each non-empty entry becomes one CLI `--input`; this backlog adds only size caps and does **not** introduce a new non-empty rule. |
+| `event_fields` | `persistence_list_run_events` | **256** | **256** | Top-level JSON key names only; generous for real allowlists. Caps do **not** imply uniqueness or case-folding. |
+
+**Omitted / null arguments:** Optional parameters that are **`null`** or omitted **do not** trigger length checks. Bounds apply when the value is a **non-null** string or a **present** list.
+
+**Array / edge semantics:** **`maxItems`** counts decoded list elements; per-element **`maxLength`** applies independently to each present string item. This backlog adds **upper bounds only**. It does **not** add new **`minLength`**, **`pattern`**, duplicate-rejection, or JSON-shape semantics; malformed JSON and other semantic validation remain tool-specific behavior after size checks pass.
+
+**Structured error on violation:** Return **`status: "error"`** with **`replayt_surface: "bridge_input_bounds"`** (stable label) plus **`tool`**, **`message`**, **`correlation_id`** per [Error response shape](#error-response-shape). **`message` MUST NOT** include the full client-supplied string.
+
+**Pytest bar (summary):** See [MISSION.md § JSON-schema bounds on high-risk string tool parameters (backlog spec)](MISSION.md#json-schema-bounds-on-high-risk-string-tool-parameters-backlog-spec) — over-limit + at-least-one at-limit success, no traceback in returned dict, and at least one emitted-schema assertion for a bounded array (`maxItems` plus item `maxLength`). Coverage: [`tests/test_mcp_tools.py`](../tests/test_mcp_tools.py) (`test_bridge_input_bounds_*`, `test_list_tools_input_schema_includes_string_bounds`).
+
+Per-tool **Input shapes** tables below remain authoritative for **types** and **required** flags; **numeric bounds** are defined in this subsection. Each subsection that lists string or list parameters **MUST** point here so limits do not drift.
+
 ### `replayt_echo`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -118,6 +175,8 @@ Tools are registered with the official Python MCP SDK (`mcp.server.fastmcp`); ho
 No properties (empty object).
 
 ### `replayt_doctor`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -130,17 +189,23 @@ No properties (empty object).
 
 ### `workflow_contract_snapshot`
 
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
+
 | Property | Type | Required |
 | -------- | ---- | -------- |
 | `target` | string | yes |
 
 ### `workflow_graph_mermaid`
 
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
+
 | Property | Type | Required |
 | -------- | ---- | -------- |
 | `target` | string | yes |
 
 ### `runner_dry_run_plan`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -177,6 +242,8 @@ This section refines **what “CLI parity” means** between the MCP tool and **
 3. Pytest covers **at least one** knob that changes the outcome versus the default (`strict_graph=true` on a **trusted** two-state workflow file with no declared transitions; packaged `replayt_examples` targets in the supported range currently include transitions, so the contract test uses an on-disk `.py` workflow under `tmp_path`, same resolution path as `load_target` for files).
 
 ### `persistence_list_run_events`
+
+*Bounds:* [String parameter bounds (backlog spec)](#string-parameter-bounds-backlog-spec).
 
 | Property | Type | Required |
 | -------- | ---- | -------- |
@@ -382,6 +449,7 @@ These rows enumerate **mapped** routes to `{ "status": "error", … }` (includin
 | MCP tool(s) | Trigger | Mechanism | Typical `replayt_surface` (handler) |
 | ----------- | ------- | --------- | ------------------------------------- |
 | `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan`, `persistence_list_run_events`, `replayt_doctor` | Handler exceeds **bridge** wall-clock budget | `asyncio.wait_for` (or equivalent) → mapped timeout result; see [Execution timeouts](#execution-timeouts) | `bridge_timeout` |
+| `workflow_contract_snapshot`, `workflow_graph_mermaid`, `runner_dry_run_plan`, `persistence_list_run_events`, `replayt_doctor`, `replayt_echo` | String or list argument exceeds documented **maxLength** / **maxItems** ([String parameter bounds](#string-parameter-bounds-backlog-spec)) | FastMCP / Pydantic validates before the handler body; **`BridgeFastMCP.call_tool`** maps a **`ToolError`** whose cause is only Pydantic **`string_too_long`** or list **`too_long`** to **`_tool_error`** with a stable English **`message`** (no full argument echo); see [ARCHITECTURE.md](ARCHITECTURE.md) (**mcp_instance**) | `bridge_input_bounds` |
 | `workflow_contract_snapshot` | Bad or unresolvable **target** | `typer.BadParameter` from `replayt.cli.targets.load_target` → `_tool_error` | `Workflow.contract + replayt.cli.targets.load_target` |
 | `workflow_graph_mermaid` | Bad **target** | same | `replayt.graph_export.workflow_to_mermaid` |
 | `runner_dry_run_plan` | Bad **target** | same (`load_target` before validation) | `replayt run --dry-check / validate_workflow_graph + validation_report` |
@@ -414,7 +482,7 @@ Handlers return plain dicts that the MCP SDK serializes as structured tool conte
 
 - **`status: "ok"`** — Normal completion (`replayt_echo`, `replayt_version_info`, successful contract/graph/persistence reads, successful **`replayt_doctor`** JSON parse—including when **`doctor.healthy`** is **`false`**).
 - **`status: "invalid"`** — Used only by `runner_dry_run_plan` when the graph/inputs fail validation; the `report` field is a `replayt.validate_report.v1` object (same schema replayt uses for `--dry-check` style output).
-- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec), **`replayt_echo`** when the [diagnostic echo gate](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration) is on) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
+- **`status: "error"`** — Expected operational failures (bad target, bad `run_id`, missing store, I/O errors, JSONL **`LogLockError`** on the mapped path, **`persistence_list_run_events` volume limits** per [Run event volume limits](#run-event-volume-limits-backlog-spec), documented **input length / list-size** caps → **`bridge_input_bounds`** per [Mapped failure paths](#mapped-failure-paths-exception--branch-inventory), **`replayt_echo`** when the [diagnostic echo gate](#backlog-spec-optional-omission-of-diagnostic-echo-tools-from-registration) is on) using the error object above—including **`correlation_id`** on mapped paths per [Error response shape](#error-response-shape)—not a substitute for MCP transport errors; **unhandled** exceptions may still propagate per SDK/host behavior.
 
 For the **first end-to-end replayt milestone** (import + optional target resolution), see [MISSION.md § First replayt-backed tool calling](MISSION.md#first-replayt-backed-tool-calling-e2e-milestone).
 

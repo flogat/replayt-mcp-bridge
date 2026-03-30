@@ -4,8 +4,11 @@ import asyncio
 import json
 import logging
 from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock
 
 import pytest
+from mcp.types import TextContent
 from replayt import LogLockError
 from replayt.persistence import SQLiteStore
 from replayt.persistence.jsonl import JSONLStore
@@ -22,6 +25,12 @@ from replayt_mcp_bridge.observability import (
     parse_default_run_events_max_count,
     resolve_bridge_tool_timeout_seconds,
 )
+from replayt_mcp_bridge.mcp_instance import mcp
+from replayt_mcp_bridge.tools_bounds import (
+    LEN_JSON_BLOB,
+    LEN_RUN_ID,
+    LEN_TARGET_PATH,
+)
 from replayt_mcp_bridge.tools_workflow import (
     runner_dry_run_plan,
     workflow_contract_snapshot,
@@ -29,6 +38,20 @@ from replayt_mcp_bridge.tools_workflow import (
 )
 import replayt_mcp_bridge.tools_workflow as tools_workflow_mod
 from replayt_mcp_bridge.utils import with_timeout
+
+
+def _decode_mcp_tool_result(result: Any) -> dict[str, Any]:
+    if isinstance(result, dict):
+        return result
+    if isinstance(result, tuple) and len(result) == 2 and isinstance(result[1], dict):
+        return result[1]
+    if (
+        isinstance(result, (list, tuple))
+        and result
+        and isinstance(result[0], TextContent)
+    ):
+        return json.loads(result[0].text)
+    raise AssertionError(f"unexpected call_tool result type: {type(result)!r}")
 
 
 def test_replayt_echo() -> None:
@@ -594,3 +617,115 @@ def test_workflow_contract_snapshot_timeout_registered_tool_cooperative_delay(
     assert out["timeout_source"] == "global_env"
     assert out["timeout_seconds"] == 0.15
     assert "traceback" not in out
+
+
+def test_bridge_input_bounds_tier_a_over_limit_via_mcp() -> None:
+    out = _decode_mcp_tool_result(
+        asyncio.run(
+            mcp.call_tool(
+                "workflow_contract_snapshot",
+                {"target": "x" * (LEN_TARGET_PATH + 1)},
+            )
+        )
+    )
+    assert out["status"] == "error"
+    assert out["replayt_surface"] == "bridge_input_bounds"
+    assert out["tool"] == "workflow_contract_snapshot"
+    assert isinstance(out["correlation_id"], str) and out["correlation_id"]
+    assert "traceback" not in out
+    assert "target" in out["message"].lower()
+
+
+def test_bridge_input_bounds_json_blob_over_limit_via_mcp() -> None:
+    out = _decode_mcp_tool_result(
+        asyncio.run(
+            mcp.call_tool(
+                "runner_dry_run_plan",
+                {
+                    "target": "a",
+                    "inputs_json": "z" * (LEN_JSON_BLOB + 1),
+                },
+            )
+        )
+    )
+    assert out["status"] == "error"
+    assert out["replayt_surface"] == "bridge_input_bounds"
+    assert out["tool"] == "runner_dry_run_plan"
+    assert "correlation_id" in out
+    assert "traceback" not in out
+
+
+def test_bridge_input_bounds_tier_a_at_limit_success_via_mcp(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_load_target(t: str) -> Any:
+        assert len(t) == LEN_TARGET_PATH
+        wf = MagicMock()
+        wf.contract.return_value = {}
+        return wf
+
+    monkeypatch.setattr(tools_workflow_mod, "load_target", fake_load_target)
+    out = _decode_mcp_tool_result(
+        asyncio.run(
+            mcp.call_tool(
+                "workflow_contract_snapshot",
+                {"target": "y" * LEN_TARGET_PATH},
+            )
+        )
+    )
+    assert out["status"] == "ok"
+
+
+def test_bridge_input_bounds_correlates_tool_lifecycle_logs(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.INFO, logger="replayt_mcp_bridge.server")
+    out = _decode_mcp_tool_result(
+        asyncio.run(
+            mcp.call_tool(
+                "workflow_graph_mermaid",
+                {"target": "x" * (LEN_TARGET_PATH + 1)},
+            )
+        )
+    )
+    assert out["status"] == "error"
+    cid = out["correlation_id"]
+    begin = [
+        p
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.tool.begin"
+        and p.get("tool") == "workflow_graph_mermaid"
+    ]
+    end = [
+        p
+        for p in _structured_log_payloads(caplog)
+        if p.get("event") == "replayt_mcp_bridge.tool.end"
+        and p.get("tool") == "workflow_graph_mermaid"
+    ]
+    assert len(begin) == 1 and len(end) == 1
+    assert begin[0].get("correlation_id") == cid
+    assert end[0].get("correlation_id") == cid
+    assert end[0].get("status") == "error"
+
+
+def test_list_tools_input_schema_includes_string_bounds() -> None:
+    async def _run() -> None:
+        tools = await mcp.list_tools()
+        by_name = {t.name: t.inputSchema for t in tools}
+        wcs = by_name["workflow_contract_snapshot"]["properties"]["target"]
+        assert wcs["maxLength"] == LEN_TARGET_PATH
+        ple = by_name["persistence_list_run_events"]["properties"]
+        assert ple["run_id"]["maxLength"] == LEN_RUN_ID
+        ev = ple["event_fields"]["anyOf"][0]
+        assert ev["maxItems"] == 256
+        assert ev["items"]["maxLength"] == 256
+        rdr = by_name["runner_dry_run_plan"]["properties"]["inputs_json"]
+        branches = rdr.get("anyOf", [rdr])
+        max_lens = [
+            b["maxLength"]
+            for b in branches
+            if isinstance(b, dict) and b.get("type") == "string" and "maxLength" in b
+        ]
+        assert LEN_JSON_BLOB in max_lens
+
+    asyncio.run(_run())
