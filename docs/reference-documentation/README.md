@@ -34,6 +34,28 @@ Optional: pin a version explicitly (must be published on PyPI):
 python scripts/refresh_replayt_reference_docs.py --version 0.4.25
 ```
 
+Optional: if you already have a trusted local copy of the same replayt sdist, pass its SHA-256 so the refresh fails before extraction when PyPI returns different bytes:
+
+```bash
+python scripts/refresh_replayt_reference_docs.py --version 0.4.25 --expected-sha256 YOUR_SHA256_HEX
+```
+
+Use `--expected-sha256` when you want a fail-closed check during a refresh: for example, after downloading the release artifact through a channel you trust, or when another maintainer has already recorded the digest from a trusted local sdist. Leave the flag out when you just want today’s fetch-and-refresh behavior.
+
+Compute the digest from the raw `.tar.gz` bytes of a trusted local artifact, not from extracted files:
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import hashlib
+
+artifact = Path("dist/replayt-0.4.25.tar.gz")
+print(hashlib.sha256(artifact.read_bytes()).hexdigest())
+PY
+```
+
+This check does not create a new trust anchor. The refresh still trusts TLS to PyPI and whatever source you used for the expected digest. The flag only proves that the downloaded archive bytes match the digest you supplied.
+
 After upgrading the declared replayt range in `pyproject.toml`, run the script with a version inside the new range and update this README’s layout table if the snapshot path changes.
 
 ## Why this is optional

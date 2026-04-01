@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 import sys
@@ -37,6 +38,41 @@ def pypi_sdist_url(version: str) -> str:
             return str(item["url"])
     msg = f"No sdist URL found for replayt=={version}"
     raise SystemExit(msg)
+
+
+def normalize_expected_sha256(value: str) -> str:
+    normalized = value.strip().lower()
+    if not re.fullmatch(r"[0-9a-f]{64}", normalized):
+        msg = (
+            "Invalid --expected-sha256: expected exactly 64 hexadecimal characters"
+        )
+        raise SystemExit(msg)
+    return normalized
+
+
+def sha256_digest_hex(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def verify_expected_sha256(archive_bytes: bytes, expected_sha256: str | None) -> None:
+    if expected_sha256 is None:
+        return
+    actual_sha256 = sha256_digest_hex(archive_bytes)
+    if actual_sha256 != expected_sha256:
+        msg = (
+            "Downloaded replayt sdist SHA-256 mismatch: "
+            f"expected {expected_sha256}, got {actual_sha256}"
+        )
+        raise SystemExit(msg)
+
+
+def download_sdist_bytes(url: str) -> bytes:
+    try:
+        with urllib.request.urlopen(url, timeout=60) as resp:  # noqa: S310 - PyPI only
+            return resp.read()
+    except urllib.error.URLError as e:
+        print(f"Download failed: {e}", file=sys.stderr)
+        raise SystemExit(1) from e
 
 
 def extract_readme_license(archive_path: Path, dest: Path) -> None:
@@ -79,28 +115,35 @@ This mirror is maintained by **replayt-mcp-bridge** contributors for offline ref
     (dest / "ATTRIBUTION.md").write_text(body, encoding="utf-8")
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--version",
         help="replayt version to fetch (default: lower bound from pyproject.toml)",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--expected-sha256",
+        help="verify the downloaded replayt sdist against this SHA-256 before extract",
+    )
+    args = parser.parse_args(argv)
     root = repo_root()
     version = args.version or default_version_from_pyproject(root)
+    expected_sha256 = (
+        normalize_expected_sha256(args.expected_sha256)
+        if args.expected_sha256 is not None
+        else None
+    )
     pkg_url = pypi_sdist_url(version)
 
     dest = (
         root / "docs" / "reference-documentation" / "snapshots" / f"replayt-{version}"
     )
+    archive_bytes = download_sdist_bytes(pkg_url)
+    verify_expected_sha256(archive_bytes, expected_sha256)
 
     with tempfile.TemporaryDirectory() as tmp:
         tgz = Path(tmp) / f"replayt-{version}.tar.gz"
-        try:
-            urllib.request.urlretrieve(pkg_url, tgz)  # noqa: S310
-        except urllib.error.URLError as e:
-            print(f"Download failed: {e}", file=sys.stderr)
-            raise SystemExit(1) from e
+        tgz.write_bytes(archive_bytes)
         extract_readme_license(tgz, dest)
     write_attribution(dest, version)
     print(f"Updated {dest.relative_to(root)}")
