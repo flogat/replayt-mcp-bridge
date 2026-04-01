@@ -220,8 +220,8 @@ def parse_default_run_events_max_count() -> int | None:
 def parse_default_run_events_max_total_bytes() -> int | None:
     """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENTS_MAX_TOTAL_BYTES`` for ``persistence_list_run_events``.
 
-    Returns ``None`` when the aggregate-size cap is disabled (env **0** or negative). When unset, empty, or invalid,
-    returns the built-in default **32 MiB**. When set to a positive integer, returns that limit.
+    Returns ``None`` when the encoded-size cap is disabled (env **0** or negative). When unset, empty, or invalid,
+    returns the built-in default **32 MiB** (``33_554_432``). When set to a positive integer, returns that limit.
     """
 
     log = logging.getLogger("replayt_mcp_bridge")
@@ -246,74 +246,75 @@ def parse_default_run_events_max_total_bytes() -> int | None:
     return v
 
 
-_DEFAULT_RUN_EVENTS_REDACT_KEYS_RAW = "api_key,auth,bearer,cookie,credential,password,private_key,secret,token"
-_RUN_EVENTS_REDACT_KEYS_ENV = "REPLAYT_MCP_BRIDGE_RUN_EVENTS_REDACT_KEYS"
+def parse_default_run_event_field_allowlist() -> list[str] | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS`` for ``persistence_list_run_events``.
 
-
-def parse_run_events_redact_keys() -> tuple[str, ...]:
-    """Return the normalized top-level key markers used when redacting run-event payloads.
-
-    Defaults to ``api_key,auth,bearer,cookie,credential,password,private_key,secret,token`` when the env is unset or
-    blank. Tokens are lowercased, ``-`` becomes ``_``, empty entries are dropped, and duplicates are removed while
-    preserving order. If normalization removes every token from a non-empty env value, the built-in default applies.
+    Comma-separated **top-level** JSON object keys (trimmed; empty segments ignored). Returns ``None`` when unset,
+    whitespace-only, or no usable names after parsing—meaning **no** default field allowlist (full event objects).
+    Duplicate names are deduplicated in first-seen order.
     """
 
-    raw = os.environ.get(_RUN_EVENTS_REDACT_KEYS_ENV)
-    source = _DEFAULT_RUN_EVENTS_REDACT_KEYS_RAW if raw is None else raw
+    raw = os.environ.get("REPLAYT_MCP_BRIDGE_RUN_EVENT_FIELDS")
+    if raw is None:
+        return None
+    parts = [p.strip() for p in raw.split(",") if p.strip()]
+    if not parts:
+        return None
     seen: set[str] = set()
-    tokens: list[str] = []
-    for part in source.split(","):
-        marker = part.strip().lower().replace("-", "_")
-        if not marker or marker in seen:
+    out: list[str] = []
+    for p in parts:
+        if p not in seen:
+            seen.add(p)
+            out.append(p)
+    return out
+
+
+def parse_store_hint_allowlist_roots() -> list[Path] | None:
+    """Parse ``REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS`` for ``persistence_list_run_events``.
+
+    Returns:
+        ``None`` — allowlist not configured; explicit ``store_hint`` paths are not restricted by
+        this feature (normal validation still applies).
+        ``[]`` — the variable was set to a non-empty value but no usable absolute roots were
+        parsed; explicit ``store_hint`` is rejected.
+        Non-empty list — each path is a resolved absolute root; the resolved store path must be
+        equal to or under one of them (``Path.is_relative_to``).
+    """
+
+    raw = os.environ.get("REPLAYT_MCP_BRIDGE_STORE_HINT_ROOTS")
+    if raw is None:
+        return None
+    stripped = raw.strip()
+    if not stripped:
+        return None
+    roots: list[Path] = []
+    seen: set[str] = set()
+    for part in stripped.split(","):
+        seg = part.strip()
+        if not seg:
             continue
-        seen.add(marker)
-        tokens.append(marker)
-    if tokens:
-        return tuple(tokens)
-    if raw is not None:
-        return tuple(
-            part.strip()
-            for part in _DEFAULT_RUN_EVENTS_REDACT_KEYS_RAW.split(",")
-            if part.strip()
-        )
-    return ()
+        try:
+            r = Path(seg).expanduser().resolve(strict=False)
+        except (OSError, RuntimeError):
+            continue
+        if not r.is_absolute():
+            continue
+        key = os.path.normcase(str(r))
+        if key not in seen:
+            seen.add(key)
+            roots.append(r)
+    return roots
 
 
-def _default_log_dir() -> Path:
-    return Path.cwd() / ".logs"
+def configure_bridge_logging() -> None:
+    """Attach a stderr handler with message-only formatting for ``replayt_mcp_bridge``."""
 
-
-def resolve_log_dir() -> Path:
-    raw = os.environ.get("REPLAYT_LOG_DIR")
-    return Path(raw).expanduser() if raw else _default_log_dir()
-
-
-def _stderr_is_interactive() -> bool:
-    try:
-        return bool(sys.stderr.isatty())
-    except Exception:  # pragma: no cover - defensive for exotic stderr replacements
-        return False
-
-
-def configure_logging() -> logging.Logger:
-    log_dir = resolve_log_dir()
-    log_dir.mkdir(parents=True, exist_ok=True)
-
-    logger = logging.getLogger("replayt_mcp_bridge")
-    logger.setLevel(resolve_log_level_from_env())
-    logger.propagate = False
-
-    log_path = log_dir / "bridge.log"
-    formatter = logging.Formatter("%(message)s")
-    file_handler = logging.FileHandler(log_path, encoding="utf-8")
-    file_handler.setFormatter(formatter)
-
-    logger.handlers.clear()
-    logger.addHandler(file_handler)
-
-    if _stderr_is_interactive():
-        stderr_handler = logging.StreamHandler()
-        stderr_handler.setFormatter(formatter)
-        logger.addHandler(stderr_handler)
-
-    return logger
+    level = resolve_log_level_from_env()
+    root = logging.getLogger("replayt_mcp_bridge")
+    root.setLevel(level)
+    root.handlers.clear()
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setLevel(level)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    root.addHandler(handler)
+    root.propagate = False
