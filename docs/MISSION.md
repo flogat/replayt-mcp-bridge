@@ -736,6 +736,57 @@ Maintainers **must** walk these in order when changing the declared **`replayt`*
 
 **Close the tracker when:** the five bullets under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied.
 
+## Optional maintainer verification of reference sdist digest when refreshing docs (backlog spec)
+
+**Backlog title:** **Optional maintainer verification of reference sdist digest when refreshing docs**
+
+**User story:** As a **maintainer** running **`scripts/refresh_replayt_reference_docs.py`**, I want an **optional expected SHA-256** for the downloaded replayt **sdist** so a compromised or unexpected PyPI artifact fails closed **before extraction**.
+
+**Context:** The refresh script already limits tar handling to the shipped **`README.md`** and **`LICENSE`** files and avoids **`extractall`**. That protects the destination path, but it does **not** prove the downloaded archive is the artifact the maintainer intended to review. An explicit digest pin is a modest contributor-side supply-chain check for refreshes that happen outside CI.
+
+**Intent:** **Mixed** — add an **opt-in** digest check to [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py), document maintainer usage in either [`docs/reference-documentation/README.md`](reference-documentation/README.md) **or** [`CONTRIBUTING.md`](../CONTRIBUTING.md), keep [ARCHITECTURE.md](ARCHITECTURE.md) honest about the trust model, and cover **match** / **mismatch** with **pytest** using **local fixture bytes** (no PyPI required on the assertion path).
+
+**Placement (normative for Builder):**
+
+- **Script CLI:** [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py) gains a maintainer-facing optional flag **`--expected-sha256`** (exact spelling). A documented env alias is **optional**, not required for backlog closure; if one is added, the CLI flag **must win** when both are present.
+- **Maintainer copy-of-record:** add the full usage / trust / limitations prose under **How to refresh** in [`docs/reference-documentation/README.md`](reference-documentation/README.md) **or** in a dedicated maintainer subsection of [`CONTRIBUTING.md`](../CONTRIBUTING.md). Pick **one** file for the full explanation so there is a single source of truth; the other location may hold a short pointer only.
+- **Security / layering note:** keep [`docs/ARCHITECTURE.md`](ARCHITECTURE.md) **Reference documentation mirror** aligned with the shipped behavior and trust story (manual PyPI fetch, optional digest verification, residual trust in operator-selected digest source).
+
+**Verification semantics (normative):**
+
+1. **What is hashed** — The digest check applies to the **raw downloaded sdist file bytes** (the **`.tar.gz`** payload saved by the script), **not** to extracted files, tar member payloads, or an unpacked directory tree. Builder docs must say this explicitly so maintainers hash the same artifact the script checks.
+2. **Opt-in only** — If **`--expected-sha256`** is omitted (and any optional env alias is unset), the script keeps today’s behavior: fetch from PyPI, extract the allowed files, and write attribution. This backlog must **not** require digest pinning for every refresh.
+3. **Input shape** — The expected digest is a **SHA-256 hex string** for the archive bytes. The script **must** reject malformed values with a clear, non-zero failure that names the flag (and env alias, if implemented) rather than falling through to extraction.
+4. **Ordering / fail-closed** — When an expected digest is supplied, the script downloads the archive, computes **SHA-256**, compares it against the expected hex value, and **aborts before extraction or destination writes** on mismatch. Avoid partial refreshes: a mismatch must **not** create or overwrite `README.md`, `LICENSE`, or `ATTRIBUTION.md` under the snapshot directory.
+5. **Mismatch message** — The failure message must be clear for a maintainer at a terminal: it should say the sdist digest **did not match**, identify that the comparison was for the **downloaded replayt sdist**, and include the **expected** and **actual** digests (or clearly labeled equivalent wording). A traceback is not the intended UX for this path.
+6. **Trust limits** — Docs must state that the digest check only helps when the maintainer obtained the expected hash from a **trusted source outside the just-downloaded artifact**. It is **not** a replacement for TLS, careful review, or repository trust; if the maintainer copies the digest from the same compromised PyPI response or archive they are checking, the assurance gain is minimal.
+
+**Documentation requirements (normative):**
+
+1. **When to use it** — The chosen maintainer doc explains that the flag is recommended when refreshing a snapshot for a replayt floor/range change, when a reviewer wants a reproducible artifact check in addition to normal diff review, or when an organization already tracks approved release hashes.
+2. **How to compute the digest** — The same doc includes at least one **copy-paste** example for hashing a **trusted local artifact** into a SHA-256 hex string. A **Python stdlib** example is preferred because it is cross-platform; `sha256sum` / PowerShell examples are acceptable additions, not substitutes for clarity about the target bytes.
+3. **Limitations** — The doc must explicitly say the check verifies the **archive bytes only** and does **not** validate the contents against replayt’s Git tag, sign the artifact, or protect maintainers who choose an untrusted expected digest.
+
+**Original backlog acceptance criteria (traceability):**
+
+- CLI flag or documented env for expected digest; mismatch aborts with a clear message.
+- CONTRIBUTING or reference README explains when to use it and limitations (trust anchor is still TLS + operator).
+- Pytest covers match and mismatch using a tiny local fixture file if network in CI is undesirable.
+
+**Acceptance criteria (refined, for implementation and review — Builder / Tester):**
+
+1. **Script behavior** — [`scripts/refresh_replayt_reference_docs.py`](../scripts/refresh_replayt_reference_docs.py) accepts **`--expected-sha256`** in **`--help`** output, validates the value as SHA-256 hex, hashes the downloaded archive bytes, and exits **non-zero before extraction** when the digest mismatches or the supplied value is malformed. Omitted flag preserves current refresh behavior.
+2. **Maintainer docs** — Either [`docs/reference-documentation/README.md`](reference-documentation/README.md) **or** [`CONTRIBUTING.md`](../CONTRIBUTING.md) includes: **(a)** a refresh example using **`--expected-sha256`**; **(b)** guidance on **when** to use the flag; **(c)** a short **how to compute the digest from a trusted local artifact** example; **(d)** explicit limitations that the trust anchor is still **TLS + the operator’s digest source**. The other file may link to that section, but should not become a competing copy-of-record.
+3. **Pytest (required)** — [`tests/test_reference_documentation.py`](../tests/test_reference_documentation.py) or an equivalent reference-doc module adds **network-free** coverage using **tiny local fixture bytes** (temporary files or in-memory archive bytes written under **`tmp_path`** are acceptable):
+   - **Match:** exact expected digest succeeds and the refresh path continues to extraction / write behavior.
+   - **Mismatch:** different digest exits non-zero with a clear mismatch message and leaves the destination snapshot files absent or unchanged.
+4. **Recommended further coverage (nice-to-have for Tester):** malformed digest input (wrong length or non-hex); explicit assertion that the compared digest is for the **archive bytes** rather than extracted **`README.md`**; CLI precedence over any optional env alias if the Builder adds one.
+5. **Changelog** — Add an **Unreleased** bullet in [CHANGELOG.md](../CHANGELOG.md) when the maintainer-visible flag and docs ship in a releasable change-set (Builder commit).
+
+### Backlog traceability: “Optional maintainer verification of reference sdist digest when refreshing docs”
+
+**Close the tracker when:** bullets **1–3** under **Acceptance criteria (refined, for implementation and review)** hold **and** the three **Original backlog acceptance criteria** bullets remain satisfied in the tree. Treat bullet **4** as recommended depth and bullet **5** as required when the user-facing flag ships.
+
 ## Audience
 
 | Audience | Needs |
